@@ -103,7 +103,7 @@ body {
 }
 
 .sign-in_btn:hover {
-  background-color: #2e8b57;
+  background-color: #2e8b57
 }
 
 .note,
@@ -114,11 +114,11 @@ body {
   margin: 10px 0;
 }
 
-a {
+.loginContainer a, .registerContainer a {
   color: #008000;
   text-decoration: none;
 }
 
-a:hover {
+.loginContainer a:hover, .registerContainer a:hover {
   text-decoration: underline;
 }

@@ -12,9 +12,11 @@ const PORT = process.env.PORT || 5000;
 
 //Import Routes
 import authRoute from './src/route/authRoute.js';
+import userRoute from './src/route/userRoute.js';
 
 //Use Routes
 app.use('/api/auth', authRoute);
+app.use('/api/users', userRoute);
 
 //MongoDB connection
 mongoose

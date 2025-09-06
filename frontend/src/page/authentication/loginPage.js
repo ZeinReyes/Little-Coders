@@ -13,7 +13,7 @@ function Login() {
         e.preventDefault();
         try {
             const res = await loginService({ email, password });
-            login(res.data.user);
+            login(res.data.user, res.data.token);
             localStorage.setItem('token', res.data.token);
             navigate(res.data.user.role === 'admin' ? '/admin' : '/home');
         } catch (err) {

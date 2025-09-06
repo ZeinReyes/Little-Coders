@@ -1,28 +1,30 @@
-import { useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AuthContext } from '../../context/authContext';
+import { Outlet } from "react-router-dom";
+import Navbar from "../../component/adminNavbar";
+import Sidebar from "../../component/adminSidebar";
+import { useEffect, useState } from "react";
 
-function AdminPage() {
-    const { user, logout } = useContext(AuthContext);
-    const navigate = useNavigate();
+export default function AdminPage() {
+  const [adminName, setAdminName] = useState("");
 
-    const handleLogout = () => {
-        logout();
-        localStorage.removeItem('token');
-        navigate('/login');
-    };
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user")); 
+    if (user && user.name) {
+      setAdminName(user.name);
+    } else {
+      setAdminName("Admin");
+    }
+  }, []);
 
-    return (
-        <div className="d-flex flex-column justify-content-center align-items-center min-vh-100">
-            <h1>Admin Dashboard</h1>
-            <p>Name: {user?.name}</p>
-            <p>Role: {user?.role}</p>
+  return (
+    <div className="d-flex flex-column vh-100">
+      <Navbar adminName={adminName} />
 
-            <button className="sign-in_btn mt-3" onClick={handleLogout}>
-                Logout
-            </button>
+      <div className="d-flex flex-grow-1">
+        <Sidebar />
+        <div className="flex-grow-1 p-4 adminContent me-3">
+          <Outlet />
         </div>
-    );
+      </div>
+    </div>
+  );
 }
-
-export default AdminPage;
