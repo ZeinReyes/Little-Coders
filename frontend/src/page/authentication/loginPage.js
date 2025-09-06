@@ -92,7 +92,7 @@ function Login() {
                 </div>
 
                 <div className="my-2">
-                    <a href="/" className="note">
+                    <a href="/home" className="note">
                         Continue as Guest
                     </a>
                 </div>
