@@ -21,10 +21,6 @@ import ManageLesson from './page/admin/manageLesson';
 import AddMaterial from './page/admin/addMaterial';
 import AddActivity from './page/admin/addActivity';
 
-//Components
-import Navbar from "./component/adminNavbar";  
-import Sidebar from "./component/adminSidebar";
-
 //Others
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';

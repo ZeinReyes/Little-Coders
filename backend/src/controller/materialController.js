@@ -62,3 +62,24 @@ export const deleteMaterial = async (req, res) => {
     res.status(500).json({ message: "Error deleting material", error: err.message });
   }
 };
+
+export const updateMaterial = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, contents } = req.body;
+
+    const updated = await LessonMaterial.findByIdAndUpdate(
+      id,
+      { title, contents },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ message: "Material not found" });
+    }
+
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: "Error updating material", error: err.message });
+  }
+};

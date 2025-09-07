@@ -44,3 +44,27 @@ export const deleteActivity = async (req, res) => {
     res.status(500).json({ message: "Error deleting activity", error: err });
   }
 };
+
+export const updateActivity = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updated = await LessonActivity.findByIdAndUpdate(
+      id,
+      {
+        name: req.body.name,
+        instructions: req.body.instructions,
+        difficulty: req.body.difficulty,
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ message: "Activity not found" });
+    }
+
+    res.json(updated);
+  } catch (err) {
+    console.error("Error updating activity:", err);
+    res.status(500).json({ message: "Error updating activity", error: err.message });
+  }
+};

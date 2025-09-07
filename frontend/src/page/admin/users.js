@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { Modal, Button, Form } from "react-bootstrap";
+import DeleteConfirmModal from "../../component/deleteConfirmModal";
 
 function UsersList() {
   const [users, setUsers] = useState([]);
@@ -143,29 +144,13 @@ function UsersList() {
         </table>
       </div>
 
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
-        <Modal.Body className="text-center p-4">
-          <div className="mb-3">
-            <i className="bi bi-exclamation-triangle-fill text-danger fs-1"></i>
-          </div>
-          <h5 className="fw-bold">Are you sure?</h5>
-          <p className="text-muted">
-            This action cannot be undone. The user will be permanently removed.
-          </p>
-          <div className="d-grid gap-2 mt-4">
-            <Button variant="danger" size="lg" onClick={handleDelete}>
-              Delete User
-            </Button>
-            <Button
-              variant="outline-secondary"
-              size="lg"
-              onClick={() => setShowDeleteModal(false)}
-            >
-              Cancel
-            </Button>
-          </div>
-        </Modal.Body>
-      </Modal>
+      <DeleteConfirmModal
+        show={showDeleteModal}
+        onHide={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        title="Delete User"
+        message="This will permanently remove the user and its information."
+      />
 
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
         <Modal.Header closeButton>

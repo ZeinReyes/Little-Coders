@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Modal, Button } from "react-bootstrap";
+import DeleteConfirmModal from "../../component/deleteConfirmModal";
+import ViewModal from "../../component/viewModal";
+
 
 function LessonsList() {
   const [lessons, setLessons] = useState([]);
@@ -163,121 +165,61 @@ function LessonsList() {
         </table>
       </div>
 
-      {/* Delete Modal */}
-      <Modal
+      <DeleteConfirmModal
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
-        centered
-      >
-        <Modal.Body className="text-center p-4">
-          <div className="mb-3">
-            <i className="bi bi-exclamation-triangle-fill text-danger fs-1"></i>
-          </div>
-          <h5 className="fw-bold">Are you sure?</h5>
-          <p className="text-muted">
-            This action cannot be undone. The lesson will be permanently removed.
-          </p>
-          <div className="d-grid gap-2 mt-4">
-            <Button variant="danger" size="lg" onClick={handleDelete}>
-              Delete Lesson
-            </Button>
-            <Button
-              variant="outline-secondary"
-              size="lg"
-              onClick={() => setShowDeleteModal(false)}
-            >
-              Cancel
-            </Button>
-          </div>
-        </Modal.Body>
-      </Modal>
+        onConfirm={handleDelete}
+        title="Delete Lesson"
+        message="This will permanently remove the lesson and its contents."
+      />
 
-      <Modal
+      <ViewModal
         show={showViewModal}
         onHide={() => setShowViewModal(false)}
-        size="lg"
-        centered
+        title={<><i className="bi bi-journal-text me-2"></i>{selectedLesson?.title}</>}
       >
-        {selectedLesson && (
-          <>
-            <Modal.Header closeButton className="bg-primary text-white">
-              <Modal.Title>
-                <i className="bi bi-journal-text me-2"></i>
-                {selectedLesson.title}
-              </Modal.Title>
-            </Modal.Header>
+        <div className="mb-4">
+          <h6 className="text-uppercase text-muted fw-bold mb-2">Description</h6>
+          <p className="mb-0">{selectedLesson?.description}</p>
+        </div>
 
-            <Modal.Body className="p-4">
-              <div className="mb-4">
-                <h6 className="text-uppercase text-muted fw-bold mb-2">Description</h6>
-                <p className="mb-0">{selectedLesson.description}</p>
-              </div>
-
-              <div>
-                <h6 className="text-uppercase text-muted fw-bold mb-3">
-                  Lesson Contents
-                </h6>
-
-                {lessonContents.length > 0 ? (
-                  <div className="list-group list-group-flush">
-                    {lessonContents.map((item, idx) => (
-                      <div
-                        key={item._id}
-                        className="list-group-item border rounded mb-3 shadow-sm"
-                      >
-                        <div className="d-flex justify-content-between align-items-center">
-                          <h6 className="mb-0 fw-bold">
-                            {idx + 1}.{" "}
-                            {item.type === "material"
-                              ? `Material: ${item.title}`
-                              : `Activity: ${item.name}`}
-                          </h6>
-                          {item.type === "activity" && (
-                            <span
-                              className={`badge ${
-                                item.difficulty === "easy"
-                                  ? "bg-success"
-                                  : item.difficulty === "medium"
-                                  ? "bg-warning text-dark"
-                                  : "bg-danger"
-                              }`}
-                            >
-                              {item.difficulty}
-                            </span>
-                          )}
-                        </div>
-
-                        {item.type === "material" ? (
-                          <ul className="mt-2 mb-0 ps-3">
-                            {item.contents.map((c, i) => (
-                              <li key={i}>{c}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="mt-2 mb-0">
-                            <strong>Instructions:</strong> {item.instructions}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+        <div>
+          <h6 className="text-uppercase text-muted fw-bold mb-3">Lesson Contents</h6>
+          {lessonContents.length > 0 ? (
+            <div className="list-group list-group-flush">
+              {lessonContents.map((item, idx) => (
+                <div key={item._id} className="list-group-item border rounded mb-3 shadow-sm">
+                  <div className="d-flex justify-content-between align-items-center">
+                    <h6 className="mb-0 fw-bold">
+                      {idx + 1}. {item.type === "material" ? `Material: ${item.title}` : `Activity: ${item.name}`}
+                    </h6>
+                    {item.type === "activity" && (
+                      <span className={`badge ${
+                        item.difficulty === "easy"
+                          ? "bg-success"
+                          : item.difficulty === "medium"
+                          ? "bg-warning text-dark"
+                          : "bg-danger"
+                      }`}>
+                        {item.difficulty}
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-muted">No materials or activities yet.</p>
-                )}
-              </div>
-            </Modal.Body>
-
-            <Modal.Footer>
-              <Button
-                variant="outline-secondary"
-                onClick={() => setShowViewModal(false)}
-              >
-                Close
-              </Button>
-            </Modal.Footer>
-          </>
-        )}
-      </Modal>
+                  {item.type === "material" ? (
+                    <ul className="mt-2 mb-0 ps-3">
+                      {item.contents.map((c, i) => <li key={i}>{c}</li>)}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 mb-0"><strong>Instructions:</strong> {item.instructions}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted">No materials or activities yet.</p>
+          )}
+        </div>
+      </ViewModal>
     </div>
   );
 }
