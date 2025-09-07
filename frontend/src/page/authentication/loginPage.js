@@ -31,15 +31,12 @@ function Login() {
                 className="form_container w-full max-w-md p-6 rounded-lg shadow-md"
                 onSubmit={handleSubmit}
             >
-                {/* Logo */}
                 <img src="logo-gold.png" style={{ width: '100px' }} alt="Logo" />
 
-                {/* Header */}
                 <div className="title_container">
                     <p className="title">Login to your Account</p>
                 </div>
 
-                {/* Email Input */}
                 <div className="input_container">
                     <label className="input_label" htmlFor="email_field">
                         Email

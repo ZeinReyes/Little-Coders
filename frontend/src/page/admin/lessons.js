@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Modal, Button } from "react-bootstrap";
 
 function LessonsList() {
   const [lessons, setLessons] = useState([]);
   const [search, setSearch] = useState("");
-  const [showModal, setShowModal] = useState(false);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLessonId, setDeleteLessonId] = useState(null);
+
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedLesson, setSelectedLesson] = useState(null);
+  const [lessonContents, setLessonContents] = useState([]);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchLessons();
@@ -27,7 +34,7 @@ function LessonsList() {
 
   const confirmDelete = (id) => {
     setDeleteLessonId(id);
-    setShowModal(true);
+    setShowDeleteModal(true);
   };
 
   const handleDelete = async () => {
@@ -37,9 +44,39 @@ function LessonsList() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setLessons(lessons.filter((lesson) => lesson._id !== deleteLessonId));
-      setShowModal(false);
+      setShowDeleteModal(false);
     } catch (err) {
       console.error("Error deleting lesson:", err);
+    }
+  };
+
+  const handleView = async (lesson) => {
+    setSelectedLesson(lesson);
+
+    try {
+      const token = localStorage.getItem("token");
+      const [materialsRes, activitiesRes] = await Promise.all([
+        axios.get(
+          `http://localhost:5000/api/materials/lessons/${lesson._id}/materials`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        ),
+        axios.get(
+          `http://localhost:5000/api/activities/lessons/${lesson._id}/activities`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        ),
+      ]);
+
+      const merged = [
+        ...materialsRes.data.map((m) => ({ ...m, type: "material" })),
+        ...activitiesRes.data.map((a) => ({ ...a, type: "activity" })),
+      ].sort(
+        (a, b) => a.order - b.order || new Date(a.createdAt) - new Date(b.createdAt)
+      );
+
+      setLessonContents(merged);
+      setShowViewModal(true);
+    } catch (err) {
+      console.error("Error fetching lesson details:", err);
     }
   };
 
@@ -74,6 +111,7 @@ function LessonsList() {
               <th>ID #</th>
               <th>Title</th>
               <th>Description</th>
+              <th>Topics</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -85,12 +123,26 @@ function LessonsList() {
                   <td>{lesson.title}</td>
                   <td>{lesson.description}</td>
                   <td>
-                    <Link
-                      to={`/admin/lessons/edit/${lesson._id}`}
+                    {Object.entries(lesson.topics)
+                      .filter(([_, val]) => val)
+                      .map(([key]) => key)
+                      .join(", ") || "None"}
+                  </td>
+                  <td>
+                    <button
+                      className="btn btn-sm btn-info me-1"
+                      onClick={() => handleView(lesson)}
+                    >
+                      <i className="bi bi-eye"></i>
+                    </button>
+                    <button
                       className="btn btn-sm btn-warning me-1"
+                      onClick={() =>
+                        navigate(`/admin/lessons/edit/${lesson._id}`)
+                      }
                     >
                       <i className="bi bi-pencil"></i>
-                    </Link>
+                    </button>
                     <button
                       className="btn btn-sm btn-danger"
                       onClick={() => confirmDelete(lesson._id)}
@@ -102,7 +154,7 @@ function LessonsList() {
               ))
             ) : (
               <tr>
-                <td colSpan="4" className="text-center">
+                <td colSpan="5" className="text-center">
                   No lessons found.
                 </td>
               </tr>
@@ -111,8 +163,12 @@ function LessonsList() {
         </table>
       </div>
 
-      {/* Delete Confirmation Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+      {/* Delete Modal */}
+      <Modal
+        show={showDeleteModal}
+        onHide={() => setShowDeleteModal(false)}
+        centered
+      >
         <Modal.Body className="text-center p-4">
           <div className="mb-3">
             <i className="bi bi-exclamation-triangle-fill text-danger fs-1"></i>
@@ -128,12 +184,99 @@ function LessonsList() {
             <Button
               variant="outline-secondary"
               size="lg"
-              onClick={() => setShowModal(false)}
+              onClick={() => setShowDeleteModal(false)}
             >
               Cancel
             </Button>
           </div>
         </Modal.Body>
+      </Modal>
+
+      <Modal
+        show={showViewModal}
+        onHide={() => setShowViewModal(false)}
+        size="lg"
+        centered
+      >
+        {selectedLesson && (
+          <>
+            <Modal.Header closeButton className="bg-primary text-white">
+              <Modal.Title>
+                <i className="bi bi-journal-text me-2"></i>
+                {selectedLesson.title}
+              </Modal.Title>
+            </Modal.Header>
+
+            <Modal.Body className="p-4">
+              <div className="mb-4">
+                <h6 className="text-uppercase text-muted fw-bold mb-2">Description</h6>
+                <p className="mb-0">{selectedLesson.description}</p>
+              </div>
+
+              <div>
+                <h6 className="text-uppercase text-muted fw-bold mb-3">
+                  Lesson Contents
+                </h6>
+
+                {lessonContents.length > 0 ? (
+                  <div className="list-group list-group-flush">
+                    {lessonContents.map((item, idx) => (
+                      <div
+                        key={item._id}
+                        className="list-group-item border rounded mb-3 shadow-sm"
+                      >
+                        <div className="d-flex justify-content-between align-items-center">
+                          <h6 className="mb-0 fw-bold">
+                            {idx + 1}.{" "}
+                            {item.type === "material"
+                              ? `Material: ${item.title}`
+                              : `Activity: ${item.name}`}
+                          </h6>
+                          {item.type === "activity" && (
+                            <span
+                              className={`badge ${
+                                item.difficulty === "easy"
+                                  ? "bg-success"
+                                  : item.difficulty === "medium"
+                                  ? "bg-warning text-dark"
+                                  : "bg-danger"
+                              }`}
+                            >
+                              {item.difficulty}
+                            </span>
+                          )}
+                        </div>
+
+                        {item.type === "material" ? (
+                          <ul className="mt-2 mb-0 ps-3">
+                            {item.contents.map((c, i) => (
+                              <li key={i}>{c}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-2 mb-0">
+                            <strong>Instructions:</strong> {item.instructions}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted">No materials or activities yet.</p>
+                )}
+              </div>
+            </Modal.Body>
+
+            <Modal.Footer>
+              <Button
+                variant="outline-secondary"
+                onClick={() => setShowViewModal(false)}
+              >
+                Close
+              </Button>
+            </Modal.Footer>
+          </>
+        )}
       </Modal>
     </div>
   );

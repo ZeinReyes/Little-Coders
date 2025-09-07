@@ -60,7 +60,6 @@ function EditProfile() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // ✅ update AuthContext so UI refreshes with new info
       setUser(res.data.user);
 
       setMessage("Profile updated successfully!");
