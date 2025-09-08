@@ -98,7 +98,7 @@ function UsersList() {
         </Link>
       </div>
 
-      <div className="table-responsive bg-primary p-3 rounded">
+      <div className="table-responsive">
         <table className="table table-striped table-bordered bg-white rounded">
           <thead className="table-light">
             <tr>

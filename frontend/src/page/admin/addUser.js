@@ -31,8 +31,14 @@ function AddUser() {
   };
 
   return (
-    <div className="p-3">
-      <div className="bg-primary p-4 rounded">
+    <div className="p-2">
+      <div>
+        <Button
+              variant="outline-primary px-5 mb-3"
+              onClick={() => navigate("/admin/users")}
+            >
+              Back
+        </Button>
         <h3 className="text-white mb-3">Add New User</h3>
         <form
           onSubmit={handleSubmit}

@@ -40,7 +40,7 @@ function AddLesson() {
 
   return (
     <div className="p-3">
-      <div className="bg-primary p-4 rounded">
+      <div className="p-4">
         <h3 className="text-white mb-3">Add New Lesson</h3>
         <form
           onSubmit={handleSubmit}

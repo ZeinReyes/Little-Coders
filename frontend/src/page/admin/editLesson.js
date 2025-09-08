@@ -68,7 +68,7 @@ function EditLesson() {
 
   return (
     <div className="p-3">
-      <div className="bg-primary p-4 rounded">
+      <div className="p-4">
         <div className="d-flex justify-content-between align-items-center mb-3">
         <h3 className="text-white">Edit Lesson</h3>
         <Button className="btn btn-success"  onClick={() => navigate(`/admin/lessons/${id}/manage`)}>
