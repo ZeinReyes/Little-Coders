@@ -10,6 +10,8 @@ function AddLesson() {
     variables: false,
     operators: false,
     conditionals: false,
+    loops: false,      
+    functions: false, 
   });
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -113,6 +115,33 @@ function AddLesson() {
                 <label htmlFor="conditionals" className="form-check-label">
                   Conditionals
                 </label>
+                </div>
+              <div className="form-check">
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  id="loops"
+                  name="loops"
+                  checked={topics.loops}
+                  onChange={handleCheckboxChange}
+                />
+                <label htmlFor="loops" className="form-check-label">
+                  Loops
+                </label>
+                </div>
+              <div className="form-check">
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  id="functions"
+                  name="functions"
+                  checked={topics.functions}
+                  onChange={handleCheckboxChange}
+                />
+                <label htmlFor="functions" className="form-check-label">
+                  Functions
+                </label>
+                
               </div>
             </div>
           </div>

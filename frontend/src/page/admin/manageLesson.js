@@ -5,6 +5,8 @@ import axios from "axios";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import DeleteConfirmModal from "../../component/deleteConfirmModal";
 import ViewModal from "../../component/viewModal";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 
 function ManageLesson() {
   const { id } = useParams();
@@ -95,22 +97,26 @@ function ManageLesson() {
     }
   };
 
-  const confirmDelete = async () => {
-    if (!selectedItem) return;
-    try {
-      const token = localStorage.getItem("token");
-      const endpoint =
-        selectedItem.type === "material"
-          ? `http://localhost:5000/api/materials/${selectedItem._id}`
-          : `http://localhost:5000/api/activities/${selectedItem._id}`;
-      await axios.delete(endpoint, { headers: { Authorization: `Bearer ${token}` } });
-      fetchData();
-      setShowDeleteModal(false);
-      setSelectedItem(null);
-    } catch (err) {
-      console.error("Error deleting item:", err);
-    }
-  };
+ const confirmDelete = async () => {
+  if (!selectedItem) return;
+  try {
+    const token = localStorage.getItem("token");
+    const endpoint =
+      selectedItem.type === "material"
+        ? `http://localhost:5000/api/materials/${selectedItem._id}`
+        : `http://localhost:5000/api/activities/${selectedItem._id}`;
+
+    await axios.delete(endpoint, {
+  headers: { Authorization: `Bearer ${token}` },
+  data: { lessonId: id }, 
+});
+    fetchData();
+    setShowDeleteModal(false);
+    setSelectedItem(null);
+  } catch (err) {
+    console.error("Error deleting item:", err.response?.data || err.message);
+  }
+};
 
   const handleView = (item) => {
     setSelectedItem(item);
@@ -119,18 +125,18 @@ function ManageLesson() {
 
   const handleEdit = (item) => {
     setSelectedItem(item);
-    setEditForm(
-      item.type === "material"
-        ? {
-            title: item.title || "",
-            contents: Array.isArray(item.contents) ? item.contents : [],
-          }
-        : {
-            name: item.name || "",
-            instructions: item.instructions || "",
-            difficulty: item.difficulty || "easy",
-          }
-    );
+   setEditForm(
+  item.type === "material"
+    ? {
+        title: item.title || "",
+        contents: typeof item.contents === "string" ? item.contents : (Array.isArray(item.contents) ? item.contents.join("<br/>") : ""),
+      }
+    : {
+        name: item.name || "",
+        instructions: item.instructions || "",
+        difficulty: item.difficulty || "easy",
+      }
+);
     setShowEditModal(true);
   };
 
@@ -143,13 +149,11 @@ function ManageLesson() {
           : `http://localhost:5000/api/activities/${selectedItem._id}`;
 
       const payload =
-        selectedItem.type === "material"
-          ? {
-              title: editForm.title?.trim() || "",
-              contents: (editForm.contents || [])
-                .map((c) => (c ?? "").trim())
-                .filter(Boolean),
-            }
+  selectedItem.type === "material"
+    ? {
+        title: editForm.title?.trim() || "",
+        contents: editForm.contents || "", 
+      }
           : {
               name: editForm.name?.trim() || "",
               instructions: editForm.instructions?.trim() || "",
@@ -256,20 +260,24 @@ function ManageLesson() {
         onHide={() => setShowViewModal(false)}
         title={selectedItem?.type === "material" ? selectedItem?.title : selectedItem?.name}
       >
-        {selectedItem?.type === "material" ? (
-          <ul>
-            {selectedItem?.contents?.map((c, i) => (
-              <li key={i}>{c}</li>
-            ))}
-          </ul>
-        ) : (
-          <>
-            <p><strong>Instructions:</strong> {selectedItem?.instructions}</p>
-            <span className="badge bg-secondary">
-              Difficulty: {selectedItem?.difficulty}
-            </span>
-          </>
-        )}
+       {selectedItem?.type === "material" ? (
+  <div
+  dangerouslySetInnerHTML={{
+    __html: selectedItem?.contents || "",
+  }}
+/>
+) : (
+  <>
+    <div
+      dangerouslySetInnerHTML={{
+        __html: selectedItem?.instructions || "",
+      }}
+    />
+    <span className="badge bg-secondary">
+      Difficulty: {selectedItem?.difficulty}
+    </span>
+  </>
+)}
       </ViewModal>
 
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg" centered>
@@ -291,39 +299,13 @@ function ManageLesson() {
                   />
                 </Form.Group>
 
-                <Form.Label className="fw-bold">Contents</Form.Label>
-                {(editForm.contents || []).map((content, index) => (
-                  <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                    <Form.Control
-                      type="text"
-                      value={content}
-                      onChange={(e) => {
-                        const newContents = [...editForm.contents];
-                        newContents[index] = e.target.value;
-                        setEditForm({ ...editForm, contents: newContents });
-                      }}
-                    />
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      onClick={() => {
-                        const newContents = editForm.contents.filter((_, i) => i !== index);
-                        setEditForm({ ...editForm, contents: newContents });
-                      }}
-                    >
-                      ✕
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={() =>
-                    setEditForm({ ...editForm, contents: [...(editForm.contents || []), ""] })
-                  }
-                >
-                  + Add Content
-                </Button>
+              <Form.Label className="fw-bold">Contents</Form.Label>
+<ReactQuill
+  theme="snow"
+  value={editForm.contents || ""}
+  onChange={(value) => setEditForm({ ...editForm, contents: value })}
+/>
+
               </>
             ) : (
               <>
@@ -336,14 +318,13 @@ function ManageLesson() {
                   />
                 </Form.Group>
                 <Form.Group className="mb-3">
-                  <Form.Label className="fw-bold">Instructions</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={4}
-                    value={editForm.instructions ?? ""}
-                    onChange={(e) => setEditForm({ ...editForm, instructions: e.target.value })}
-                  />
-                </Form.Group>
+  <Form.Label className="fw-bold">Instructions</Form.Label>
+  <ReactQuill
+    theme="snow"
+    value={editForm.instructions ?? ""}
+    onChange={(value) => setEditForm({ ...editForm, instructions: value })}
+  />
+</Form.Group>
                 <Form.Group>
                   <Form.Label className="fw-bold">Difficulty</Form.Label>
                   <Form.Select

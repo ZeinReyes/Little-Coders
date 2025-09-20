@@ -36,11 +36,14 @@ export default function AddMaterial() {
 
     try {
       const token = localStorage.getItem("token");
-      await axios.post(
-        `http://localhost:5000/api/materials/lessons/${id}/materials`,
-        { title: title.trim(), contents: cleaned },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+     await axios.post(
+  `http://localhost:5000/api/materials/lessons/${id}/materials`,
+  { 
+    title: title.trim(), 
+    contents: cleaned.join("<br/>")  
+  },
+  { headers: { Authorization: `Bearer ${token}` } }
+);
       navigate(`/admin/lessons/${id}/manage`);
     } catch (err) {
       setError(err.response?.data?.message || "Error adding material");

@@ -7,6 +7,8 @@ const lessonSchema = new mongoose.Schema({
     variables: { type: Boolean, default: false },
     operators: { type: Boolean, default: false },
     conditionals: { type: Boolean, default: false },
+    loops: { type: Boolean, default: false },
+    functions: { type: Boolean, default: false },
   },
 });
 

@@ -10,11 +10,20 @@ function EditLesson() {
   const [lesson, setLesson] = useState({
     title: "",
     description: "",
-    topics: { variables: false, operators: false, conditionals: false },
+    topics: {
+      variables: false,
+      operators: false,
+      conditionals: false,
+      loops: false,
+      functions: false,
+    },
   });
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  
+  const topicKeys = ["variables", "operators", "conditionals", "loops", "functions"];
 
   useEffect(() => {
     fetchLesson();
@@ -26,7 +35,18 @@ function EditLesson() {
       const res = await axios.get(`http://localhost:5000/api/lessons/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setLesson(res.data);
+
+     
+      const mergedTopics = topicKeys.reduce((acc, key) => {
+        acc[key] = res.data.topics?.[key] || false;
+        return acc;
+      }, {});
+
+      setLesson({
+        ...res.data,
+        topics: mergedTopics,
+      });
+
       setLoading(false);
     } catch (err) {
       console.error("Error fetching lesson:", err);
@@ -70,11 +90,15 @@ function EditLesson() {
     <div className="p-3">
       <div className="p-4">
         <div className="d-flex justify-content-between align-items-center mb-3">
-        <h3 className="text-white">Edit Lesson</h3>
-        <Button className="btn btn-success"  onClick={() => navigate(`/admin/lessons/${id}/manage`)}>
+          <h3 className="text-white">Edit Lesson</h3>
+          <Button
+            className="btn btn-success"
+            onClick={() => navigate(`/admin/lessons/${id}/manage`)}
+          >
             Manage Lesson
-        </Button>
+          </Button>
         </div>
+
         <Form onSubmit={handleSubmit} className="bg-white p-4 rounded shadow-sm">
           <Form.Group className="mb-3">
             <Form.Label>Lesson Title</Form.Label>
@@ -101,32 +125,18 @@ function EditLesson() {
 
           <Form.Group className="mb-3">
             <Form.Label>Topics</Form.Label>
-            <div className="form-check">
-              <Form.Check
-                type="checkbox"
-                label="Variables"
-                name="variables"
-                checked={lesson.topics.variables}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="form-check">
-              <Form.Check
-                type="checkbox"
-                label="Operators"
-                name="operators"
-                checked={lesson.topics.operators}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="form-check">
-              <Form.Check
-                type="checkbox"
-                label="Conditionals"
-                name="conditionals"
-                checked={lesson.topics.conditionals}
-                onChange={handleChange}
-              />
+            <div className="d-flex flex-wrap gap-3">
+              {topicKeys.map((topic) => (
+                <div className="form-check" key={topic}>
+                  <Form.Check
+                    type="checkbox"
+                    label={topic.charAt(0).toUpperCase() + topic.slice(1)}
+                    name={topic}
+                    checked={lesson.topics[topic]}
+                    onChange={handleChange}
+                  />
+                </div>
+              ))}
             </div>
           </Form.Group>
 

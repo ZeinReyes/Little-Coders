@@ -125,11 +125,11 @@ function LessonsList() {
                   <td>{lesson.title}</td>
                   <td>{lesson.description}</td>
                   <td>
-                    {Object.entries(lesson.topics)
-                      .filter(([_, val]) => val)
-                      .map(([key]) => key)
-                      .join(", ") || "None"}
-                  </td>
+                     {Object.entries(lesson.topics)
+                    .filter(([_, val]) => val)
+                    .map(([key]) => key.charAt(0).toUpperCase() + key.slice(1))
+                    .join(", ") || "None"}
+                </td>
                   <td>
                     <button
                       className="btn btn-sm btn-info me-1"
@@ -205,13 +205,24 @@ function LessonsList() {
                       </span>
                     )}
                   </div>
-                  {item.type === "material" ? (
-                    <ul className="mt-2 mb-0 ps-3">
-                      {item.contents.map((c, i) => <li key={i}>{c}</li>)}
-                    </ul>
-                  ) : (
-                    <p className="mt-2 mb-0"><strong>Instructions:</strong> {item.instructions}</p>
-                  )}
+                 {item.type === "material" ? (
+  <div
+    className="mt-2 mb-3"
+    dangerouslySetInnerHTML={{
+      __html: Array.isArray(item.contents)
+  ? item.contents.join("<br/>")
+  : (item.contents || ""),
+    }}
+  />
+) : (
+  <div
+    className="mt-2 mb-3"
+    dangerouslySetInnerHTML={{
+      __html: item.instructions || "",
+    }}
+  />
+)}
+
                 </div>
               ))}
             </div>
