@@ -3,7 +3,7 @@ import LessonMaterial from "../model/LessonMaterial.js";
 export const createMaterial = async (req, res) => {
   try {
     const { lessonId } = req.params;
-    const { title, contents } = req.body;
+    const { title, overview, contents } = req.body;
 
     const last = await LessonMaterial.find({ lessonId })
       .sort({ order: -1 })
@@ -13,6 +13,7 @@ export const createMaterial = async (req, res) => {
     const material = new LessonMaterial({
       lessonId,
       title,
+      overview,
       contents,
       order: nextOrder,
     });
@@ -36,7 +37,7 @@ export const getMaterialsByLesson = async (req, res) => {
 
 export const reorderMaterials = async (req, res) => {
   try {
-    const { materials } = req.body; 
+    const { materials } = req.body;
 
     await Promise.all(
       materials.map((m) =>
@@ -66,11 +67,11 @@ export const deleteMaterial = async (req, res) => {
 export const updateMaterial = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, contents } = req.body;
+    const { title, overview, contents } = req.body;
 
     const updated = await LessonMaterial.findByIdAndUpdate(
       id,
-      { title, contents },
+      { title, overview, contents },
       { new: true }
     );
 

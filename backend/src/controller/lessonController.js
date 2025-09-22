@@ -1,20 +1,12 @@
 import Lesson from "../model/Lesson.js";
-import LessonActivity from "../model/LessonActivity.js"
-import LessonMaterial from "../model/LessonMaterial.js"
-
-const topicKeys = ["variables", "operators", "conditionals", "loops", "functions"];
+import LessonActivity from "../model/LessonActivity.js";
+import LessonMaterial from "../model/LessonMaterial.js";
 
 export const createLesson = async (req, res) => {
   try {
-    const { title, description, topics = {} } = req.body;
+    const { title, description, topic } = req.body;
 
-    
-    const normalizedTopics = topicKeys.reduce((acc, key) => {
-      acc[key] = topics[key] || false;
-      return acc;
-    }, {});
-
-    const lesson = new Lesson({ title, description, topics: normalizedTopics });
+    const lesson = new Lesson({ title, description, topic });
     await lesson.save();
 
     res.status(201).json({ message: "Lesson added successfully", lesson });
@@ -23,20 +15,10 @@ export const createLesson = async (req, res) => {
   }
 };
 
-
 export const getLessons = async (req, res) => {
   try {
     const lessons = await Lesson.find();
-
-    const normalized = lessons.map((lesson) => {
-      const normalizedTopics = topicKeys.reduce((acc, key) => {
-        acc[key] = lesson.topics?.[key] || false;
-        return acc;
-      }, {});
-      return { ...lesson.toObject(), topics: normalizedTopics };
-    });
-
-    res.json(normalized);
+    res.json(lessons);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -47,30 +29,19 @@ export const getLessonById = async (req, res) => {
     const lesson = await Lesson.findById(req.params.id);
     if (!lesson) return res.status(404).json({ message: "Lesson not found" });
 
-    const normalizedTopics = topicKeys.reduce((acc, key) => {
-      acc[key] = lesson.topics?.[key] || false;
-      return acc;
-    }, {});
-
-    res.json({ ...lesson.toObject(), topics: normalizedTopics });
+    res.json(lesson);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-
 export const updateLesson = async (req, res) => {
   try {
-    const { title, description, topics = {} } = req.body;
-
-    const normalizedTopics = topicKeys.reduce((acc, key) => {
-      acc[key] = topics[key] || false;
-      return acc;
-    }, {});
+    const { title, description, topic } = req.body;
 
     const updatedLesson = await Lesson.findByIdAndUpdate(
       req.params.id,
-      { title, description, topics: normalizedTopics },
+      { title, description, topic },
       { new: true }
     );
 
@@ -81,7 +52,6 @@ export const updateLesson = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
-
 
 export const deleteLesson = async (req, res) => {
   try {

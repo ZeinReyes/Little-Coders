@@ -6,19 +6,12 @@ import { Button } from "react-bootstrap";
 function AddLesson() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [topics, setTopics] = useState({
-    variables: false,
-    operators: false,
-    conditionals: false,
-    loops: false,      
-    functions: false, 
-  });
+  const [topic, setTopic] = useState(""); // single selected topic
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleCheckboxChange = (e) => {
-    const { name, checked } = e.target;
-    setTopics({ ...topics, [name]: checked });
+  const handleRadioChange = (e) => {
+    setTopic(e.target.value);
   };
 
   const handleSubmit = async (e) => {
@@ -29,7 +22,7 @@ function AddLesson() {
       const token = localStorage.getItem("token");
       await axios.post(
         "http://localhost:5000/api/lessons",
-        { title, description, topics },
+        { title, description, topic }, // send single topic
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -75,74 +68,24 @@ function AddLesson() {
           </div>
 
           <div className="mb-3">
-            <label className="form-label">Topics Covered</label>
+            <label className="form-label">Topic Covered</label>
             <div className="d-flex gap-4 mt-2">
-              <div className="form-check">
-                <input
-                  type="checkbox"
-                  className="form-check-input"
-                  id="variables"
-                  name="variables"
-                  checked={topics.variables}
-                  onChange={handleCheckboxChange}
-                />
-                <label htmlFor="variables" className="form-check-label">
-                  Variables
-                </label>
-              </div>
-              <div className="form-check">
-                <input
-                  type="checkbox"
-                  className="form-check-input"
-                  id="operators"
-                  name="operators"
-                  checked={topics.operators}
-                  onChange={handleCheckboxChange}
-                />
-                <label htmlFor="operators" className="form-check-label">
-                  Operators
-                </label>
-              </div>
-              <div className="form-check">
-                <input
-                  type="checkbox"
-                  className="form-check-input"
-                  id="conditionals"
-                  name="conditionals"
-                  checked={topics.conditionals}
-                  onChange={handleCheckboxChange}
-                />
-                <label htmlFor="conditionals" className="form-check-label">
-                  Conditionals
-                </label>
+              {["variables", "operators", "conditionals", "loops", "functions"].map((t) => (
+                <div className="form-check" key={t}>
+                  <input
+                    type="radio"
+                    className="form-check-input"
+                    id={t}
+                    name="topic"
+                    value={t}
+                    checked={topic === t}
+                    onChange={handleRadioChange}
+                  />
+                  <label htmlFor={t} className="form-check-label">
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </label>
                 </div>
-              <div className="form-check">
-                <input
-                  type="checkbox"
-                  className="form-check-input"
-                  id="loops"
-                  name="loops"
-                  checked={topics.loops}
-                  onChange={handleCheckboxChange}
-                />
-                <label htmlFor="loops" className="form-check-label">
-                  Loops
-                </label>
-                </div>
-              <div className="form-check">
-                <input
-                  type="checkbox"
-                  className="form-check-input"
-                  id="functions"
-                  name="functions"
-                  checked={topics.functions}
-                  onChange={handleCheckboxChange}
-                />
-                <label htmlFor="functions" className="form-check-label">
-                  Functions
-                </label>
-                
-              </div>
+              ))}
             </div>
           </div>
 

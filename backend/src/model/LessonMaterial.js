@@ -11,6 +11,10 @@ const LessonMaterialSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    overview: {
+      type: String,
+      default: "",
+    },
     contents: [
       {
         type: String,

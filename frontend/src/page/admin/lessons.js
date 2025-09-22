@@ -125,11 +125,10 @@ function LessonsList() {
                   <td>{lesson.title}</td>
                   <td>{lesson.description}</td>
                   <td>
-                     {Object.entries(lesson.topics)
-                    .filter(([_, val]) => val)
-                    .map(([key]) => key.charAt(0).toUpperCase() + key.slice(1))
-                    .join(", ") || "None"}
-                </td>
+                    {lesson.topic
+                      ? lesson.topic.charAt(0).toUpperCase() + lesson.topic.slice(1)
+                      : "None"}
+                  </td>
                   <td>
                     <button
                       className="btn btn-sm btn-info me-1"

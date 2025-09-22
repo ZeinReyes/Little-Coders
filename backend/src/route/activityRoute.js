@@ -1,5 +1,4 @@
 import express from "express";
-import { verifyToken } from "../middleware/auth.js";
 import {
   createActivity,
   getActivitiesByLesson,
@@ -9,9 +8,16 @@ import {
 
 const router = express.Router();
 
-router.post("/lessons/:lessonId/activities", verifyToken, createActivity);
-router.get("/lessons/:lessonId/activities", verifyToken, getActivitiesByLesson);
-router.delete("/activities/:id", verifyToken, deleteActivity);
-router.put("/activities/:id", verifyToken, updateActivity);
+// ✅ Create new activity for a lesson
+router.post("/lessons/:lessonId/activities", createActivity);
+
+// ✅ Get all activities for a lesson
+router.get("/lessons/:lessonId/activities", getActivitiesByLesson);
+
+// ✅ Update a specific activity
+router.put("/activities/:id", updateActivity);
+
+// ✅ Delete a specific activity
+router.delete("/activities/:id", deleteActivity);
 
 export default router;

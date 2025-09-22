@@ -7,23 +7,16 @@ function EditLesson() {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  const topicKeys = ["variables", "operators", "conditionals", "loops", "functions"];
+
   const [lesson, setLesson] = useState({
     title: "",
     description: "",
-    topics: {
-      variables: false,
-      operators: false,
-      conditionals: false,
-      loops: false,
-      functions: false,
-    },
+    topic: "", // changed to store only one topic at a time
   });
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  
-  const topicKeys = ["variables", "operators", "conditionals", "loops", "functions"];
 
   useEffect(() => {
     fetchLesson();
@@ -36,15 +29,13 @@ function EditLesson() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-     
-      const mergedTopics = topicKeys.reduce((acc, key) => {
-        acc[key] = res.data.topics?.[key] || false;
-        return acc;
-      }, {});
+      // Find which topic is selected (if any)
+      const selectedTopic = topicKeys.find((key) => res.data.topics?.[key]) || "";
 
       setLesson({
-        ...res.data,
-        topics: mergedTopics,
+        title: res.data.title || "",
+        description: res.data.description || "",
+        topic: selectedTopic,
       });
 
       setLoading(false);
@@ -56,26 +47,31 @@ function EditLesson() {
   };
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    if (type === "checkbox") {
-      setLesson({
-        ...lesson,
-        topics: { ...lesson.topics, [name]: checked },
-      });
-    } else {
-      setLesson({ ...lesson, [name]: value });
-    }
+    const { name, value } = e.target;
+    setLesson({ ...lesson, [name]: value });
+  };
+
+  const handleTopicChange = (e) => {
+    setLesson({ ...lesson, topic: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem("token");
+
+      // Build topics object dynamically with selected topic true
+      const topics = topicKeys.reduce((acc, key) => {
+        acc[key] = key === lesson.topic;
+        return acc;
+      }, {});
+
       await axios.put(
         `http://localhost:5000/api/lessons/${id}`,
-        lesson,
+        { ...lesson, topics },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
       navigate("/admin/lessons");
     } catch (err) {
       console.error("Error updating lesson:", err);
@@ -129,11 +125,12 @@ function EditLesson() {
               {topicKeys.map((topic) => (
                 <div className="form-check" key={topic}>
                   <Form.Check
-                    type="checkbox"
+                    type="radio"
                     label={topic.charAt(0).toUpperCase() + topic.slice(1)}
-                    name={topic}
-                    checked={lesson.topics[topic]}
-                    onChange={handleChange}
+                    name="topic"
+                    value={topic}
+                    checked={lesson.topic === topic}
+                    onChange={handleTopicChange}
                   />
                 </div>
               ))}
