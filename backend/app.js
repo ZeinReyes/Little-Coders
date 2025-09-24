@@ -22,7 +22,8 @@ app.use('/api/auth', authRoute);
 app.use('/api/users', userRoute);
 app.use('/api/lessons', lessonRoute)
 app.use("/api/materials", materialRoute);
-app.use("/api", activityRoutes);
+app.use("/api/activities", activityRoute);
+
 
 //MongoDB connection
 mongoose

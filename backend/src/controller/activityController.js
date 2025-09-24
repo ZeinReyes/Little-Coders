@@ -54,27 +54,38 @@ export const deleteActivity = async (req, res) => {
     if (!deleted) {
       return res.status(404).json({ message: "Activity not found" });
     }
-    res.status(200).json({ message: "Activity deleted successfully", deleted });
-  } catch (err) {
-    res.status(500).json({ message: "Error deleting activity", error: err });
+    res.status(200).json({ message: "Activity deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error });
   }
 };
 export const updateActivity = async (req, res) => {
   try {
     const { id } = req.params;
-    let { name, instructions, hints, expectedOutput, difficulty } = req.body;
 
-    // ✅ Normalize hints before saving
-    if (hints && !Array.isArray(hints)) {
-      hints = [hints];
+    let { name, instructions, hints, expectedOutput, difficulty, lessonId } = req.body;
+
+    // ✅ Fetch existing if lessonId not sent
+    if (!lessonId) {
+      const existing = await LessonActivity.findById(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Activity not found" });
+      }
+      lessonId = existing.lessonId;
+    }
+
+    // ✅ Normalize hints
+    if (!Array.isArray(hints)) {
+      hints = hints ? [hints] : [];
     }
 
     const updated = await LessonActivity.findByIdAndUpdate(
       id,
       {
+        lessonId,
         name,
         instructions,
-        hints: hints || [],
+        hints,
         expectedOutput: expectedOutput || "",
         difficulty: difficulty || "easy",
       },
@@ -85,11 +96,12 @@ export const updateActivity = async (req, res) => {
       return res.status(404).json({ message: "Activity not found" });
     }
 
-    res.json(updated);
+    res.status(200).json(updated);
   } catch (err) {
-    console.error("Error updating activity:", err);
-    res
-      .status(500)
-      .json({ message: "Error updating activity", error: err.message });
+    console.error("❌ Error updating activity:", err);
+    res.status(500).json({
+      message: "Error updating activity",
+      error: err.message,
+    });
   }
 };

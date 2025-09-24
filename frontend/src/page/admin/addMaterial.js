@@ -37,8 +37,7 @@ export default function AddMaterial() {
 
   // ✅ Validation check (disable Save if invalid)
   const isInvalid =
-    countWords(overview) > 70 ||
-    contents.some((c) => countWords(c) > 70);
+    countWords(overview) > 70 || contents.some((c) => countWords(c) > 70);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -87,7 +86,7 @@ export default function AddMaterial() {
           {/* Overview */}
           <div className="mb-3">
             <label className="form-label fw-bold">Overview (max 70 words)</label>
-            <ReactQuill theme="snow" value={overview} onChange={setOverview} />
+            <ReactQuill value={overview} onChange={setOverview} theme="snow" />
             <small
               className={
                 countWords(overview) > 70 ? "text-danger" : "text-muted"
@@ -100,9 +99,11 @@ export default function AddMaterial() {
             )}
           </div>
 
-          {/* Content Sections */}
+          {/* Contents */}
           <div className="d-flex justify-content-between align-items-center mb-2">
-            <label className="form-label fw-bold mb-0">Contents</label>
+            <label className="form-label fw-bold mb-0">
+              Contents (max 70 words each)
+            </label>
             <Button variant="outline-primary" size="sm" onClick={addContentBox}>
               + Add Content
             </Button>
@@ -143,15 +144,14 @@ export default function AddMaterial() {
           ))}
 
           {/* Buttons */}
-          <div className="d-flex justify-content-end gap-2 mt-4">
+          <div className="d-flex justify-content-end gap-2">
             <Button
               variant="outline-secondary"
-              type="button"
               onClick={() => navigate(`/admin/lessons/${id}/manage`)}
             >
               Cancel
             </Button>
-            <Button type="submit" variant="success" disabled={isInvalid}>
+            <Button type="submit" variant="primary" disabled={isInvalid}>
               Save Material
             </Button>
           </div>

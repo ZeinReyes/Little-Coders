@@ -140,68 +140,84 @@ function ManageLesson() {
       contents: item.contents?.length ? item.contents : [""],
       name: item.name || "",
       instructions: item.instructions || "",
-      hints: item.hints?.length ? item.hints : [""],
+      hints: item.hints?.length ? item.hints : [],
       expectedOutput: item.expectedOutput || "",
       difficulty: item.difficulty || "easy",
     });
     setShowEditModal(true);
   };
 
+  // ✅ Delete handler
   const confirmDelete = async () => {
-  if (!selectedItem) return;
-  try {
-    const token = localStorage.getItem("token");
-    const endpoint =
-      selectedItem.type === "material"
-        ? `http://localhost:5000/api/materials/${selectedItem._id}`
-        : `http://localhost:5000/api/activities/${selectedItem._id}`;
+    if (!selectedItem) return;
+    try {
+      const token = localStorage.getItem("token");
+      const endpoint =
+        selectedItem.type === "material"
+          ? `http://localhost:5000/api/materials/${selectedItem._id}`
+          : `http://localhost:5000/api/activities/${selectedItem._id}`;
 
-    console.log("🗑 Deleting:", endpoint);
+      await axios.delete(endpoint, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    await axios.delete(endpoint, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+      await fetchData();
+      setShowDeleteModal(false);
+      setSelectedItem(null);
+    } catch (err) {
+      console.error("❌ Delete failed:", err.response?.data || err.message);
+      alert("Failed to delete item. Check console for details.");
+    }
+  };
 
-    await fetchData(); // refresh list after delete
-    setShowDeleteModal(false);
-    setSelectedItem(null);
-  } catch (err) {
-    console.error("❌ Delete failed:", err.response?.data || err.message);
-    alert("Failed to delete item. Check console for details.");
-  }
-};
+  // ✅ Update handler
+  const handleUpdate = async () => {
+    try {
+      if (isEditInvalid) return;
+      const token = localStorage.getItem("token");
 
-const handleUpdate = async () => {
-  try {
-    if (isEditInvalid) return;
-    const token = localStorage.getItem("token");
-    const endpoint =
-      selectedItem.type === "material"
-        ? `http://localhost:5000/api/materials/${selectedItem._id}`
-        : `http://localhost:5000/api/activities/${selectedItem._id}`;
+      let payload = {};
+      let endpoint = "";
 
-    console.log("✏️ Updating:", endpoint, editForm);
+      if (selectedItem.type === "material") {
+        endpoint = `http://localhost:5000/api/materials/${selectedItem._id}`;
+        payload = {
+          title: editForm.title,
+          overview: editForm.overview,
+          contents: editForm.contents,
+        };
+      } else {
+        endpoint = `http://localhost:5000/api/activities/${selectedItem._id}`;
+        payload = {
+          name: editForm.name,
+          instructions: editForm.instructions,
+          hints: editForm.hints,
+          expectedOutput: editForm.expectedOutput,
+          difficulty: editForm.difficulty,
+          lessonId: id, // ✅ include lessonId for activity update
+        };
+      }
 
-    await axios.put(endpoint, editForm, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+      await axios.put(endpoint, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    await fetchData(); // refresh list after save
-    setShowEditModal(false);
-    setSelectedItem(null);
-  } catch (err) {
-    console.error("❌ Update failed:", err.response?.data || err.message);
-    alert("Failed to update item. Check console for details.");
-  }
-};
+      await fetchData();
+      setShowEditModal(false);
+      setSelectedItem(null);
+    } catch (err) {
+      console.error("❌ Update failed:", err.response?.data || err.message);
+      alert("Failed to update item. Check console for details.");
+    }
+  };
 
-  // ✅ Remove a content section dynamically
+  // ✅ Remove content dynamically
   const removeContentBox = (index) => {
     const newContents = (editForm.contents || []).filter((_, i) => i !== index);
     setEditForm({ ...editForm, contents: newContents });
   };
 
-  // ✅ Remove a hint dynamically
+  // ✅ Remove hint dynamically
   const removeHintBox = (index) => {
     const newHints = (editForm.hints || []).filter((_, i) => i !== index);
     setEditForm({ ...editForm, hints: newHints });
@@ -389,13 +405,17 @@ const handleUpdate = async () => {
           <Form>
             {selectedItem?.type === "material" ? (
               <>
+                {/* MATERIAL FIELDS */}
                 <Form.Group className="mb-3">
                   <Form.Label className="fw-bold">Title</Form.Label>
                   <Form.Control
                     type="text"
                     value={editForm.title ?? ""}
                     onChange={(e) =>
-                      setEditForm({ ...editForm, title: e.target.value })
+                      setEditForm((prev) => ({
+                        ...prev,
+                        title: e.target.value,
+                      }))
                     }
                   />
                 </Form.Group>
@@ -408,7 +428,7 @@ const handleUpdate = async () => {
                     theme="snow"
                     value={editForm.overview ?? ""}
                     onChange={(val) =>
-                      setEditForm({ ...editForm, overview: val })
+                      setEditForm((prev) => ({ ...prev, overview: val }))
                     }
                   />
                   <small
@@ -435,10 +455,10 @@ const handleUpdate = async () => {
                     variant="outline-primary"
                     size="sm"
                     onClick={() =>
-                      setEditForm({
-                        ...editForm,
-                        contents: [...(editForm.contents || []), ""],
-                      })
+                      setEditForm((prev) => ({
+                        ...prev,
+                        contents: [...(prev.contents || []), ""],
+                      }))
                     }
                   >
                     + Add Content
@@ -462,11 +482,13 @@ const handleUpdate = async () => {
                     <ReactQuill
                       theme="snow"
                       value={content}
-                      onChange={(val) => {
-                        const newContents = [...(editForm.contents || [])];
-                        newContents[index] = val;
-                        setEditForm({ ...editForm, contents: newContents });
-                      }}
+                      onChange={(val) =>
+                        setEditForm((prev) => {
+                          const newContents = [...(prev.contents || [])];
+                          newContents[index] = val;
+                          return { ...prev, contents: newContents };
+                        })
+                      }
                     />
                     <small
                       className={
@@ -487,13 +509,17 @@ const handleUpdate = async () => {
               </>
             ) : (
               <>
+                {/* ACTIVITY FIELDS */}
                 <Form.Group className="mb-3">
                   <Form.Label className="fw-bold">Name</Form.Label>
                   <Form.Control
                     type="text"
                     value={editForm.name ?? ""}
                     onChange={(e) =>
-                      setEditForm({ ...editForm, name: e.target.value })
+                      setEditForm((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
                     }
                   />
                 </Form.Group>
@@ -505,8 +531,8 @@ const handleUpdate = async () => {
                   <ReactQuill
                     theme="snow"
                     value={editForm.instructions ?? ""}
-                    onChange={(value) =>
-                      setEditForm({ ...editForm, instructions: value })
+                    onChange={(val) =>
+                      setEditForm((prev) => ({ ...prev, instructions: val }))
                     }
                   />
                   <small
@@ -533,10 +559,10 @@ const handleUpdate = async () => {
                     variant="outline-primary"
                     size="sm"
                     onClick={() =>
-                      setEditForm({
-                        ...editForm,
-                        hints: [...(editForm.hints || []), ""],
-                      })
+                      setEditForm((prev) => ({
+                        ...prev,
+                        hints: [...(prev.hints || []), ""],
+                      }))
                     }
                     disabled={(editForm.hints || []).length >= 3}
                   >
@@ -561,11 +587,13 @@ const handleUpdate = async () => {
                     <ReactQuill
                       theme="snow"
                       value={hint}
-                      onChange={(val) => {
-                        const newHints = [...(editForm.hints || [])];
-                        newHints[index] = val;
-                        setEditForm({ ...editForm, hints: newHints });
-                      }}
+                      onChange={(val) =>
+                        setEditForm((prev) => {
+                          const newHints = [...(prev.hints || [])];
+                          newHints[index] = val;
+                          return { ...prev, hints: newHints };
+                        })
+                      }
                     />
                     <small
                       className={
@@ -591,10 +619,10 @@ const handleUpdate = async () => {
                     rows={3}
                     value={editForm.expectedOutput ?? ""}
                     onChange={(e) =>
-                      setEditForm({
-                        ...editForm,
+                      setEditForm((prev) => ({
+                        ...prev,
                         expectedOutput: e.target.value,
-                      })
+                      }))
                     }
                   />
                 </Form.Group>
@@ -604,7 +632,10 @@ const handleUpdate = async () => {
                   <Form.Select
                     value={editForm.difficulty ?? "easy"}
                     onChange={(e) =>
-                      setEditForm({ ...editForm, difficulty: e.target.value })
+                      setEditForm((prev) => ({
+                        ...prev,
+                        difficulty: e.target.value,
+                      }))
                     }
                   >
                     <option value="easy">Easy</option>
@@ -620,7 +651,11 @@ const handleUpdate = async () => {
           <Button variant="secondary" onClick={() => setShowEditModal(false)}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleUpdate} disabled={isEditInvalid}>
+          <Button
+            variant="primary"
+            onClick={handleUpdate}
+            disabled={isEditInvalid}
+          >
             Save Changes
           </Button>
         </Modal.Footer>
