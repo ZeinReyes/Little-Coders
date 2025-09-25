@@ -65,10 +65,11 @@ function ManageLesson() {
         ),
       ]);
 
-      const materials = materialsRes.data.map((m) => ({
-        ...m,
-        type: "material",
-      }));
+     const materials = materialsRes.data.map((m) => ({
+  ...m,
+  type: "material",
+  overview: m.overview || "",   // ✅ ensure overview is mapped
+}));
       const activities = activitiesRes.data.map((a) => ({
         ...a,
         type: "activity",

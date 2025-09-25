@@ -205,22 +205,58 @@ function LessonsList() {
                     )}
                   </div>
                  {item.type === "material" ? (
-  <div
-    className="mt-2 mb-3"
-    dangerouslySetInnerHTML={{
-      __html: Array.isArray(item.contents)
-  ? item.contents.join("<br/>")
-  : (item.contents || ""),
-    }}
-  />
+  <>
+    <h6 className="fw-bold mt-3">Overview</h6>
+    <div
+      className="border p-2 rounded bg-light mb-2"
+      dangerouslySetInnerHTML={{
+        __html: item.overview || "No overview provided.",
+      }}
+    />
+
+    <h6 className="fw-bold mt-3">Contents</h6>
+    <div
+      className="border p-2 rounded bg-light"
+      dangerouslySetInnerHTML={{
+        __html: Array.isArray(item.contents)
+          ? item.contents.join("<br/>")
+          : (item.contents || "No contents"),
+      }}
+    />
+  </>
 ) : (
-  <div
-    className="mt-2 mb-3"
-    dangerouslySetInnerHTML={{
-      __html: item.instructions || "",
-    }}
-  />
+  <>
+    <h6 className="fw-bold mt-3">Instructions</h6>
+    <div
+      className="border p-2 rounded bg-light mb-2"
+      dangerouslySetInnerHTML={{
+        __html: item.instructions || "No instructions",
+      }}
+    />
+
+    <h6 className="fw-bold mt-3">Hints</h6>
+    {(item.hints && item.hints.length > 0) ? (
+      item.hints.map((hint, idx) => (
+        <div
+          key={idx}
+          className="border p-2 rounded bg-light mb-2"
+          dangerouslySetInnerHTML={{ __html: hint }}
+        />
+      ))
+    ) : (
+      <p className="text-muted">No hints provided.</p>
+    )}
+
+    <h6 className="fw-bold mt-3">Expected Output</h6>
+    <pre className="border p-2 rounded bg-light">
+      {item.expectedOutput || "No expected output"}
+    </pre>
+
+    <h6 className="fw-bold mt-3">Difficulty</h6>
+    <p>{item.difficulty || "N/A"}</p>
+  </>
 )}
+
 
                 </div>
               ))}
