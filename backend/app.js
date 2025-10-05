@@ -16,7 +16,6 @@ import userRoute from './src/route/userRoute.js';
 import lessonRoute from "./src/route/lessonRoute.js";
 import materialRoute from "./src/route/materialRoute.js";
 import activityRoute from "./src/route/activityRoute.js";
-
 //Use Routes
 app.use('/api/auth', authRoute);
 app.use('/api/users', userRoute);

@@ -1,0 +1,60 @@
+/* LessonPlayer.css */
+
+/* Container reuses DragBoard layout */
+.lesson-player {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* Lesson card styled like a fun "whiteboard note" */
+.lesson-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 30px 40px;
+  width: 90%;
+  max-width: 700px;
+  text-align: center;
+  font-family: "Comic Neue", "Comic Sans MS", Arial, sans-serif;
+  box-shadow: 4px 4px 10px rgba(0,0,0,0.15);
+  border: 3px solid #66b3ff;
+}
+
+.lesson-card h4 {
+  font-weight: 700;
+  margin-bottom: 16px;
+  font-size: 22px;
+}
+
+.lesson-card p {
+  font-size: 16px;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+/* Buttons styled playful */
+.lesson-card .btn {
+  border-radius: 12px;
+  font-weight: bold;
+  padding: 8px 20px;
+  font-size: 16px;
+  background: #2e7d32 !important; /* fun green */
+  border: none;
+}
+
+.lesson-card .btn:hover {
+  background: #1b5e20 !important;
+}
+
+/* Character */
+.lesson-character {
+  position: relative; /* relative to lesson-top */
+  align-self: flex-end;
+}
+
+.lesson-character img {
+  max-width: 140px;
+}

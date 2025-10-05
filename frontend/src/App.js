@@ -8,6 +8,12 @@ import ResetPassword from './page/authentication/resetPasswordPage';
 
 //User
 import HomePage from './page/user/homePage';
+import LessonPlayer from './page/user/lessonPlayer';
+import ModuleList from "./page/user/moduleList"; 
+import LessonList from "./page/user/lessonList";
+import DragBoard from "./component/DragBoard";
+
+
 
 //Admin
 import AdminPage from './page/admin/adminPage';
@@ -35,6 +41,14 @@ function App() {
       <Route path="/reset-password/:token" element={<ResetPassword />} />
 
       <Route path="/home" element={<HomePage />} />
+      <Route path="/lesson/:id" element={<LessonPlayer />} />
+      <Route path="/module-list" element={<ModuleList />} />
+      <Route path="/lessons/:moduleId" element={<LessonList />} />
+      <Route path="/dragboard/:type/:id" element={<DragBoard />} />
+      <Route path="/ide/:lessonId" element={<DragBoard />} />
+
+
+
 
       <Route path="/admin" element={<AdminPage />}>
         <Route index element={<Navigate to="dashboard" replace />} />

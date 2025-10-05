@@ -1,28 +1,25 @@
-import { useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AuthContext } from '../../context/authContext';
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "react-bootstrap";
 
 function HomePage() {
-    const { user, logout } = useContext(AuthContext);
-    const navigate = useNavigate();
+  const navigate = useNavigate();
 
-    const handleLogout = () => {
-        logout();
-        localStorage.removeItem('token');
-        navigate('/login');
-    };
+  return (
+    <div className="container mt-4">
+      <h1 className="mb-4 text-center">Welcome to Little Coders!</h1>
 
-    return (
-        <div className="d-flex flex-column justify-content-center align-items-center min-vh-100">
-            <h1>Welcome Home</h1>
-            <p>Name: {user?.name}</p>
-            <p>Role: {user?.role}</p>
-
-            <button className="sign-in_btn mt-3" onClick={handleLogout}>
-                Logout
-            </button>
-        </div>
-    );
+      <div className="text-center">
+        <Button
+          variant="primary"
+          className="px-4 py-2"
+          onClick={() => navigate("/module-list")}
+        >
+          View Module List
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export default HomePage;
