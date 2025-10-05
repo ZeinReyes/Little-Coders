@@ -8,39 +8,35 @@ body {
   font-family: "Press Start 2P", cursive;
 }
 
-.loginContainer {
-  background-image: url('/assets/images/authentication_bg.jpg');
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-position: center;
+.loginContainer, .registerContainer {
+  background-color: #FFF7EF;
   width: 100%;
   height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-}
 
-.registerContainer {
-  background-image: url('/assets/images/authentication_bg.jpg');
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-position: center;
-  width: 100%;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  /* ✅ black border */
+  border: 3px solid black;
 }
 
 .form_container {
   width: 45%;
   padding: 20px;
-  background: rgba(255, 255, 255, 0.8); 
-  border: 3px solid #6b4226;
+
+  --font-color: #323232;
+
+  background: #FFD6A5;
   border-radius: 16px;
-  text-align: center;
   font-family: "Press Start 2P", cursive;
-  color: #2c2c2c;
+  color: var(--font-color);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center; 
+  text-align: center;
+
+  box-shadow: 7px 7px black;
 }
 
 .logo_container {
@@ -62,8 +58,9 @@ body {
 }
 
 .input_container input {
-    height: 40px;
-    background: rgba(255, 255, 255, 0.8); 
+  height: 40px;
+  box-shadow: 3px 3px black;
+  background: #f8f7f7; 
 }
 
 .input_label {
@@ -80,19 +77,19 @@ body {
   padding: 5px;
   font-family: "Press Start 2P", cursive;
   font-size: 15px;
-  background-color: #fffbe6;
+  background-color: #fffbe6be;
   border-radius: 7px;
 }
 
 .input_field::placeholder {
-    font-size: 15px;
+  font-size: 15px;
 }
 
 .sign-in_btn {
   width: 100%;
   height: 40px;
   margin: 10px 0;
-  background-color: #228b22;
+  background-color: #FF6B6B;
   border: 2px solid #145214;
   border-radius: 6px;
   color: white;
@@ -100,25 +97,36 @@ body {
   font-weight: bold;
   cursor: pointer;
   text-transform: uppercase;
+  box-shadow: 3px 3px black;
 }
 
 .sign-in_btn:hover {
-  background-color: #2e8b57
+  background-color: #f94b4b;
+  color: white;
+  transition: .3s ease;
 }
 
 .note,
 .separator,
 .subtitle {
   font-size: 15px;
-  color: #6b4226;
+  color: black;
   margin: 10px 0;
 }
 
-.loginContainer a, .registerContainer a {
-  color: #008000;
+.forgot-password {
+  align-self: flex-end;
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.loginContainer a,
+.registerContainer a {
+  color: #f73f3f;
   text-decoration: none;
 }
 
-.loginContainer a:hover, .registerContainer a:hover {
+.loginContainer a:hover, 
+.registerContainer a:hover {
   text-decoration: underline;
 }

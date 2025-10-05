@@ -25,14 +25,59 @@ function Login() {
         }
     };
 
+    // Inline styles for page layout and navbar logo
+    const pageStyle = {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+    };
+
+    const navBarStyle = {
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: '10px',
+    };
+
     return (
         <div className="loginContainer d-flex justify-content-center align-items-center w-100 min-vh-100">
             <form
                 className="form_container w-full max-w-md p-6 rounded-lg shadow-md"
                 onSubmit={handleSubmit}
             >
-                <img src="logo-gold.png" style={{ width: '100px' }} alt="Logo" />
+                {/* ---------- INLINE LOGO ---------- */}
+                <div style={pageStyle}>
+                    <nav style={navBarStyle}>
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '2px',
+                                fontWeight: '800',
+                                fontSize: '22px',
+                                fontFamily: "'Poppins', sans-serif",
+                                marginBottom: '20px',
+                            }}
+                        >
+                            <span style={{ color: '#e53935' }}>L</span>
+                            <span style={{ color: '#43a047' }}>i</span>
+                            <span style={{ color: '#1e88e5' }}>t</span>
+                            <span style={{ color: '#fb8c00' }}>t</span>
+                            <span style={{ color: '#8e24aa' }}>l</span>
+                            <span style={{ color: '#fdd835' }}>e</span>
+                            <span style={{ width: '10px' }}></span>
+                            <span style={{ color: '#3949ab' }}>C</span>
+                            <span style={{ color: '#43a047' }}>o</span>
+                            <span style={{ color: '#f4511e' }}>d</span>
+                            <span style={{ color: '#1e88e5' }}>e</span>
+                            <span style={{ color: '#8e24aa' }}>r</span>
+                            <span style={{ color: '#f4b400' }}>s</span>
+                        </div>
+                    </nav>
+                </div>
 
+                {/* ---------- FORM CONTENT ---------- */}
                 <div className="title_container">
                     <p className="title">Login to your Account</p>
                 </div>
@@ -69,7 +114,7 @@ function Login() {
                     />
                 </div>
 
-                <div className="text-end mb-3">
+                <div className="ms-auto mb-3">
                     <a href="/forgot-password" className="note">
                         Forgot Password?
                     </a>

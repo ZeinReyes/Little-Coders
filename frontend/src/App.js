@@ -45,7 +45,7 @@ function App() {
       <Route path="/module-list" element={<ModuleList />} />
       <Route path="/lessons/:moduleId" element={<LessonList />} />
       <Route path="/dragboard/:type/:id" element={<DragBoard />} />
-      <Route path="/ide/:lessonId" element={<DragBoard />} />
+      <Route path="/dragboard" element={<DragBoard />} />
 
 
 
@@ -63,7 +63,7 @@ function App() {
         <Route path="lessons/:id/add-activity" element={<AddActivity />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
   );
 }

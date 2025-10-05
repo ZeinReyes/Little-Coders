@@ -48,7 +48,7 @@ export default function DragBoard() {
         <div className="draggable">
           <h3>Elements</h3>
           <div className="elements">
-            <img src="/assets/images/printer.png" data-type="print" draggable="true" alt="Print" />
+            <img src="/assets/images/print1.png" data-type="print" draggable="true" alt="Print" />
             <img src="/assets/images/container.png" data-type="variable" draggable="true" alt="Variable" />
             
             {/* Arithmetic operators */}
@@ -58,12 +58,12 @@ export default function DragBoard() {
             <img src="/assets/images/divide.png" data-type="divide" draggable="true" alt="Divide"/>
 
             {/* NEW: Comparison operators */}
-            <img src="/assets/images/equal.png" data-type="equal" draggable="true" alt="Equal ==" />
+            <img src="/assets/images/equalto.png" data-type="equal" draggable="true" alt="Equal ==" />
             <img src="/assets/images/notequal.png" data-type="notequal" draggable="true" alt="Not Equal !=" />
-            <img src="/assets/images/less.png" data-type="less" draggable="true" alt="Less Than <" />
-            <img src="/assets/images/lessequal.png" data-type="lessequal" draggable="true" alt="Less or Equal <=" />
-            <img src="/assets/images/greater.png" data-type="greater" draggable="true" alt="Greater Than >" />
-            <img src="/assets/images/greaterequal.png" data-type="greaterequal" draggable="true" alt="Greater or Equal >=" />
+            <img src="/assets/images/lessthan.png" data-type="less" draggable="true" alt="Less Than <" />
+            <img src="/assets/images/lessthanequal.png" data-type="lessequal" draggable="true" alt="Less or Equal <=" />
+            <img src="/assets/images/greaterthan.png" data-type="greater" draggable="true" alt="Greater Than >" />
+            <img src="/assets/images/greaterthanequal.png" data-type="greaterequal" draggable="true" alt="Greater or Equal >=" />
 
             {/* Conditionals */}
             {/* Conditionals */}
@@ -88,7 +88,7 @@ export default function DragBoard() {
             <div>Source Code (preview)</div>
             <pre id="codeArea">/* Build expressions on the whiteboard */</pre>
           </div>
-          <div>
+          <div className="output">
             <div>Program Output</div>
             <pre id="outputArea">/* Results will appear here */</pre>
           </div>

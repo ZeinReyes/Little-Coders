@@ -26,9 +26,11 @@ export function createVariableNode(whiteboard, codeArea, dimOverlay) {
   v.appendChild(nameLabel);
 
   const lid = document.createElement('img');
-  lid.src = '/images/lid.png';
+  lid.src = '/assets/images/container-lid1.png';
   lid.alt = 'Variable Lid';
   lid.className = 'variable-lid';
+  lid.style.width = '130px';  // 👈 smaller size
+lid.style.height = 'auto';
   v.appendChild(lid);
 
   // ✅ Create inner slot
@@ -39,9 +41,11 @@ export function createVariableNode(whiteboard, codeArea, dimOverlay) {
   v.appendChild(slot);
 
   const container = document.createElement('img');
-  container.src = '/images/container.png';
+  container.src = '/assets/images/container-body1.png';
   container.alt = 'Variable Container';
   container.className = 'variable-container';
+  container.style.width = '175px';  // 👈 smaller size
+container.style.height = '80px';
   v.appendChild(container);
 
   let editing = false;

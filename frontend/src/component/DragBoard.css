@@ -13,8 +13,12 @@ body {
 .main-container {
   display: flex;
   gap: 16px;
-  height: 95vh;
+  height: 100vh;
+  padding: 20px;
   align-items: stretch;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
 }
 
 .draggable,
@@ -30,19 +34,58 @@ body {
   width: 160px;
   padding: 12px;
   border-radius: 16px;
-  background: #ffe6e6; /* light pink */
-  border: 3px solid #ff99cc;
+  background: #35CE8D; /* light pink */
+  border: 3px dashed green;
+  color: white;
+  display: flex;
+  align-items: center;
 }
+
+.variable-node {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.variable-lid,
+.variable-container {
+  display: block;
+  transition: margin 0.2s ease;
+}
+
+/* Default state: no gap */
+.variable-lid {
+  margin-top: -30px;
+  margin-bottom: -100px; /* 👈 overlap slightly */
+  position: relative;
+  right: 2.5px;
+  z-index: 100;
+  transform: perspective(600px) rotateX(25deg) scale(1.02);
+  transform-origin: bottom center;
+  transition: transform 0.3s ease;
+}
+
+/* When hovered or editing — show the gap for the slot */
+.variable-node:hover .variable-lid,
+.variable-node.editing .variable-lid,
+.variable-node.dragover .variable-lid {
+  margin-bottom: -20px; /* 👈 creates visible space for the slot */
+  transition: .5s ease;
+}
+
 
 .elements {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 13px;
+  justify-content: center;
 }
 
 .elements img {
-  width: 50px;
-  height: 50px;
+  width: 55px;
+  height: 55px;
   cursor: grab;
   border-radius: 12px;
   background: #d1ffd1; /* mint green */
@@ -64,8 +107,8 @@ body {
   flex: 1;
   padding: 12px;
   border-radius: 16px;
-  background: linear-gradient(180deg, #e6f7ff, #fff7e6);
-  border: 3px solid #66b3ff;
+  background: #8DE4FF;
+  border: 3px dashed blue;
 }
 
 .whiteboard {
@@ -77,6 +120,11 @@ body {
   overflow: hidden;
   background: #ffffff;
   height: 100%;
+}
+
+.right-panel {
+  height: 100%;
+  gap: 10px;
 }
 
 /* Slots */
@@ -419,20 +467,23 @@ body {
 /* Code Panel */
 .code-panel {
   width: 320px;
-  height: 50%;
+  height: 60%;
   padding: 12px;
   border-radius: 12px;
-  background: #e0f2fe;
+  background: #F5E4A3;
+  border: 3px dashed yellow;
 }
 
-pre {
-  background: #fff;
+.output {
+  background: #ff7974;
   padding: 12px;
   border-radius: 10px;
   white-space: pre-wrap;
-  color: #1e40af;
+  color: white;
   font-weight: 600;
   font-size: 14px;
+  border: 3px dashed red;
+  height: 38%;
 }
 
 /* Notification */
