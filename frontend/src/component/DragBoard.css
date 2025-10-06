@@ -207,8 +207,9 @@ body {
 
 /* Hidden slot */
 .variable-slot.hidden {
-  opacity: 0;
+  opacity: 0 !important;
   max-height: 0;
+  max-width: 0;
   overflow: hidden;
 }
 
@@ -361,51 +362,87 @@ body {
   position: relative;
 }
 
-/* Modal */
+/* Modal Overlay */
 .modal-overlay {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: block;
+  z-index: 9999;
 }
 
+/* Modal Box */
 .modal {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  width: 300px;
-  max-width: 90%;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  display: flex !important;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 12px;
+  margin: 20% 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px 24px;
+  width: 30px;
+  max-width: 30%;
+  max-height: 45%;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  z-index: 10000;
+  animation: fadeInModal 0.2s ease-out;
+  
 }
 
+/* Smooth Fade Animation */
+@keyframes fadeInModal {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Modal Header */
 .modal-header {
+  font-size: 1.2rem;
   font-weight: bold;
-  margin-bottom: 12px;
+  color: #333;
+  margin-bottom: 16px;
+  text-align: center;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 8px;
 }
 
+/* Modal Body */
 .modal-body {
-  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
+/* Input styling */
 .modal-input {
   width: 100%;
-  padding: 6px 8px;
+  padding: 8px 10px;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  outline: none;
+  transition: border-color 0.2s ease;
 }
 
+.modal-input:focus {
+  border-color: #007bff;
+}
+
+/* Footer Buttons */
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
 }
 
 .modal-btn {
-  padding: 6px 12px;
+  padding: 8px 14px;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
+  font-size: 0.9rem;
   cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
 }
 
 .modal-btn.primary {
@@ -413,19 +450,21 @@ body {
   color: #fff;
 }
 
+.modal-btn.primary:hover {
+  background: #0066d1;
+  transform: scale(1.03);
+}
+
 .modal-btn.secondary {
   background: #ccc;
 }
 
-/* Misc Helpers */
-.dim-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.6);
-  display: none;
-  border-radius: 16px;
-  pointer-events: none;
+.modal-btn.secondary:hover {
+  background: #b3b3b3;
+  transform: scale(1.03);
 }
+
+
 
 .dim-overlay.visible {
   display: block;
