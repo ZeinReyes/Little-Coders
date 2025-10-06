@@ -2,13 +2,13 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Card, Button, Spinner, ListGroup } from "react-bootstrap";
+import { Card, Button, Spinner, ListGroup, ProgressBar } from "react-bootstrap";
 import { CheckCircleFill, Circle } from "react-bootstrap-icons";
 
 function LessonList() {
   const { moduleId } = useParams();
   const [module, setModule] = useState(null);
-  const [items, setItems] = useState([]); // combined lessons + activities
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -20,7 +20,10 @@ function LessonList() {
     try {
       const token = localStorage.getItem("token");
 
-      const [materialsRes, activitiesRes] = await Promise.all([
+      const [moduleRes, materialsRes, activitiesRes] = await Promise.all([
+        axios.get(`http://localhost:5000/api/lessons/${moduleId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
         axios.get(
           `http://localhost:5000/api/materials/lessons/${moduleId}/materials`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -30,6 +33,8 @@ function LessonList() {
           { headers: { Authorization: `Bearer ${token}` } }
         ),
       ]);
+
+      setModule(moduleRes.data);
 
       const materials = materialsRes.data.map((m) => ({
         ...m,
@@ -50,7 +55,7 @@ function LessonList() {
 
       setItems(merged);
     } catch (err) {
-      console.error("Error fetching lessons/activities:", err);
+      console.error("Error fetching module data:", err);
     } finally {
       setLoading(false);
     }
@@ -65,53 +70,94 @@ function LessonList() {
   }
 
   return (
-    <div className="p-4">
-      <Button
-        variant="outline-light"
-        className="mb-3"
-        onClick={() => navigate(-1)}
+    <div style={{ minHeight: "100vh", backgroundColor: "#FFF9F0" }}>
+      <header
+        className="d-flex align-items-center justify-content-between"
+        style={{
+          backgroundColor: "#3C90E2",
+          color: "white",
+          padding: "1rem 2rem",
+          fontFamily: "'Comic Sans MS', cursive",
+          boxShadow: "0 3px 6px rgba(0,0,0,0.1)",
+        }}
       >
-        ← Back
-      </Button>
+        <Button
+          variant="light"
+          onClick={() => navigate(-1)}
+          style={{
+            fontWeight: "bold",
+            borderRadius: "20px",
+            fontSize: "0.9rem",
+          }}
+        >
+          ← Back
+        </Button>
 
-      {module && (
-        <Card className="mb-4 shadow-sm">
-          <Card.Body>
-            <Card.Title className="text-primary">{module.title}</Card.Title>
-            <Card.Text>{module.description}</Card.Text>
-          </Card.Body>
-        </Card>
-      )}
+        <div
+          style={{
+            flexGrow: 1,
+            textAlign: "center",
+            fontSize: "1.6rem",
+            fontWeight: "bold",
+          }}
+        >
+          {module.title}
+        </div>
+      </header>
 
-      <h5 className="text-white mb-3">Lessons & Activities</h5>
+      <div className="p-4" style={{ maxWidth: "800px", margin: "0 auto" }}>
+        <h5
+          className="mb-3"
+          style={{
+            fontFamily: "'Comic Sans MS', cursive",
+            color: "#FF6F61",
+          }}
+        >
+          Lessons & Activities
+        </h5>
 
-      <ListGroup>
-        {items.map((item) => (
-          <ListGroup.Item
-  key={item._id}
-  className="d-flex align-items-center"
-  style={{
-    backgroundColor: item.type === "activity" ? "#f8f9fa" : "white",
-    marginLeft: item.type === "activity" ? "2rem" : 0,
-    cursor: "pointer",
-  }}
-  onClick={() => navigate(`/ide/${item._id}`)}   // <-- navigate to IDE
->
-  {item.type === "material" ? (
-    <>
-      <CheckCircleFill color="green" className="me-2" />
-      {item.title}
-    </>
-  ) : (
-    <>
-      <Circle color="gray" className="me-2" />
-      {item.name}
-    </>
-  )}
-</ListGroup.Item>
-
-        ))}
-      </ListGroup>
+        <ListGroup>
+          {items.map((item) => (
+            <ListGroup.Item
+              key={item._id}
+              className="d-flex align-items-center justify-content-between shadow-sm mb-2 rounded-3"
+              style={{
+                backgroundColor:
+                  item.type === "activity" ? "#E0F7FA" : "#FFF3E0",
+                cursor: "pointer",
+                padding: "0.8rem 1rem",
+                transition: "transform 0.2s",
+              }}
+              onClick={() => navigate(`/ide/${item._id}`)}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.transform = "scale(1.02)")
+              }
+              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+            >
+              <div className="d-flex align-items-center">
+                {item.type === "material" ? (
+                  <CheckCircleFill color="#4CAF50" className="me-3" size={24} />
+                ) : (
+                  <Circle color="#9E9E9E" className="me-3" size={24} />
+                )}
+                <div
+                  style={{
+                    fontFamily: "'Comic Sans MS', cursive",
+                    fontSize: "1rem",
+                  }}
+                >
+                  {item.type === "material" ? item.title : item.name}
+                </div>
+              </div>
+              {item.type === "activity" && (
+                <Button size="sm" variant="primary">
+                  Explore
+                </Button>
+              )}
+            </ListGroup.Item>
+          ))}
+        </ListGroup>
+      </div>
     </div>
   );
 }

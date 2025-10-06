@@ -1,0 +1,127 @@
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.modules-container {
+  width: 100%;
+  margin-top: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80px 0; /* breathing room top/bottom */
+}
+
+.modules-header {
+  width: 90%;
+  border-radius: 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  padding: 40px 20px; 
+  background-color: #f8bbd0;
+  border: 2px dashed #c48a9f;
+  color: white;
+}
+
+/* Modules list */
+.modules-list {
+  margin-top: 60px;
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  flex-wrap: wrap; 
+  width: 98%;
+  padding: auto 0 80px;
+}
+
+.module-card {
+  border-radius: 15px;
+  width: 240px;
+  height: 200px;
+  font-family: 'Poppins', sans-serif;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s;
+  box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  text-align: center;
+  padding: 15px;
+}
+
+/* Pastel alternating background colors with darker borders */
+.module-card:nth-child(1n) { 
+  background-color: #f8bbd0; 
+  border: 2px dashed #c48a9f; /* darker shade */
+}
+.module-card:nth-child(2n) { 
+  background-color: #ffe0b2; 
+  border: 2px dashed #cc9a6a; 
+}
+.module-card:nth-child(3n) { 
+  background-color: #c8e6c9; 
+  border: 2px dashed #7cbf8d; 
+}
+.module-card:nth-child(4n) { 
+  background-color: #b3e5fc; 
+  border: 2px dashed #4ba3c7; 
+}
+.module-card:nth-child(5n) { 
+  background-color: #d1c4e9; 
+  border: 2px dashed #946fc0; 
+}
+
+/* Module headers inside cards */
+.module-header {
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #222;
+  font-size: 1.1rem;
+  background-color: white;
+  padding: 15px 40px;
+  border-radius: 10px;
+  width: 100%;
+}
+
+/* Module descriptions */
+.module-description {
+  font-size: 13px;
+  color: #333;
+  margin: 10px auto 15px auto;
+  line-height: 1.4;
+}
+
+/* Explore button */
+.explore-btn {
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 6px 0;
+  width: 100%;
+  background-color: #FFC107;
+  border: none;
+  color: #111;
+  transition: background-color 0.3s;
+  box-shadow: 1px 1px rgb(0, 0, 0, 0.7);
+}
+
+.explore-btn:hover {
+  background-color: #ffc107;
+}
+
+/* Wavy layout */
+.module-card.up {
+  transform: translateY(-22px);
+}
+
+.module-card.down {
+  transform: translateY(22px);
+}
+
+.module-card:hover {
+  transform: scale(1.05);
+}

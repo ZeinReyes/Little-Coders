@@ -1,18 +1,10 @@
 import React, { useContext } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../../context/authContext";
+import NavbarComponent from "../../component/userNavbar";
 
 function HomePage() {
-  const { user, logout } = useContext(AuthContext);
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    localStorage.removeItem("token");
-    navigate("/login");
-  };
-
-  // ---------- Inline Styles ----------
+  
   const pageStyle = {
     display: "flex",
     flexDirection: "column",
@@ -22,73 +14,6 @@ function HomePage() {
     backgroundColor: "#f4f9fa",
     fontFamily: "Arial, sans-serif",
     overflowX: "hidden",
-  };
-
-  const navBarStyle = {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "70px",
-    backgroundColor: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "0 40px",
-    color: "#222",
-    zIndex: 20,
-    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
-  };
-
-  const navTitleStyle = {
-    fontSize: "22px",
-    fontWeight: "700",
-    letterSpacing: "1px",
-  };
-
-  const navCenterStyle = {
-    display: "flex",
-    gap: "30px",
-    position: "absolute",
-    left: "50%",
-    transform: "translateX(-50%)",
-  };
-
-  const navLinkStyle = {
-    color: "#222",
-    textDecoration: "none",
-    fontSize: "16px",
-    transition: "0.3s",
-  };
-
-  const navRightStyle = {
-    display: "flex",
-    alignItems: "center",
-    gap: "15px",
-  };
-
-  const signInButton = {
-    backgroundColor: "#222",
-    color: "#fff",
-    border: "2px solid #222",
-    borderRadius: "6px",
-    padding: "8px 18px",
-    fontSize: "15px",
-    cursor: "pointer",
-    transition: "0.3s",
-    textDecoration: "none",
-  };
-
-  const signUpButton = {
-    backgroundColor: "transparent",
-    color: "#222",
-    border: "2px solid #222",
-    borderRadius: "6px",
-    padding: "8px 18px",
-    fontSize: "15px",
-    cursor: "pointer",
-    transition: "0.3s",
-    textDecoration: "none",
   };
 
   // ✅ Combined Hero Section
@@ -197,7 +122,7 @@ function HomePage() {
   const whySection = {
     backgroundColor: "rgba(148, 250, 146, 0.3)",
     textAlign: "center",
-    padding: "55px 20px",
+    padding: "25px 20px",
     width: "100%",
     height: "calc(100vh - 70px)",
   };
@@ -291,63 +216,7 @@ function HomePage() {
 
   return (
     <div style={pageStyle}>
-      {/* ---------- NAVBAR ---------- */}
-      <nav style={navBarStyle}>
-      <div style={{ display: "flex", alignItems: "center", gap: "2px", fontWeight: "800", fontSize: "22px", fontFamily: "'Poppins', sans-serif" }}>
-    <span style={{ color: "#e53935" }}>L</span>
-    <span style={{ color: "#43a047" }}>i</span>
-    <span style={{ color: "#1e88e5" }}>t</span>
-    <span style={{ color: "#fb8c00" }}>t</span>
-    <span style={{ color: "#8e24aa" }}>l</span>
-    <span style={{ color: "#fdd835" }}>e</span>
-    <span style={{ width: "10px" }}></span> {/* space between words */}
-    <span style={{ color: "#3949ab" }}>C</span>
-    <span style={{ color: "#43a047" }}>o</span>
-    <span style={{ color: "#f4511e" }}>d</span>
-    <span style={{ color: "#1e88e5" }}>e</span>
-    <span style={{ color: "#8e24aa" }}>r</span>
-    <span style={{ color: "#f4b400" }}>s</span>
-  </div>
-
-        <div style={navCenterStyle}>
-          <a href="#" style={navLinkStyle}>Home</a>
-          <a href="/module-list" style={navLinkStyle}>Lessons</a>
-          <a href="#" style={navLinkStyle}>Contact Us</a>
-        </div>
-
-        <div style={navRightStyle}>
-          {!user ? (
-            <>
-              <Link to="/login" style={signInButton}>Sign in</Link>
-              <Link to="/signup" style={signUpButton}>Sign up</Link>
-            </>
-          ) : (
-            <div className="dropdown">
-              <button
-                className="btn btn-dark dropdown-toggle"
-                type="button"
-                id="userMenu"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-              >
-                {user?.name || "Profile"}
-              </button>
-              <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
-                <li>
-                  <Link className="dropdown-item" to="/edit-profile">
-                    Edit Profile
-                  </Link>
-                </li>
-                <li>
-                  <button className="dropdown-item" onClick={handleLogout}>
-                    Logout
-                  </button>
-                </li>
-              </ul>
-            </div>
-          )}
-        </div>
-      </nav>
+      <NavbarComponent />
 
       {/* ---------- HERO SECTION ---------- */}
       <div style={combinedHero}>
