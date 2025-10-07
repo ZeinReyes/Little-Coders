@@ -65,7 +65,7 @@ function Login() {
                             <span style={{ color: '#1e88e5' }}>t</span>
                             <span style={{ color: '#fb8c00' }}>t</span>
                             <span style={{ color: '#8e24aa' }}>l</span>
-                            <span style={{ color: '#fdd835' }}>e</span>
+                            <span style={{ color: '#fda635' }}>e</span>
                             <span style={{ width: '10px' }}></span>
                             <span style={{ color: '#3949ab' }}>C</span>
                             <span style={{ color: '#43a047' }}>o</span>
