@@ -362,107 +362,6 @@ body {
   position: relative;
 }
 
-/* Modal Overlay */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: block;
-  z-index: 9999;
-}
-
-/* Modal Box */
-.modal {
-  display: flex !important;
-  flex-direction: column;
-  background: #ffffff;
-  border-radius: 12px;
-  margin: 20% 50%;
-  transform: translate(-50%, -50%);
-  padding: 20px 24px;
-  width: 30px;
-  max-width: 30%;
-  max-height: 45%;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-  z-index: 10000;
-  animation: fadeInModal 0.2s ease-out;
-  
-}
-
-/* Smooth Fade Animation */
-@keyframes fadeInModal {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Modal Header */
-.modal-header {
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 16px;
-  text-align: center;
-  border-bottom: 2px solid #f0f0f0;
-  padding-bottom: 8px;
-}
-
-/* Modal Body */
-.modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-/* Input styling */
-.modal-input {
-  width: 100%;
-  padding: 8px 10px;
-  font-size: 0.95rem;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  outline: none;
-  transition: border-color 0.2s ease;
-}
-
-.modal-input:focus {
-  border-color: #007bff;
-}
-
-/* Footer Buttons */
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.modal-btn {
-  padding: 8px 14px;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background 0.2s ease, transform 0.1s ease;
-}
-
-.modal-btn.primary {
-  background: #007bff;
-  color: #fff;
-}
-
-.modal-btn.primary:hover {
-  background: #0066d1;
-  transform: scale(1.03);
-}
-
-.modal-btn.secondary {
-  background: #ccc;
-}
-
-.modal-btn.secondary:hover {
-  background: #b3b3b3;
-  transform: scale(1.03);
-}
 
 
 
@@ -552,37 +451,121 @@ body {
   border: 1px solid #93c5fd;
 }
 
-/* If/Else Nodes */
-.elif-node, .else-node {
-  background: #c5cae9; /* light indigo */
-  border-radius: 8px;
-  padding: 4px;
-  margin-top: 4px;
-  box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+.if-flow-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
 }
-.elif-cond-slot, .elif-body-slot, .else-body-slot {
-  min-width: 60px;
-  min-height: 20px;
-  border: 1px dashed #555;
-  margin: 4px;
-  display: inline-block;
+
+.diamond-shape {
+  width: 80px;
+  height: 80px;
+  background: #fef6d8;
+  border: 2px dashed #e0b84b;
+  transform: rotate(45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
+.diamond-shape > * {
+  transform: rotate(-45deg);
+}
+
+.flow-arrow {
+  font-size: 20px;
+  font-weight: bold;
+  color: #555;
+}
+
 .if-connectors {
-  border: 2px dashed #4a90e2;
+  border: 2px dashed #a0c4ff;
   border-radius: 10px;
   padding: 6px;
-  margin-top: 6px;
-  background: #eef6ff;
-  color: #4a90e2;
-  font-size: 12px;
   text-align: center;
+  font-size: 12px;
+  color: #0057b7;
 }
-.if-connectors:empty::after {
-  content: "Drop elif/else here";
+.multi-slot {
+  min-width: 150px;
+  min-height: 60px;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  background-color: #fafafa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 8px;
+  gap: 4px;
+  text-align: center;
 }
 
 /* Generic Node */
 .node {
   user-select: none;
   touch-action: none;
+}
+
+.conditional-wrapper {
+  border: 2px dashed #e74c3c;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.condition-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.diamond-shape {
+  width: 80px;
+  height: 80px;
+  background: #5dade2;
+  transform: rotate(45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diamond-shape .slot {
+  transform: rotate(-45deg);
+  text-align: center;
+}
+
+.arrow-right {
+  font-size: 24px;
+  color: green;
+  font-weight: bold;
+}
+
+.action-slot {
+  border: 2px dashed #8e44ad;
+  min-width: 180px;
+  min-height: 80px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.drop-elif-else {
+  border: 2px dashed #8e44ad;
+  padding: 8px;
+  min-height: 80px;
+}
+
+.else-label {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.drag-over {
+  background-color: rgba(155, 89, 182, 0.1);
 }

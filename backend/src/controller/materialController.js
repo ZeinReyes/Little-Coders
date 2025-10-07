@@ -16,6 +16,7 @@ export const createMaterial = async (req, res) => {
       overview,
       contents,
       order: nextOrder,
+      isCompleted: false,
     });
 
     await material.save();

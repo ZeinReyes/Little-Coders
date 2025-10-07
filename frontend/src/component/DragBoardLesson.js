@@ -1,0 +1,228 @@
+import React, { useEffect, useState } from "react";
+import "./DragBoard.css";
+import axios from "axios";
+import { Modal, Button, Spinner } from "react-bootstrap";
+import { useParams, useNavigate } from "react-router-dom";
+
+import { initDragAndDrop } from "../utils/dragAndDrop";
+import { updateCode } from "../utils/codeGen";
+import { updateVariableState } from "../utils/state";
+import { runProgram } from "../utils/runner";
+
+export default function DragBoardLesson() {
+  const { lessonId } = useParams();
+  const [lesson, setLesson] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchLesson = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(
+          `http://localhost:5000/api/materials/${lessonId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        setLesson({ ...res.data, currentContentIndex: 0 });
+      } catch (err) {
+        console.error("Error fetching lesson:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLesson();
+  }, [lessonId]);
+
+  useEffect(() => {
+  const init = () => {
+    const whiteboard = document.getElementById("whiteboard");
+    const codeArea = document.getElementById("codeArea");
+    const trashCan = document.getElementById("trashCan");
+    const notification = document.getElementById("notification");
+    const runButton = document.getElementById("runButton");
+    const outputArea = document.getElementById("outputArea");
+
+    if (!whiteboard || !codeArea || !trashCan || !notification) {
+      console.warn("DragBoard elements not yet loaded, retrying...");
+      setTimeout(init, 200); // retry after 200ms until DOM is ready
+      return;
+    }
+
+    const destroy = initDragAndDrop({
+      paletteSelector: ".elements img",
+      whiteboard,
+      codeArea,
+      trashCan,
+      notification,
+    });
+
+    const onRun = () => runProgram(codeArea, outputArea);
+    runButton.addEventListener("click", onRun);
+
+    const observer = new MutationObserver(() => {
+      updateVariableState(whiteboard);
+      updateCode(whiteboard, codeArea);
+    });
+    observer.observe(whiteboard, { childList: true, subtree: true });
+
+    updateVariableState(whiteboard);
+    updateCode(whiteboard, codeArea);
+
+    // cleanup
+    return () => {
+      destroy && destroy();
+      runButton.removeEventListener("click", onRun);
+      observer.disconnect();
+    };
+  };
+
+  const cleanup = init();
+  return cleanup;
+}, []);
+
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center vh-100">
+        <Spinner animation="border" variant="primary" />
+      </div>
+    );
+  }
+
+  const handleNextContent = () => {
+    if (!lesson) return;
+    if (lesson.currentContentIndex < lesson.contents.length) {
+      setLesson((prev) => ({
+        ...prev,
+        currentContentIndex: prev.currentContentIndex + 1,
+      }));
+    } else {
+      navigate(-1); // Go back after last content
+    }
+  };
+
+  const handlePreviousContent = () => {
+    if (lesson.currentContentIndex > 0) {
+      setLesson((prev) => ({
+        ...prev,
+        currentContentIndex: prev.currentContentIndex - 1,
+      }));
+    }
+  };
+
+  const renderLessonContent = () => {
+    if (!lesson) return null;
+    if (lesson.currentContentIndex === 0) {
+      return <div dangerouslySetInnerHTML={{ __html: lesson.overview }} />;
+    }
+    const index = lesson.currentContentIndex - 1;
+    return (
+      <div dangerouslySetInnerHTML={{ __html: lesson.contents[index] || "" }} />
+    );
+  };
+
+  return (
+    <div>
+      {/* Main drag board layout */}
+      <div className="main-container">
+        <div className="draggable">
+          <h3>Elements</h3>
+          <div className="elements">
+            <img src="/assets/images/print1.png" data-type="print" draggable="true" alt="Print" />
+            <img src="/assets/images/container.png" data-type="variable" draggable="true" alt="Variable" />
+
+            {/* Arithmetic operators */}
+            <img src="/assets/images/multiply.png" data-type="multiply" draggable="true" alt="Multiply" />
+            <img src="/assets/images/add.png" data-type="add" draggable="true" alt="Add" />
+            <img src="/assets/images/subtract.png" data-type="subtract" draggable="true" alt="Subtract" />
+            <img src="/assets/images/divide.png" data-type="divide" draggable="true" alt="Divide" />
+
+            {/* Comparison operators */}
+            <img src="/assets/images/equalto.png" data-type="equal" draggable="true" alt="Equal ==" />
+            <img src="/assets/images/notequal.png" data-type="notequal" draggable="true" alt="Not Equal !=" />
+            <img src="/assets/images/lessthan.png" data-type="less" draggable="true" alt="Less Than <" />
+            <img src="/assets/images/lessthanequal.png" data-type="lessequal" draggable="true" alt="Less or Equal <=" />
+            <img src="/assets/images/greaterthan.png" data-type="greater" draggable="true" alt="Greater Than >" />
+            <img src="/assets/images/greaterthanequal.png" data-type="greaterequal" draggable="true" alt="Greater or Equal >=" />
+
+            {/* Conditionals */}
+            <img src="/assets/images/if.png" data-type="if" draggable="true" alt="If" />
+            <img src="/assets/images/elif.png" data-type="elif" draggable="true" alt="Elif" />
+            <img src="/assets/images/else.png" data-type="else" draggable="true" alt="Else" />
+          </div>
+        </div>
+
+        <div className="workspace">
+          <div className="whiteboard-wrap">
+            <div id="whiteboard" className="whiteboard">
+              <div id="trashCan" className="trash-can">🗑️</div>
+            </div>
+            <div id="dimOverlay" className="dim-overlay"></div>
+          </div>
+        </div>
+
+        <div className="right-panel">
+          <div className="code-panel">
+            <button id="runButton" className="run-button">
+              ▶ Run Program
+            </button>
+            <div>Source Code (preview)</div>
+            <pre id="codeArea">/* Build expressions on the whiteboard */</pre>
+          </div>
+          <div className="output">
+            <div>Program Output</div>
+            <pre id="outputArea">/* Results will appear here */</pre>
+          </div>
+        </div>
+      </div>
+
+      <div id="notification" className="notification"></div>
+      <div id="globalTooltip" className="tooltip"></div>
+
+      {/* Lesson Modal */}
+      {lesson && (
+        <Modal
+          show
+          backdrop="static"
+          centered
+          size="lg"
+          style={{
+            maxHeight: "90vh",
+          }}
+        >
+          <Modal.Header>
+            <Modal.Title>{lesson.title}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body
+            style={{
+              maxHeight: "65vh",
+              overflowY: "auto",
+              padding: "1.5rem",
+              backgroundColor: "#FFF8F2",
+              fontFamily: "'Comic Sans MS', cursive",
+            }}
+          >
+            {renderLessonContent()}
+          </Modal.Body>
+          <Modal.Footer className="d-flex justify-content-between">
+            <Button
+              variant="secondary"
+              onClick={handlePreviousContent}
+              disabled={lesson.currentContentIndex === 0}
+            >
+              ← Previous
+            </Button>
+            <Button variant="primary" onClick={handleNextContent}>
+              {lesson.currentContentIndex >= lesson.contents.length
+                ? "Finish Lesson"
+                : "Next →"}
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      )}
+    </div>
+  );
+}
