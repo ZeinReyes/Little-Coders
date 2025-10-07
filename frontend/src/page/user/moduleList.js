@@ -76,7 +76,7 @@ function ModuleList() {
             style={{
               zIndex: 5,
               fontFamily: "'Poppins', sans-serif",
-              color: "#222",
+              color: "white",
               fontWeight: "300",
               fontSize: "80px",
             }}

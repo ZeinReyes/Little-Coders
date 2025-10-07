@@ -304,7 +304,7 @@ function HomePage() {
               <h5>Quick Links</h5>
               <ul className="list-unstyled">
                 <li><Link className="text-white text-decoration-none" to="/">Home</Link></li>
-                <li><Link className="text-white text-decoration-none" to="/lessons">Lessons</Link></li>
+                <li><Link className="text-white text-decoration-none" to="/module-list">Lessons</Link></li>
                 <li><Link className="text-white text-decoration-none" to="/contact">Contact</Link></li>
               </ul>
             </div>

@@ -113,6 +113,9 @@ const NavbarComponent = () => {
         <Link to="/contact" style={navLinkStyle}>
           Contact Us
         </Link>
+        <Link to="/dragboard" style={navLinkStyle}>
+          Program Now
+        </Link>
       </div>
 
       {/* Right Side Buttons */}

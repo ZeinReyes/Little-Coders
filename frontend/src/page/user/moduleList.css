@@ -21,8 +21,8 @@
   align-items: center;
   position: relative;
   padding: 40px 20px; 
-  background-color: #f8bbd0;
-  border: 2px dashed #c48a9f;
+  background-color: #ff7974;
+  border: 2px dashed red;
   color: white;
 }
 
@@ -55,8 +55,8 @@
 
 /* Pastel alternating background colors with darker borders */
 .module-card:nth-child(1n) { 
-  background-color: #f8bbd0; 
-  border: 2px dashed #c48a9f; /* darker shade */
+  background-color: #ff7974; 
+  border: 2px dashed red; /* darker shade */
 }
 .module-card:nth-child(2n) { 
   background-color: #ffe0b2; 
