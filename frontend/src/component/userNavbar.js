@@ -131,13 +131,14 @@ const NavbarComponent = () => {
           </>
         ) : (
           <div className="dropdown">
-            <button
-              className="btn btn-dark dropdown-toggle"
+           <button
+              style={{ backgroundColor: "#2157b4", color: "#ffffff" }}
+              className="btn dropdown-toggle"
               type="button"
               id="userMenu"
               data-bs-toggle="dropdown"
               aria-expanded="false"
-            >
+>
               {user?.name || "Profile"}
             </button>
             <ul

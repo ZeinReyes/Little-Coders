@@ -90,6 +90,16 @@ function Sidebar() {
                   Add Lesson
                 </NavLink>
               </li>
+              <li>
+                <NavLink
+                  to="/admin/add-assessment"
+                  className={({ isActive }) =>
+                    `nav-link text-white ${isActive ? "bg-primary text-white rounded px-2" : ""}`
+                  }
+                >
+                  Add Assessment
+                </NavLink>
+                </li>
             </ul>
           </div>
         </li>

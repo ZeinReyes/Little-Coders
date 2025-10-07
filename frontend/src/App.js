@@ -1,45 +1,46 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from "react-router-dom";
 
-//Authentication 
-import Login from './page/authentication/loginPage';
-import Register from './page/authentication/registerPage';
-import ForgotPassword from './page/authentication/forgotPasswordPage';
-import ResetPassword from './page/authentication/resetPasswordPage';
+// Authentication
+import Login from "./page/authentication/loginPage";
+import Register from "./page/authentication/registerPage";
+import ForgotPassword from "./page/authentication/forgotPasswordPage";
+import ResetPassword from "./page/authentication/resetPasswordPage";
 
-//User
-import HomePage from './page/user/homePage';
-import LessonPlayer from './page/user/lessonPlayer';
-import ModuleList from "./page/user/moduleList"; 
+// User
+import HomePage from "./page/user/homePage";
+import LessonPlayer from "./page/user/lessonPlayer";
+import ModuleList from "./page/user/moduleList";
 import LessonList from "./page/user/lessonList";
 import DragBoard from "./component/DragBoard";
 
+// Admin
+import AdminPage from "./page/admin/adminPage";
+import Dashboard from "./page/admin/dashboard";
+import Users from "./page/admin/users";
+import AddUser from "./page/admin/addUser";
+import Lessons from "./page/admin/lessons";
+import AddLesson from "./page/admin/addLeson";
+import EditLesson from "./page/admin/editLesson";
+import ManageLesson from "./page/admin/manageLesson";
+import AddMaterial from "./page/admin/addMaterial";
+import AddActivity from "./page/admin/addActivity";
+import AddAssessment from "./page/admin/addAssessment"; // ✅ Import the new page
 
-
-//Admin
-import AdminPage from './page/admin/adminPage';
-import Dashboard from './page/admin/dashboard';
-import Users from './page/admin/users';
-import AddUser from './page/admin/addUser';
-import Lessons from './page/admin/lessons';
-import AddLesson from './page/admin/addLeson';
-import EditLesson from './page/admin/editLesson';
-import ManageLesson from './page/admin/manageLesson';
-import AddMaterial from './page/admin/addMaterial';
-import AddActivity from './page/admin/addActivity';
-
-//Others
-import 'bootstrap/dist/css/bootstrap.min.css';
-import 'bootstrap/dist/js/bootstrap.bundle.min.js';
+// Others
+import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
 function App() {
   return (
     <Routes>
+      {/* Authentication */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
 
+      {/* User */}
       <Route path="/home" element={<HomePage />} />
       <Route path="/lesson/:id" element={<LessonPlayer />} />
       <Route path="/module-list" element={<ModuleList />} />
@@ -47,9 +48,7 @@ function App() {
       <Route path="/dragboard/:type/:id" element={<DragBoard />} />
       <Route path="/dragboard" element={<DragBoard />} />
 
-
-
-
+      {/* Admin */}
       <Route path="/admin" element={<AdminPage />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
@@ -61,8 +60,12 @@ function App() {
         <Route path="lessons/:id/manage" element={<ManageLesson />} />
         <Route path="lessons/:id/add-material" element={<AddMaterial />} />
         <Route path="lessons/:id/add-activity" element={<AddActivity />} />
+
+        {/* ✅ New route for adding an assessment */}
+        <Route path="add-assessment" element={<AddAssessment />} />
       </Route>
 
+      {/* Redirect any unknown routes */}
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
   );
