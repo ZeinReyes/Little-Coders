@@ -26,6 +26,23 @@ export const createActivity = async (req, res) => {
   }
 };
 
+export const getActivityById = async (req, res) => {
+  try {
+    const { activityId } = req.params;
+    const activity = await LessonActivity.findById(activityId);
+
+    if (!activity) {
+      return res.status(404).json({ message: "Activity not found" });
+    }
+
+    res.status(200).json(activity);
+  } catch (err) {
+    console.error("Error fetching activity:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
 export const getActivitiesByLesson = async (req, res) => {
   try {
     const { lessonId } = req.params;

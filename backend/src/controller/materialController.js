@@ -25,6 +25,22 @@ export const createMaterial = async (req, res) => {
     res.status(500).json({ message: "Error creating material", error: err.message });
   }
 };
+export const getMaterialById = async (req, res) => {
+  try {
+    const { materialId } = req.params;
+    const material = await LessonMaterial.findById(materialId);
+
+    if (!material) {
+      return res.status(404).json({ message: "Material not found" });
+    }
+
+    res.status(200).json(material);
+  } catch (err) {
+    console.error("Error fetching material:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 
 export const getMaterialsByLesson = async (req, res) => {
   try {

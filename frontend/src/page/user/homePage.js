@@ -1,10 +1,46 @@
-import React, { useContext } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../../context/authContext";
 import NavbarComponent from "../../component/userNavbar";
 
 function HomePage() {
-  
+  const [showSplash, setShowSplash] = useState(true);
+  const [animate, setAnimate] = useState(false);
+
+  // ✅ Splash animation timing
+  useEffect(() => {
+    // Start animation slightly after mount
+    const startTimer = setTimeout(() => setAnimate(true), 200);
+
+    // Hide splash after animation completes
+    const hideTimer = setTimeout(() => setShowSplash(false), 800);
+
+    return () => {
+      clearTimeout(startTimer);
+      clearTimeout(hideTimer);
+    };
+  }, []);
+
+  // ✅ Splash Screen Styles
+  const splashContainer = {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100vw",
+    height: "100vh",
+    backgroundColor: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,
+    overflow: "hidden",
+  };
+
+  const snakeImage = {
+    height: animate ? "100vh" : "30vh",
+    width: "auto",
+    transition: "all .1s ",
+  };
   const pageStyle = {
     display: "flex",
     flexDirection: "column",
@@ -215,6 +251,16 @@ function HomePage() {
   };
 
   return (
+    <>
+    {showSplash && (
+        <div style={splashContainer}>
+          <img
+            src="https://t4.ftcdn.net/jpg/14/21/34/09/360_F_1421340903_RFotJFnoo0bduRHcev5f4aLHwonagOxC.jpg" // 🐍 Change to your snake image path
+            alt="Snake"
+            style={snakeImage}
+          />
+        </div>
+      )}
     <div style={pageStyle}>
       <NavbarComponent />
 
@@ -322,6 +368,7 @@ function HomePage() {
         </div>
       </footer>
     </div>
+    </>
   );
 }
 

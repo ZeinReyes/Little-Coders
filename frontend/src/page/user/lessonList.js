@@ -2,35 +2,34 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Button, Spinner, ListGroup, Modal } from "react-bootstrap";
+import { Button, Spinner, ListGroup } from "react-bootstrap";
 import { CheckCircleFill, Circle } from "react-bootstrap-icons";
 
 function LessonList() {
-  const { moduleId } = useParams();
+  const { lessonId } = useParams();
   const [module, setModule] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedIndex, setSelectedIndex] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
-  }, [moduleId]);
+  }, [lessonId]);
 
   const fetchData = async () => {
     try {
       const token = localStorage.getItem("token");
 
       const [moduleRes, materialsRes, activitiesRes] = await Promise.all([
-        axios.get(`http://localhost:5000/api/lessons/${moduleId}`, {
+        axios.get(`http://localhost:5000/api/lessons/${lessonId}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
         axios.get(
-          `http://localhost:5000/api/materials/lessons/${moduleId}/materials`,
+          `http://localhost:5000/api/materials/lessons/${lessonId}/materials`,
           { headers: { Authorization: `Bearer ${token}` } }
         ),
         axios.get(
-          `http://localhost:5000/api/activities/lessons/${moduleId}/activities`,
+          `http://localhost:5000/api/activities/lessons/${lessonId}/activities`,
           { headers: { Authorization: `Bearer ${token}` } }
         ),
       ]);
@@ -40,8 +39,6 @@ function LessonList() {
       const materials = materialsRes.data.map((m) => ({
         ...m,
         type: "lesson",
-        overview: m.overview || "",
-        currentContentIndex: 0,
       }));
 
       const activities = activitiesRes.data.map((a) => ({
@@ -63,52 +60,8 @@ function LessonList() {
     }
   };
 
-  const handleLessonClick = (index) => setSelectedIndex(index);
-  const handleClose = () => setSelectedIndex(null);
-
-  const handleNextLesson = () => {
-    if (selectedIndex < items.length - 1) {
-      setSelectedIndex(selectedIndex + 1);
-    } else {
-      setSelectedIndex(null);
-    }
-  };
-
-  const handlePrevLesson = () => {
-    if (selectedIndex > 0) {
-      setSelectedIndex(selectedIndex - 1);
-    }
-  };
-
-  const handleNextContent = () => {
-    setItems((prev) =>
-      prev.map((item, idx) => {
-        if (idx === selectedIndex && item.type === "lesson") {
-          const nextIndex = (item.currentContentIndex || 0) + 1;
-          if (nextIndex > (item.contents?.length || 0)) {
-            handleNextLesson();
-          }
-          return { ...item, currentContentIndex: nextIndex };
-        }
-        return item;
-      })
-    );
-  };
-
-  const handlePrevContent = () => {
-    setItems((prev) =>
-      prev.map((item, idx) =>
-        idx === selectedIndex
-          ? {
-              ...item,
-              currentContentIndex: Math.max(
-                0,
-                (item.currentContentIndex || 0) - 1
-              ),
-            }
-          : item
-      )
-    );
+  const handleItemClick = (item) => {
+    navigate(`/lessons/${lessonId}/${item._id}`);
   };
 
   if (loading) {
@@ -118,19 +71,6 @@ function LessonList() {
       </div>
     );
   }
-
-  const currentLesson = selectedIndex !== null ? items[selectedIndex] : null;
-  const contentIndex = currentLesson?.currentContentIndex || 0;
-  const isOverview = contentIndex === 0;
-  const totalContents = currentLesson?.contents?.length || 0;
-  const isLastContent = contentIndex === totalContents;
-
-  const displayContent =
-    currentLesson?.type === "lesson"
-      ? isOverview
-        ? currentLesson.overview
-        : currentLesson.contents?.[contentIndex - 1] || ""
-      : "";
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#FFF9F0" }}>
@@ -172,7 +112,7 @@ function LessonList() {
         </h5>
 
         <ListGroup>
-          {items.map((item, index) => (
+          {items.map((item) => (
             <ListGroup.Item
               key={item._id}
               className="d-flex align-items-center justify-content-between shadow-sm mb-2 rounded-3"
@@ -183,11 +123,13 @@ function LessonList() {
                 padding: "0.8rem 1rem",
                 transition: "transform 0.2s",
               }}
-              onClick={() => handleLessonClick(index)}
+              onClick={() => handleItemClick(item)}
               onMouseEnter={(e) =>
                 (e.currentTarget.style.transform = "scale(1.02)")
               }
-              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.transform = "scale(1)")
+              }
             >
               <div className="d-flex align-items-center">
                 {item.isCompleted ? (
@@ -210,111 +152,6 @@ function LessonList() {
           ))}
         </ListGroup>
       </div>
-
-      {/* Modal Section */}
-      {currentLesson && (
-        <Modal show onHide={handleClose} centered size="lg">
-          <Modal.Header closeButton>
-            <Modal.Title>
-              {currentLesson.type === "activity"
-                ? `Activity: ${currentLesson.name}`
-                : currentLesson.title}
-            </Modal.Title>
-          </Modal.Header>
-
-          <Modal.Body
-            style={{
-              maxHeight: "65vh",
-              overflowY: "auto",
-              padding: "1.5rem",
-              backgroundColor: "#FAFAFA",
-              borderRadius: "10px",
-            }}
-          >
-            {currentLesson.type === "lesson" ? (
-              <div
-                style={{
-                  fontFamily: "'Comic Sans MS', cursive",
-                  fontSize: "1.05rem",
-                  lineHeight: "1.6",
-                }}
-                dangerouslySetInnerHTML={{ __html: displayContent }}
-              />
-            ) : (
-              <div style={{ fontFamily: "'Comic Sans MS', cursive" }}>
-                <h5 style={{ color: "#00796B" }}>Instructions</h5>
-                <p
-                  dangerouslySetInnerHTML={{
-                    __html: currentLesson.instructions,
-                  }}
-                />
-
-                {currentLesson.hints?.length > 0 && (
-                  <>
-                    <h6 style={{ color: "#0288D1" }}>Hints:</h6>
-                    <ul>
-                      {currentLesson.hints.map((hint, i) => (
-                        <li key={i} dangerouslySetInnerHTML={{ __html: hint }} />
-                      ))}
-                    </ul>
-                  </>
-                )}
-
-                {currentLesson.expectedOutput && (
-                  <>
-                    <h6 style={{ color: "#E65100" }}>Expected Output:</h6>
-                    <pre
-                      style={{
-                        backgroundColor: "#f4f4f4",
-                        padding: "10px",
-                        borderRadius: "8px",
-                      }}
-                    >
-                      {currentLesson.expectedOutput}
-                    </pre>
-                  </>
-                )}
-              </div>
-            )}
-          </Modal.Body>
-
-          <Modal.Footer className="d-flex justify-content-between">
-  <Button
-    variant="secondary"
-    onClick={
-      currentLesson.type === "lesson"
-        ? handlePrevContent
-        : handlePrevLesson
-    }
-    disabled={selectedIndex === 0 && isOverview}
-  >
-    ← Previous
-  </Button>
-
-  <Button
-    variant="primary"
-    onClick={
-      currentLesson.type === "lesson"
-        ? isLastContent
-          ? handleNextLesson // ✅ move to next item after finishing lesson
-          : handleNextContent
-        : handleNextLesson
-    }
-  >
-    {currentLesson.type === "lesson"
-      ? isLastContent
-        ? selectedIndex === items.length - 1
-          ? "Finish Module" // ✅ last lesson of module
-          : "Finish Lesson" // ✅ last content of lesson
-        : "Next →"
-      : selectedIndex === items.length - 1
-        ? "Finish Module" // ✅ last activity
-        : "Finish →"}
-  </Button>
-</Modal.Footer>
-
-        </Modal>
-      )}
     </div>
   );
 }
