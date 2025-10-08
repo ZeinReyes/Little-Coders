@@ -267,28 +267,26 @@ export default function DragBoardLesson() {
           </Button>
         </Modal.Footer>
       </Modal>
-      {/* ✅ Completion Modal */}
-<Modal show={showCompletionModal} onHide={() => setShowCompletionModal(false)} centered backdrop="static">
-  <Modal.Header closeButton>
-    <Modal.Title>🎉 Great Job!</Modal.Title>
-  </Modal.Header>
-  <Modal.Body style={{ textAlign: "center", fontSize: "1.2rem" }}>
-    {lesson.type === "activity" ? (
-      <p>You’ve completed this activity! Would you like to continue to the next one?</p>
-    ) : (
-      <p>You’ve finished the lesson! Continue to the next lesson?</p>
-    )}
-  </Modal.Body>
-  <Modal.Footer className="d-flex justify-content-center">
-    <Button variant="secondary" onClick={() => setShowCompletionModal(false)}>
-      Stay Here
-    </Button>
-    <Button variant="success" onClick={handleContinue}>
-      Continue →
-    </Button>
-  </Modal.Footer>
-</Modal>
-
+      <Modal show={showCompletionModal} onHide={() => setShowCompletionModal(false)} centered backdrop="static">
+        <Modal.Header closeButton>
+          <Modal.Title>🎉 Great Job!</Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ textAlign: "center", fontSize: "1.2rem" }}>
+          {lesson.type === "activity" ? (
+            <p>You’ve completed this activity! Would you like to continue to the next one?</p>
+          ) : (
+            <p>You’ve finished the lesson! Continue to the next lesson?</p>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="d-flex justify-content-center">
+          <Button variant="secondary" onClick={() => setShowCompletionModal(false)}>
+            Stay Here
+          </Button>
+          <Button variant="success" onClick={handleContinue}>
+            Continue →
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }

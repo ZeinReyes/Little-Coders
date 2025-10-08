@@ -10,7 +10,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 80px 0; /* breathing room top/bottom */
+  padding: 80px 0;
+  height: calc(100vh - 70px);
 }
 
 .modules-header {

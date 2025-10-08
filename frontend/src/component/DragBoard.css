@@ -362,9 +362,6 @@ body {
   position: relative;
 }
 
-
-
-
 .dim-overlay.visible {
   display: block;
 }
@@ -450,122 +447,214 @@ body {
   color: #075985;
   border: 1px solid #93c5fd;
 }
-
-.if-flow-row {
+/* ------------------ NODE CONTAINERS ------------------ */
+.if-node, .elif-node, .else-node {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column; /* stack header + body */
+  gap: 4px;
+  align-items: flex-start;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ------------------ HEADER ------------------ */
+.if-header,
+.elif-header,
+.else-header {
+  display: flex;
+  align-items: center; /* keep label + cond + colon inline */
+  gap: 4px;
+  width: auto;
+}
+
+/* ------------------ LABELS ------------------ */
+.if-label, .elif-label, .else-label,
+.if-colon, .elif-colon {
+  white-space: nowrap;
+  align-self: center;
+}
+
+/* ------------------ CONDITION SLOT ------------------ */
+.if-cond, .elif-cond {
+  display: inline-flex;
+  min-width: 140px; /* adjust as needed */
+  box-sizing: border-box;
+  position: relative;
+  flex-shrink: 0; /* prevent shrinking */
+}
+
+.if-cond input, .elif-cond input{
+  background-color: transparent !important;
+  border: none;
+}
+
+.if-cond input::placeholder, .elif-cond input::placeholder{
+  font-size: 13px;
+}
+
+/* ------------------ BODY ------------------ */
+.if-body, .elif-body, .else-body {
+  display: flex;
+  flex-direction: column; /* stack children vertically */
   gap: 8px;
-  margin-bottom: 8px;
+  min-height: 40px;
+  min-width: 220px; /* width of body panel */
+  max-width: 60%;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px dashed rgba(150,150,150,0.6);
+  background: rgba(240,248,255,0.6);
+  box-sizing: border-box;
+  margin-left: 0; /* no longer inline with header */
+  flex-shrink: 0;
 }
 
-.diamond-shape {
-  width: 80px;
-  height: 80px;
-  background: #fef6d8;
-  border: 2px dashed #e0b84b;
-  transform: rotate(45deg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.diamond-shape > * {
-  transform: rotate(-45deg);
-}
-
-.flow-arrow {
-  font-size: 20px;
-  font-weight: bold;
-  color: #555;
-}
-
+/* ------------------ CONNECTORS ------------------ */
 .if-connectors {
-  border: 2px dashed #a0c4ff;
-  border-radius: 10px;
-  padding: 6px;
-  text-align: center;
-  font-size: 12px;
-  color: #0057b7;
-}
-.multi-slot {
-  min-width: 150px;
-  min-height: 60px;
-  border: 2px dashed #ccc;
-  border-radius: 8px;
-  background-color: #fafafa;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 8px;
-  gap: 4px;
+  min-width: 450px;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 6px;
+  border: 2px dashed rgba(100,150,220,0.35);
+  box-sizing: border-box;
+  background: rgba(230,240,250,0.25);
   text-align: center;
 }
 
-/* Generic Node */
+/* ------------------ BRANCH NODES ------------------ */
+.elif-node, .else-node {
+  display: flex; /* make it column like if-node */
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ------------------ BRANCH HEADERS ------------------ */
+.elif-node > .elif-header,
+.else-node > .else-header {
+  display: flex;
+  align-items: center; /* keep label + cond + colon inline */
+  gap: 4px;
+  width: auto;
+}
+
+/* ------------------ TEXT ------------------ */
+.if-node span, .elif-node span, .else-node span {
+  font-family: inherit;
+  font-size: 14px;
+}
+
+/* ------------------ SLOT / OPERATOR STRETCH ------------------ */
+.if-body > .slot, .elif-body > .slot, .else-body > .slot,
+.if-body > .operator, .elif-body > .operator, .else-body > .operator {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+
 .node {
   user-select: none;
   touch-action: none;
 }
 
-.conditional-wrapper {
-  border: 2px dashed #e74c3c;
-  border-radius: 8px;
-  padding: 10px;
-  display: flex;
+.print-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: block;
+  z-index: 9999;
+}
+
+.print-modal {
+  display: flex !important;
   flex-direction: column;
-  gap: 10px;
+  background: #ffffff;
+  border-radius: 12px;
+  margin: 20% 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px 24px;
+  width: 30%;
+  max-width: 30%;
+  max-height: 45%;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  z-index: 10000;
+  animation: fadeInModal 0.2s ease-out;
+  
 }
 
-.condition-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* Smooth Fade Animation */
+@keyframes fadeInModal {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.diamond-shape {
-  width: 80px;
-  height: 80px;
-  background: #5dade2;
-  transform: rotate(45deg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.diamond-shape .slot {
-  transform: rotate(-45deg);
+/* Modal Header */
+.print-modal-header {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 16px;
   text-align: center;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 8px;
 }
 
-.arrow-right {
-  font-size: 24px;
-  color: green;
-  font-weight: bold;
-}
-
-.action-slot {
-  border: 2px dashed #8e44ad;
-  min-width: 180px;
-  min-height: 80px;
-  padding: 8px;
+/* Modal Body */
+.print-modal-body {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
-.drop-elif-else {
-  border: 2px dashed #8e44ad;
-  padding: 8px;
-  min-height: 80px;
+/* Input styling */
+.print-modal-input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  outline: none;
+  transition: border-color 0.2s ease;
 }
 
-.else-label {
-  font-weight: bold;
-  color: #2c3e50;
+.print-modal-input:focus {
+  border-color: #007bff;
 }
 
-.drag-over {
-  background-color: rgba(155, 89, 182, 0.1);
+/* Footer Buttons */
+.print-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.print-modal-btn {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.print-modal-btn.primary {
+  background: #007bff;
+  color: #fff;
+}
+
+.print-modal-btn.primary:hover {
+  background: #0066d1;
+  transform: scale(1.03);
+}
+
+.print-modal-btn.secondary {
+  background: #ccc;
+}
+
+.print-modal-btn.secondary:hover {
+  background: #b3b3b3;
+  transform: scale(1.03);
 }

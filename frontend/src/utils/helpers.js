@@ -1,4 +1,5 @@
-// src/utils/helpers.js
+import { detectTypeAndFormat, exprFromSlot, generateNodeCode } from './codeGen'; 
+
 export function attachTooltip(el, defaultText) {
   if (!el) return;
   const globalTooltip = document.getElementById("globalTooltip");
@@ -38,58 +39,90 @@ export function createAutoResizeInput() {
   return input;
 }
 
-export function slotToCode(slot) {
-  if (!slot) return "None";
-  if (!slot.children || slot.children.length === 0) {
-    return slot.textContent && slot.textContent.trim() !== "" 
-      ? slot.textContent.trim()
-      : "None";
-  }
-  const child = slot.children[0];
-  if (child.dataset && child.dataset.op) {
-    const left = slotToCode(child.children[0]);
-    const op = child.children[1].textContent;
-    const right = slotToCode(child.children[2]);
-    return `${left} ${op} ${right}`;
-  }
-  if (child.classList.contains("variable")) {
-    const label = child.querySelector(".var-label");
-    return label ? label.textContent.trim() : "result";
-  }
-  if (child.classList.contains("if-node")) {
-    const cond = slotToCode(child.querySelector(".if-cond"));
-    const body = slotToCode(child.querySelector(".if-body"));
-    let code = `if ${cond}:\n  ${body}`;
-    const connectors = child.querySelector(".if-connectors");
-    if (connectors) {
-      for (let sub of connectors.children) {
-        if (sub.classList.contains("elif-node")) {
-          const elifCond = slotToCode(sub.querySelector(".elif-cond"));
-          const elifBody = slotToCode(sub.querySelector(".elif-body"));
-          code += `\nelif ${elifCond}:\n  ${elifBody}`;
-        } else if (sub.classList.contains("else-node")) {
-          const elseBody = slotToCode(sub.querySelector(".else-body"));
-          code += `\nelse:\n  ${elseBody}`;
+export function slotToCode(slot, indentLevel = 0) {
+  if (!slot) return 'pass';
+
+  const indent = '    '.repeat(indentLevel);
+  const lines = [];
+
+  const children = Array.from(slot.childNodes); // include text nodes
+
+  for (let child of children) {
+    let line = '';
+
+    // ---- Operator ----
+    if (child.classList && child.classList.contains('operator')) {
+      const slots = Array.from(child.querySelectorAll('.slot'));
+      const left = slots[0] ? slotToCode(slots[0], 0).trim() : '0';
+      const right = slots[1] ? slotToCode(slots[1], 0).trim() : '0';
+      const opMap = {
+        add: "+", subtract: "-", multiply: "*", divide: "/",
+        equal: "==", notequal: "!=", less: "<", lessequal: "<=",
+        greater: ">", greaterequal: ">="
+      };
+      const op = opMap[child.dataset.op] || child.dataset.op || '+';
+      line = indent + `${left} ${op} ${right}`;
+    }
+
+    // ---- Variable ----
+    else if (child.classList && child.classList.contains('variable')) {
+      const varName = child.dataset.varName?.trim() || 'result';
+      const rhsSlot = child.querySelector('.variable-slot');
+      const rhs = rhsSlot ? slotToCode(rhsSlot, 0).trim() : 'None';
+      line = indent + `${varName} = ${rhs}`;
+    }
+
+    // ---- Print ----
+    else if (child.classList && child.classList.contains('print-node')) {
+      // ✅ Use generateNodeCode to properly extract dataset.value
+      const { code: printCode } = generateNodeCode(child);
+      line = indent + printCode;
+    }
+
+    // ---- If / Elif / Else ----
+    else if (child.classList && child.classList.contains('if-node')) {
+      const condExpr = exprFromSlot(child.querySelector('.if-cond'));
+      const bodySlot = child.querySelector('.if-body');
+      const body = bodySlot ? slotToCode(bodySlot, indentLevel + 1) : indent + '    pass';
+
+      line = indent + `if ${condExpr.code}:\n${body}`;
+
+      const connectors = child.querySelector('.if-connectors');
+      if (connectors) {
+        for (let sub of connectors.children) {
+          if (sub.classList.contains('elif-node')) {
+            const elifCond = exprFromSlot(sub.querySelector('.elif-cond'));
+            const elifBodySlot = sub.querySelector('.elif-body');
+            const elifBody = elifBodySlot ? slotToCode(elifBodySlot, indentLevel + 1) : indent + '    pass';
+            line += `\nelif ${elifCond.code}:\n${elifBody}`;
+          } else if (sub.classList.contains('else-node')) {
+            const elseBodySlot = sub.querySelector('.else-body');
+            const elseBody = elseBodySlot ? slotToCode(elseBodySlot, indentLevel + 1) : indent + '    pass';
+            line += `\nelse:\n${elseBody}`;
+          }
         }
       }
     }
-    return code;
+
+    // ---- Input ----
+    else if (child.tagName === 'INPUT') {
+      line = indent + (child.value.trim() || '0');
+    }
+
+    // ---- Text fallback ----
+    else {
+      const text = child.textContent?.trim();
+      line = indent + (text || 'pass');
+    }
+
+    if (line) lines.push(line);
   }
-  if (child.classList.contains("elif-node")) {
-    const cond = slotToCode(child.querySelector(".elif-cond"));
-    const body = slotToCode(child.querySelector(".elif-body"));
-    return `elif ${cond}:\n  ${body}`;
-  }
-  if (child.classList.contains("else-node")) {
-    const body = slotToCode(child.querySelector(".else-body"));
-    return `else:\n  ${body}`;
-  }
-  if (child.classList.contains("print-node")) {
-    const inner = slotToCode(child.querySelector(".print-slot"));
-    return `print(${inner})`;
-  }
-  return child.textContent.trim() || "None";
+
+  return lines.join('\n');
 }
+
+
+
 
 // 💡 Child-friendly notifications
 export function showNestNotification(message) {

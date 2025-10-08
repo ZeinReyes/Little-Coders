@@ -8,13 +8,13 @@ export function canNest(slot, node) {
   const slotType = slot.dataset.type;
   const nodeType = node.dataset.type;
 
-  // Allow operators, variables, and values to be nested in slots
   if (slotType === 'slot') {
-    return ['variable', 'value', 'operator'].includes(nodeType);
+    return ['variable', 'value', 'operator', 'print'].includes(nodeType);
   }
 
   return false;
 }
+
 
 export function nestElement(el) {
   if (!el) return;
