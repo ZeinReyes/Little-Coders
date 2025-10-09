@@ -24,7 +24,8 @@ import EditLesson from "./page/admin/editLesson";
 import ManageLesson from "./page/admin/manageLesson";
 import AddMaterial from "./page/admin/addMaterial";
 import AddActivity from "./page/admin/addActivity";
-import AddAssessment from "./page/admin/addAssessment"; // ✅ Import the new page
+import AddAssessment from "./page/admin/addAssessment";
+import ManageAssessment from "./page/admin/manageAssessment"; // ✅ Import ManageAssessment
 
 // Others
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -60,9 +61,8 @@ function App() {
         <Route path="lessons/:id/manage" element={<ManageLesson />} />
         <Route path="lessons/:id/add-material" element={<AddMaterial />} />
         <Route path="lessons/:id/add-activity" element={<AddActivity />} />
-
-        {/* ✅ New route for adding an assessment */}
         <Route path="add-assessment" element={<AddAssessment />} />
+        <Route path="manage-assessment" element={<ManageAssessment />} /> {/* ✅ New Route */}
       </Route>
 
       {/* Redirect any unknown routes */}

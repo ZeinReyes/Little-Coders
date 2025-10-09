@@ -14,11 +14,36 @@ const assessmentSchema = new mongoose.Schema(
     },
     lessonId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Lesson", // ✅ references Lesson model
+      ref: "Lesson",
       required: true,
     },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    category: {
+      type: String,
+      trim: true,
+      default: "General",
+    },
+    testCases: [
+      {
+        input: { type: String },
+        output: { type: String },
+      },
+    ],
   },
   { timestamps: true }
 );
+
+// ✅ Format JSON response
+assessmentSchema.set("toJSON", {
+  transform: (doc, ret) => {
+    ret.id = ret._id;
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  },
+});
 
 export default mongoose.model("Assessment", assessmentSchema);
