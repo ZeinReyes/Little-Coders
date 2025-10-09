@@ -22,6 +22,10 @@ const LessonMaterialSchema = new mongoose.Schema(
       },
     ],
     order: { type: Number, default: 0 },
+    isCompleted: {
+      type: Boolean,
+      required: true,
+    }
   },
   { timestamps: true }
 );

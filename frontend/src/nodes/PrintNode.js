@@ -2,9 +2,7 @@ import { makeDraggable, getDragState, clearDragSource } from '../utils/draggable
 import { makeMovable } from '../utils/movable';
 import { attachTooltip } from '../utils/helpers';
 import { makeId } from '../utils/id';
-import { updateVariableState } from '../utils/state';
 import { updateCode } from '../utils/codeGen';
-import { initDragAndDrop } from '../utils/dragAndDrop';
 
 // ---------------- Helper: Extract Expression Recursively ----------------
 function extractExpression(node) {
@@ -17,33 +15,31 @@ function extractExpression(node) {
 
   // ---------------- INPUT Node ----------------
   if (node.tagName === "INPUT") {
-  let val = node.value.trim();
-  console.log("💬 [extractExpression] INPUT value:", val);
-  if (!val) return ""; // skip empty
+    let val = node.value.trim();
+    console.log("💬 [extractExpression] INPUT value:", val);
+    if (!val) return ""; // skip empty
 
-  // 🧹 Strip outer quotes if they exist
-  if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-    val = val.slice(1, -1);
+    // 🧹 Strip outer quotes if they exist
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1);
+    }
+
+    if (!isNaN(val)) return val; // numeric stays numeric
+    return val; // ✅ always return clean raw value
   }
-
-  if (!isNaN(val)) return val; // numeric stays numeric
-  return val; // ✅ always return clean raw value
-}
-
 
   // ---------------- Dataset Value ----------------
   if (node.dataset?.value && node.dataset.value.trim() !== "") {
-  let val = node.dataset.value.trim();
-  console.log("💾 [extractExpression] Dataset value:", val);
+    let val = node.dataset.value.trim();
+    console.log("💾 [extractExpression] Dataset value:", val);
 
-  // 🧹 Always remove wrapping quotes
-  if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-    val = val.slice(1, -1);
+    // 🧹 Always remove wrapping quotes
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1);
+    }
+
+    return val; // ✅ always return raw clean value
   }
-
-  return val; // ✅ always return raw clean value
-}
-
 
   // ---------------- Operator Node ----------------
   const isOperatorNode =
@@ -54,33 +50,32 @@ function extractExpression(node) {
     console.log("🧮 [extractExpression] Detected operator node:", node);
 
     // try dataset.op first, otherwise find operator symbol from text (support multi-char ops)
-  let op = node.dataset.op?.trim() || "";
+    let op = node.dataset.op?.trim() || "";
 
-// ✅ Map logical names (like 'add') to actual symbols
-const opMap = {
-  add: "+",
-  subtract: "-",
-  multiply: "*",
-  divide: "/",
-  equal: "==",
-  notequal: "!=",
-  less: "<",
-  lessequal: "<=",
-  greater: ">",
-  greaterequal: ">=",
-};
+    // ✅ Map logical names (like 'add') to actual symbols
+    const opMap = {
+      add: "+",
+      subtract: "-",
+      multiply: "*",
+      divide: "/",
+      equal: "==",
+      notequal: "!=",
+      less: "<",
+      lessequal: "<=",
+      greater: ">",
+      greaterequal: ">=",
+    };
 
-// ✅ If dataset.op matches one of those keys, use the mapped symbol
-if (opMap[op]) {
-  op = opMap[op];
-} else if (!/[+\-*/<>=]/.test(op)) {
-  // fallback: try detecting symbol from text
-  const match = node.textContent.match(/==|!=|<=|>=|[+\-*/<>=]/);
-  op = match ? match[0] : "+";
-}
+    // ✅ If dataset.op matches one of those keys, use the mapped symbol
+    if (opMap[op]) {
+      op = opMap[op];
+    } else if (!/[+\-*/<>=]/.test(op)) {
+      // fallback: try detecting symbol from text
+      const match = node.textContent.match(/==|!=|<=|>=|[+\-*/<>=]/);
+      op = match ? match[0] : "+";
+    }
 
-
-console.log("🧠 [extractExpression] Detected operator:", op);
+    console.log("🧠 [extractExpression] Detected operator:", op);
 
     // Many operator elements are structured like: [slot-left][icon-wrapper][slot-right]
     // filter only slots, inputs, or nested operator nodes (skip icon wrappers)
@@ -144,20 +139,20 @@ function deleteElement(element) {
 // ---------------- Modal Utility ----------------
 function createModal(contentBuilder) {
   const overlay = document.createElement("div");
-  overlay.className = "modal-overlay";
+  overlay.className = "print-modal-overlay";
 
   const modal = document.createElement("div");
-  modal.className = "modal";
+  modal.className = "print-modal";
 
   const header = document.createElement("div");
-  header.className = "modal-header";
+  header.className = "print-modal-header";
   header.textContent = "Printing Paper";
 
   const body = document.createElement("div");
-  body.className = "modal-body";
+  body.className = "print-modal-body";
 
   const footer = document.createElement("div");
-  footer.className = "modal-footer";
+  footer.className = "print-modal-footer";
 
   contentBuilder(body, footer, () => document.body.removeChild(overlay));
 
@@ -173,6 +168,7 @@ export function createPrintNode(whiteboard, codeArea, dimOverlay) {
   const p = document.createElement("div");
   p.className = "print-node";
   p.id = makeId("print");
+  p.dataset.type = "print";
 
   const printer = document.createElement("img");
   printer.src = "/assets/images/printer.png";
@@ -186,7 +182,6 @@ export function createPrintNode(whiteboard, codeArea, dimOverlay) {
   p.appendChild(paperSlot);
 
   let paperText = "";
-  let containedNode = null;
 
   // ---------------- Drag Events ----------------
   paperSlot.ondragover = (e) => {
@@ -202,7 +197,7 @@ export function createPrintNode(whiteboard, codeArea, dimOverlay) {
     e.preventDefault();
     paperSlot.classList.remove("drag-over");
 
-    const { _dragSource, _dragType } = getDragState();
+    const { _dragSource } = getDragState();
     let draggedNode = null;
 
     if (_dragSource) {
@@ -222,9 +217,7 @@ export function createPrintNode(whiteboard, codeArea, dimOverlay) {
     const expr = extractExpression(draggedNode).trim();
     console.log("📦 [print-node] extracted expr:", expr);
 
-    // store expression only if not empty; if empty, clear dataset
     if (expr) {
-      const cleanedExpr = expr.replace(/""([^""]*)""/g, '"$1"');
       paperSlot.dataset.value = expr;
       paperSlot.textContent = "View printer content";
       paperSlot.classList.remove("empty");
@@ -234,16 +227,14 @@ export function createPrintNode(whiteboard, codeArea, dimOverlay) {
       paperSlot.classList.add("empty");
     }
 
-    // ✅ Only delete if it came from board
     if (_dragSource) {
       deleteElement(draggedNode);
     }
 
     clearDragSource();
 
-    // update code area (if you want immediate refresh)
     if (typeof updateCode === "function") {
-      try { updateCode(whiteboard, codeArea); } catch (err) { /* ignore */ }
+      try { updateCode(whiteboard, codeArea); } catch {}
     }
   };
 
@@ -252,43 +243,42 @@ export function createPrintNode(whiteboard, codeArea, dimOverlay) {
     e.stopPropagation();
 
     createModal((body, footer, closeModal) => {
-  const input = document.createElement("input");
-  input.type = "text";
-  input.className = "modal-input";
-  input.value = paperSlot.dataset.value || "";
-  body.appendChild(input);
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "print-modal-input";
+      input.value = paperSlot.dataset.value || "";
+      body.appendChild(input);
 
-  const cancelBtn = document.createElement("button");
-  cancelBtn.textContent = "Cancel";
-  cancelBtn.className = "modal-btn secondary";
-  cancelBtn.onclick = closeModal;
+      const cancelBtn = document.createElement("button");
+      cancelBtn.textContent = "Cancel";
+      cancelBtn.className = "print-modal-btn secondary";
+      cancelBtn.onclick = closeModal;
 
-  const saveBtn = document.createElement("button");
-  saveBtn.textContent = "Save";
-  saveBtn.className = "modal-btn primary";
-  saveBtn.onclick = () => {
-    paperText = input.value.trim();
-    if (paperText) {
-      paperSlot.dataset.value = paperText;
-      paperSlot.textContent = "View printer content";;
-      paperSlot.classList.remove("empty");
-    } else {
-      delete paperSlot.dataset.value;
-      paperSlot.textContent = "[ Empty printer ]";
-      paperSlot.classList.add("empty");
-    }
+      const saveBtn = document.createElement("button");
+      saveBtn.textContent = "Save";
+      saveBtn.className = "print-modal-btn primary";
+      saveBtn.onclick = () => {
+        paperText = input.value.trim();
+        if (paperText) {
+          paperSlot.dataset.value = paperText;
+          paperSlot.textContent = "View printer content";
+          paperSlot.classList.remove("empty");
+        } else {
+          delete paperSlot.dataset.value;
+          paperSlot.textContent = "[ Empty printer ]";
+          paperSlot.classList.add("empty");
+        }
 
-    closeModal();
+        closeModal();
 
-    if (typeof updateCode === "function") {
-      try { updateCode(whiteboard, codeArea); } catch {}
-    }
-  };
+        if (typeof updateCode === "function") {
+          try { updateCode(whiteboard, codeArea); } catch {}
+        }
+      };
 
-  footer.appendChild(cancelBtn);
-  footer.appendChild(saveBtn);
-});
-
+      footer.appendChild(cancelBtn);
+      footer.appendChild(saveBtn);
+    });
   };
 
   paperSlot.onmousedown = (e) => e.stopPropagation();

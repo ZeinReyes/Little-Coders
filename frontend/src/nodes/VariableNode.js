@@ -12,6 +12,7 @@ export function createVariableNode(whiteboard, codeArea, dimOverlay) {
   const v = document.createElement('div');
   v.className = 'variable-node variable card-style';
   v.id = makeId('variable');
+  v.dataset.type = "variable";
 
   // ✅ Generate unique variable name
   const defaultName = `var${variableCounter++}`;

@@ -66,7 +66,6 @@ export default function DragBoard() {
             <img src="/assets/images/greaterthanequal.png" data-type="greaterequal" draggable="true" alt="Greater or Equal >=" />
 
             {/* Conditionals */}
-            {/* Conditionals */}
             <img src="/assets/images/if.png" data-type="if" draggable="true" alt="If"/>
             <img src="/assets/images/elif.png" data-type="elif" draggable="true" alt="Elif"/>
             <img src="/assets/images/else.png" data-type="else" draggable="true" alt="Else"/>

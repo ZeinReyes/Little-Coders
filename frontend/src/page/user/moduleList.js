@@ -4,6 +4,7 @@ import axios from "axios";
 import { Spinner, Button } from "react-bootstrap";
 import NavbarComponent from "../../component/userNavbar";
 import "./moduleList.css";
+import UserFooter from "../../component/userFooter";
 
 function ModuleList() {
   const [modules, setModules] = useState([]);
@@ -99,6 +100,7 @@ function ModuleList() {
           ))}
         </div>
       </div>
+      <UserFooter />
     </>
   );
 }

@@ -5,30 +5,42 @@ import { attachTooltip } from '../utils/helpers';
 import { makeId } from '../utils/id';
 
 export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
+  // ---------------- IF ----------------
   if (type === 'if') {
     const ifNode = document.createElement('div');
     ifNode.className = 'if-node';
     ifNode.id = makeId('if');
 
+    // header holds: label + cond slot + colon + body (body is to the right)
+    const header = document.createElement('div');
+    header.className = 'if-header';
+
+    const labelIf = document.createElement('span');
+    labelIf.className = 'if-label';
+    labelIf.textContent = 'if (';
+
     const condSlot = createSlot(whiteboard, codeArea, dimOverlay);
     condSlot.classList.add('if-cond');
 
-    const bodySlot = createSlot(whiteboard, codeArea, dimOverlay);
-    bodySlot.classList.add('if-body');
-
-    const labelIf = document.createElement('span');
-    labelIf.textContent = 'if (';
     const labelArrow = document.createElement('span');
+    labelArrow.className = 'if-colon';
     labelArrow.textContent = '):';
 
+    // body should accept multiple statements -> vertical stack
+    const bodySlot = createSlot(whiteboard, codeArea, dimOverlay, { multi: true });
+    bodySlot.classList.add('if-body');
+
+    header.appendChild(labelIf);
+    header.appendChild(condSlot);
+    header.appendChild(labelArrow);
+    header.appendChild(bodySlot);
+
+    // connectors container (holds elif/else nodes stacked vertically)
     const connectors = document.createElement('div');
     connectors.className = 'if-connectors';
     connectors.textContent = 'Drop elif/else here';
 
-    ifNode.appendChild(labelIf);
-    ifNode.appendChild(condSlot);
-    ifNode.appendChild(labelArrow);
-    ifNode.appendChild(bodySlot);
+    ifNode.appendChild(header);
     ifNode.appendChild(connectors);
 
     makeDraggable(ifNode);
@@ -37,9 +49,10 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
     return ifNode;
   }
 
+  // ---------------- ELIF ----------------
   if (type === 'elif') {
-    const hasIf = whiteboard.querySelector('.if-node');
-    if (!hasIf) {
+    const ifNode = whiteboard.querySelector('.if-node');
+    if (!ifNode) {
       alert("You need an IF block first before adding ELIF!");
       return null;
     }
@@ -48,43 +61,57 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
     elifNode.className = 'elif-node';
     elifNode.id = makeId('elif');
 
+    const header = document.createElement('div');
+    header.className = 'elif-header';
+
+    const labelElif = document.createElement('span');
+    labelElif.className = 'elif-label';
+    labelElif.textContent = 'elif (';
+
     const condSlot = createSlot(whiteboard, codeArea, dimOverlay);
     condSlot.classList.add('elif-cond');
 
-    const bodySlot = createSlot(whiteboard, codeArea, dimOverlay);
-    bodySlot.classList.add('elif-body');
-
-    const labelElif = document.createElement('span');
-    labelElif.textContent = 'elif (';
     const labelArrow = document.createElement('span');
+    labelArrow.className = 'elif-colon';
     labelArrow.textContent = '):';
 
-    elifNode.appendChild(labelElif);
-    elifNode.appendChild(condSlot);
-    elifNode.appendChild(labelArrow);
-    elifNode.appendChild(bodySlot);
+    const bodySlot = createSlot(whiteboard, codeArea, dimOverlay, { multi: true });
+    bodySlot.classList.add('elif-body');
+
+    header.appendChild(labelElif);
+    header.appendChild(condSlot);
+    header.appendChild(labelArrow);
+    header.appendChild(bodySlot);
+
+    elifNode.appendChild(header);
+
+    // Insert into the if-node connectors; keep ELSE always at bottom
+    const connector = ifNode.querySelector('.if-connectors');
+    const existingElse = connector.querySelector('.else-node');
+
+    if (existingElse) connector.insertBefore(elifNode, existingElse);
+    else connector.appendChild(elifNode);
 
     makeDraggable(elifNode);
     makeMovable(elifNode, whiteboard, codeArea, dimOverlay);
     attachTooltip(elifNode, "Elif: drag under an IF node connector to add another condition.");
 
-    elifNode.addEventListener("DOMNodeInserted", () => {
-      const parent = elifNode.parentNode;
-      if (parent && parent.classList.contains("if-connectors")) {
-        const elseNode = parent.querySelector(".else-node");
-        if (elseNode && elifNode.nextSibling === null) {
-          parent.insertBefore(elifNode, elseNode);
-        }
-      }
-    });
-
     return elifNode;
   }
 
+  // ---------------- ELSE ----------------
   if (type === 'else') {
-    const hasIf = whiteboard.querySelector('.if-node');
-    if (!hasIf) {
+    const ifNode = whiteboard.querySelector('.if-node');
+    if (!ifNode) {
       alert("You need an IF block first before adding ELSE!");
+      return null;
+    }
+
+    const connector = ifNode.querySelector('.if-connectors');
+    // guard: only 1 else allowed
+    const existingElse = connector.querySelector('.else-node');
+    if (existingElse) {
+      alert("Only one ELSE is allowed per IF!");
       return null;
     }
 
@@ -92,31 +119,26 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
     elseNode.className = 'else-node';
     elseNode.id = makeId('else');
 
-    const bodySlot = createSlot(whiteboard, codeArea, dimOverlay);
-    bodySlot.classList.add('else-body');
+    const header = document.createElement('div');
+    header.className = 'else-header';
 
     const labelElse = document.createElement('span');
+    labelElse.className = 'else-label';
     labelElse.textContent = 'else:';
 
-    elseNode.appendChild(labelElse);
-    elseNode.appendChild(bodySlot);
+    const bodySlot = createSlot(whiteboard, codeArea, dimOverlay, { multi: true });
+    bodySlot.classList.add('else-body');
+
+    header.appendChild(labelElse);
+    header.appendChild(bodySlot);
+    elseNode.appendChild(header);
+
+    // always append else at the very bottom
+    connector.appendChild(elseNode);
 
     makeDraggable(elseNode);
     makeMovable(elseNode, whiteboard, codeArea, dimOverlay);
-    attachTooltip(elseNode, "Else: drag under an IF node connector for the default branch.");
-
-    elseNode.addEventListener("DOMNodeInserted", () => {
-      const parent = elseNode.parentNode;
-      if (parent && parent.classList.contains("if-connectors")) {
-        const allElses = parent.querySelectorAll(".else-node");
-        if (allElses.length > 1) {
-          alert("Only one ELSE is allowed per IF!");
-          elseNode.remove();
-        } else {
-          parent.appendChild(elseNode);
-        }
-      }
-    });
+    attachTooltip(elseNode, "Else: default branch at the end of the conditional chain.");
 
     return elseNode;
   }

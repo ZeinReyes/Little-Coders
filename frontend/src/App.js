@@ -31,6 +31,7 @@ import ManageAssessment from "./page/admin/manageAssessment"; // ✅ Import Mana
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import "bootstrap-icons/font/bootstrap-icons.css";
+import DragBoardLesson from "./component/DragBoardLesson";
 
 function App() {
   return (
@@ -45,8 +46,8 @@ function App() {
       <Route path="/home" element={<HomePage />} />
       <Route path="/lesson/:id" element={<LessonPlayer />} />
       <Route path="/module-list" element={<ModuleList />} />
-      <Route path="/lessons/:moduleId" element={<LessonList />} />
-      <Route path="/dragboard/:type/:id" element={<DragBoard />} />
+      <Route path="/lessons/:lessonId" element={<LessonList />} />
+      <Route path="/lessons/:lessonId/:itemId" element={<DragBoardLesson />} />
       <Route path="/dragboard" element={<DragBoard />} />
 
       {/* Admin */}

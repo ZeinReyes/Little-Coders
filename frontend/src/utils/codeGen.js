@@ -1,4 +1,3 @@
-import { isOperator } from './nesting';
 import { slotToCode } from './helpers';
 
 export function detectTypeAndFormat(value) {
@@ -30,12 +29,52 @@ function formatCondition(expr) {
 
 export function exprFromSlot(slot) {
   if (!slot) return { code: "0", type: "unknown" };
-  const child = slot.querySelector(".operator, .variable, .print-node, .if-node, .elif-node, .else-node");
-  if (child) return generateNodeCode(child);
+
+  // --- If slot has dataset.value, always use it ---
+  if (slot.dataset?.value && slot.dataset.value.trim() !== "") {
+    let val = slot.dataset.value.trim();
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1);
+    }
+    return detectTypeAndFormat(val);
+  }
+
+  // --- Process children recursively ---
+  const children = Array.from(slot.children);
+  if (children.length > 0) {
+    const codes = children.map(child => {
+      if (child.classList.contains("operator") ||
+          child.classList.contains("variable") ||
+          child.classList.contains("print-node") ||
+          child.classList.contains("if-node") ||
+          child.classList.contains("elif-node") ||
+          child.classList.contains("else-node")) {
+        return generateNodeCode(child).code;
+      }
+
+      if (child.tagName === "INPUT") return detectTypeAndFormat(child.value.trim()).code;
+
+      if (child.dataset?.value && child.dataset.value.trim() !== "") {
+        let val = child.dataset.value.trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        return detectTypeAndFormat(val).code;
+      }
+
+      return child.textContent.trim() || "";
+    }).filter(Boolean);
+
+    return { code: codes.join(" "), type: "mixed" };
+  }
+
+  // --- Fallback input inside slot ---
   const input = slot.querySelector("input");
   if (input) return detectTypeAndFormat(input.value.trim());
+
   return { code: "0", type: "unknown" };
 }
+
 
 export function generateNodeCode(node) {
   if (!node) return { code: "", type: "unknown" };
@@ -78,93 +117,87 @@ export function generateNodeCode(node) {
     return { code: `${varName} = ${rhs.code}  # ${rhs.type}`, type: rhs.type };
   }
 
-  // ---- Print ----
- // ---- Print ----
-if (node.classList.contains("print-node")) {
-  console.log("🖨️ [generateNodeCode] Processing print-node:", node);
 
-  const slot = node.querySelector(".print-slot");
-  if (!slot) {
-    console.log("🟠 [generateNodeCode] No print slot found!");
+  // ---- Print Node ----
+  if (node.classList.contains("print-node")) {
+    const slot = node.querySelector(".print-slot");
+    let value = slot?.dataset?.value?.trim() || "";
+
+    // --- Try dataset.value first ---
+    if (value) {
+      // Handle operator-like expressions e.g. "a+1", "x>=y"
+      if (/[\+\-\*\/<>=]/.test(value)) {
+        const tokens = value.match(/([^\+\-\*\/<>=]+|[+\-*/<>=])/g) || [value];
+        const formatted = tokens
+          .map(t => {
+            const trimmed = t.trim();
+            if (trimmed === "") return "";
+            if (/^[+\-*/<>=]+$/.test(trimmed)) return ` ${trimmed} `;
+            return detectTypeAndFormat(trimmed).code;
+          })
+          .join("")
+          .replace(/\s+/g, " ")
+          .trim();
+        return { code: `print(${formatted})`, type: "print" };
+      }
+
+      // Normal value (no operators)
+      const detected = detectTypeAndFormat(value);
+      return { code: `print(${detected.code})`, type: "print" };
+    }
+
+    // --- Fallback: evaluate nested expression ---
+    if (slot) {
+      const nestedExpr = exprFromSlot(slot);
+      if (nestedExpr && nestedExpr.code && nestedExpr.code !== "0" && nestedExpr.type !== "unknown") {
+        return { code: `print(${nestedExpr.code})`, type: "print" };
+      }
+    }
+
+    // --- Fallback to node.dataset.value if set ---
+    if (node.dataset?.value && node.dataset.value.trim() !== "") {
+      const fallbackVal = node.dataset.value.trim();
+      const detected = detectTypeAndFormat(fallbackVal);
+      return { code: `print(${detected.code})`, type: "print" };
+    }
+
+    // --- Default ---
     return { code: "print()", type: "print" };
   }
-
-  console.log("📦 [generateNodeCode] Slot dataset.value:", slot.dataset.value);
-
-  const nestedExpr = exprFromSlot(slot);
-  console.log("📘 [generateNodeCode] Nested exprFromSlot result:", nestedExpr);
-
-  if (nestedExpr && nestedExpr.code !== "0" && nestedExpr.type !== "unknown") {
-    console.log("✅ [generateNodeCode] Using nested expression");
-    return { code: `print(${nestedExpr.code})`, type: "print" };
-  }
-
-  const value = slot.dataset.value?.trim() || "";
-  console.log("🧾 [generateNodeCode] Fallback value:", value);
-
-  if (value === "") {
-    console.log("⚠️ [generateNodeCode] Empty print slot — returning print()");
-    return { code: "print()", type: "print" };
-  }
-
-  // --- Handle operator-like expressions ---
-  if (/[\+\-\*\/<>=]/.test(value)) {
-    console.log("🔍 [generateNodeCode] Operator detected in:", value);
-
-    // ✅ Split safely even without spaces
-    const tokens = value.match(/([^\+\-\*\/<>=]+|[+\-*/<>=])/g) || [value];
-    console.log("🧩 [generateNodeCode] Split tokens:", tokens);
-
-    const formatted = tokens
-      .map(t => {
-        const trimmed = t.trim();
-        if (trimmed === "") return "";
-        if (/^[+\-*/<>=]+$/.test(trimmed)) return ` ${trimmed} `;
-        const detected = detectTypeAndFormat(trimmed);
-        console.log("🔹 [generateNodeCode] Token formatted:", trimmed, "→", detected.code);
-        return detected.code;
-      })
-      .join("")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    console.log("✅ [generateNodeCode] Final formatted expression:", formatted);
-    return { code: `print(${formatted})`, type: "print" };
-  }
-
-  const expr = detectTypeAndFormat(value);
-  console.log("💡 [generateNodeCode] Final detected expr:", expr);
-  return { code: `print(${expr.code})`, type: "print" };
-}
 
 
   // ---- If / Elif / Else ----
   if (node.classList.contains("if-node")) {
-    const cond = exprFromSlot(node.querySelector('.if-cond'));
+    const condExpr = exprFromSlot(node.querySelector('.if-cond'));
     const bodySlot = node.querySelector('.if-body');
-    const body = bodySlot ? slotToCode(bodySlot) : "pass";
+    const bodyCode = bodySlot ? slotToCode(bodySlot, 1) : '    pass';
 
-    let code = `if ${formatCondition(cond)}:\n${body.replace(/^/gm, '    ')}`;
+    let code = `if ${condExpr.code}:\n${bodyCode}`;
+
+    // --- Handle connectors (elif / else) ---
     const connectors = node.querySelectorAll('.if-connectors > .elif-node, .if-connectors > .else-node');
     connectors.forEach(c => {
       if (c.classList.contains('elif-node')) {
-        const elifCond = exprFromSlot(c.querySelector('.elif-cond'));
+        const elifCondExpr = exprFromSlot(c.querySelector('.elif-cond'));
         const elifBodySlot = c.querySelector('.elif-body');
-        const elifBody = elifBodySlot ? slotToCode(elifBodySlot) : "pass";
-        code += `\nelif ${formatCondition(elifCond)}:\n${elifBody.replace(/^/gm, '    ')}`;
+        const elifBodyCode = elifBodySlot ? slotToCode(elifBodySlot, 1) : '    pass';
+        code += `\nelif ${elifCondExpr.code}:\n${elifBodyCode}`;
       }
       if (c.classList.contains('else-node')) {
         const elseBodySlot = c.querySelector('.else-body');
-        const elseBody = elseBodySlot ? slotToCode(elseBodySlot) : "pass";
-        code += `\nelse:\n${elseBody.replace(/^/gm, '    ')}`;
+        const elseBodyCode = elseBodySlot ? slotToCode(elseBodySlot, 1) : '    pass';
+        code += `\nelse:\n${elseBodyCode}`;
       }
     });
+
     return { code, type: "conditional" };
   }
+
 
   if (node.tagName === "INPUT") return detectTypeAndFormat(node.value.trim());
   return { code: "", type: "unknown" };
 }
+
 
 export function updateVariableTooltips(whiteboard) {
   const vars = whiteboard.querySelectorAll(".variable");

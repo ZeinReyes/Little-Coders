@@ -2,11 +2,11 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Card, Button, Spinner, ListGroup, ProgressBar } from "react-bootstrap";
+import { Button, Spinner, ListGroup } from "react-bootstrap";
 import { CheckCircleFill, Circle } from "react-bootstrap-icons";
 
 function LessonList() {
-  const { moduleId } = useParams();
+  const { lessonId } = useParams();
   const [module, setModule] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,22 +14,22 @@ function LessonList() {
 
   useEffect(() => {
     fetchData();
-  }, [moduleId]);
+  }, [lessonId]);
 
   const fetchData = async () => {
     try {
       const token = localStorage.getItem("token");
 
       const [moduleRes, materialsRes, activitiesRes] = await Promise.all([
-        axios.get(`http://localhost:5000/api/lessons/${moduleId}`, {
+        axios.get(`http://localhost:5000/api/lessons/${lessonId}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
         axios.get(
-          `http://localhost:5000/api/materials/lessons/${moduleId}/materials`,
+          `http://localhost:5000/api/materials/lessons/${lessonId}/materials`,
           { headers: { Authorization: `Bearer ${token}` } }
         ),
         axios.get(
-          `http://localhost:5000/api/activities/lessons/${moduleId}/activities`,
+          `http://localhost:5000/api/activities/lessons/${lessonId}/activities`,
           { headers: { Authorization: `Bearer ${token}` } }
         ),
       ]);
@@ -38,8 +38,7 @@ function LessonList() {
 
       const materials = materialsRes.data.map((m) => ({
         ...m,
-        type: "material",
-        overview: m.overview || "",
+        type: "lesson",
       }));
 
       const activities = activitiesRes.data.map((a) => ({
@@ -59,6 +58,10 @@ function LessonList() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleItemClick = (item) => {
+    navigate(`/lessons/${lessonId}/${item._id}`);
   };
 
   if (loading) {
@@ -84,15 +87,10 @@ function LessonList() {
         <Button
           variant="light"
           onClick={() => navigate(-1)}
-          style={{
-            fontWeight: "bold",
-            borderRadius: "20px",
-            fontSize: "0.9rem",
-          }}
+          style={{ fontWeight: "bold", borderRadius: "20px", fontSize: "0.9rem" }}
         >
           ← Back
         </Button>
-
         <div
           style={{
             flexGrow: 1,
@@ -101,17 +99,14 @@ function LessonList() {
             fontWeight: "bold",
           }}
         >
-          {module.title}
+          {module?.title}
         </div>
       </header>
 
       <div className="p-4" style={{ maxWidth: "800px", margin: "0 auto" }}>
         <h5
           className="mb-3"
-          style={{
-            fontFamily: "'Comic Sans MS', cursive",
-            color: "#FF6F61",
-          }}
+          style={{ fontFamily: "'Comic Sans MS', cursive", color: "#FF6F61" }}
         >
           Lessons & Activities
         </h5>
@@ -128,14 +123,16 @@ function LessonList() {
                 padding: "0.8rem 1rem",
                 transition: "transform 0.2s",
               }}
-              onClick={() => navigate(`/ide/${item._id}`)}
+              onClick={() => handleItemClick(item)}
               onMouseEnter={(e) =>
                 (e.currentTarget.style.transform = "scale(1.02)")
               }
-              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.transform = "scale(1)")
+              }
             >
               <div className="d-flex align-items-center">
-                {item.type === "material" ? (
+                {item.isCompleted ? (
                   <CheckCircleFill color="#4CAF50" className="me-3" size={24} />
                 ) : (
                   <Circle color="#9E9E9E" className="me-3" size={24} />
@@ -146,14 +143,11 @@ function LessonList() {
                     fontSize: "1rem",
                   }}
                 >
-                  {item.type === "material" ? item.title : item.name}
+                  {item.type === "activity"
+                    ? `Act: ${item.name}`
+                    : `Lesson: ${item.title}`}
                 </div>
               </div>
-              {item.type === "activity" && (
-                <Button size="sm" variant="primary">
-                  Explore
-                </Button>
-              )}
             </ListGroup.Item>
           ))}
         </ListGroup>
