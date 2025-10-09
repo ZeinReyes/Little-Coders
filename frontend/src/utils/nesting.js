@@ -1,20 +1,46 @@
 // src/utils/nesting.js
 
-// src/utils/nesting.js
-
 export function canNest(slot, node) {
   if (!slot || !node) return false;
 
-  const slotType = slot.dataset.type;
+  const parent = slot.closest('.variable, .operator, .print-node, .if-node, .elif-node, .else-node, .while-node, .dowhile-node');
   const nodeType = node.dataset.type;
 
-  if (slotType === 'slot') {
-    return ['variable', 'value', 'operator', 'print'].includes(nodeType);
+  // 🟦 No parent found (free slot) — allow most top-level blocks
+  if (!parent) {
+    return ['variable', 'print', 'if', 'elif', 'else', 'while', 'dowhile'].includes(nodeType);
   }
 
-  return false;
+  const parentType = parent.dataset.type;
+
+  // --- Rules by parent type ---
+  switch (parentType) {
+    case 'variable':
+      // variable var1 = [allowed here]
+      return ['operator', 'variable', 'value'].includes(nodeType);
+
+    case 'print':
+      // print([allowed here])
+      return ['operator', 'variable', 'value'].includes(nodeType);
+
+    case 'operator':
+      // (left op right)
+      return ['operator', 'value'].includes(nodeType);
+
+    case 'if':
+    case 'elif':
+    case 'else':
+    case 'while':
+    case 'dowhile':
+      // body of conditional or loop
+      return ['variable', 'operator', 'print', 'if', 'elif', 'else', 'while', 'dowhile', 'value'].includes(nodeType);
+
+    default:
+      return false;
+  }
 }
 
+// --- Existing functions below ---
 
 export function nestElement(el) {
   if (!el) return;

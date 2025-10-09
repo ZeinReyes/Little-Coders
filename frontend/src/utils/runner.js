@@ -1,21 +1,65 @@
-// src/utils/runner.js
-export function runProgram(codeArea, outputArea) {
+/* global loadPyodide */
+
+let pyodideInstance = null;
+
+async function initPyodide() {
+  if (!pyodideInstance) {
+    pyodideInstance = await loadPyodide({
+      stdout: (msg) => console.log(msg),
+      stderr: (err) => console.error(err)
+    });
+  }
+  return pyodideInstance;
+}
+
+export async function runProgram(codeArea, outputArea) {
   if (!codeArea || !outputArea) return;
   const code = codeArea.textContent.trim();
 
-  if (!code || code.startsWith('/*')) {
+  if (!code || code.startsWith("/*")) {
     outputArea.textContent = "⚠ No program to run.";
     return;
   }
 
   try {
-    // demo transform: convert "x = expr;" -> "let x = expr; x" for JS eval demo
-    const transformed = code.replace(/(\\w+)\\s*=\\s*([^;]+);/, "let $1 = $2; $1");
-    // caution: eval is used only for demo/prototyping. Replace with Pyodide or safe backend in production.
-    // eslint-disable-next-line no-eval
-    let result = eval(transformed);
-    outputArea.textContent = "✅ Result: " + result;
+    outputArea.textContent = "⏳ Running Python code...";
+
+    const pyodide = await initPyodide();
+
+    // Create a clean Python environment that buffers output
+    const captureCode = `
+import sys, io
+_stdout = io.StringIO()
+_stderr = io.StringIO()
+_sys_stdout = sys.stdout
+_sys_stderr = sys.stderr
+sys.stdout = _stdout
+sys.stderr = _stderr
+try:
+    exec(${JSON.stringify(code)}, globals())
+except Exception as e:
+    import traceback
+    traceback.print_exc()
+finally:
+    sys.stdout = _sys_stdout
+    sys.stderr = _sys_stderr
+_stdout_value = _stdout.getvalue()
+_stderr_value = _stderr.getvalue()
+`;
+
+    await pyodide.runPythonAsync(captureCode);
+
+    const stdout = pyodide.globals.get("_stdout_value");
+    const stderr = pyodide.globals.get("_stderr_value");
+
+    if (stderr && stderr.trim()) {
+      outputArea.textContent = `❌ Python Error:\n${stderr.trim()}`;
+    } else if (stdout && stdout.trim()) {
+      outputArea.textContent = `${stdout.trim()}`;
+    } else {
+      outputArea.textContent = "✅ Program executed successfully (no output)";
+    }
   } catch (err) {
-    outputArea.textContent = "❌ Error: " + (err && err.message ? err.message : String(err));
+    outputArea.textContent = "❌ Fatal Error: " + (err.message || String(err));
   }
 }

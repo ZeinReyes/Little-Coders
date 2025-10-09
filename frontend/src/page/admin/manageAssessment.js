@@ -11,7 +11,6 @@ const ManageAssessment = () => {
   const [assessments, setAssessments] = useState([]);
   const [lessons, setLessons] = useState([]);
   const [search, setSearch] = useState("");
-  const [message, setMessage] = useState("");
 
   // Modals
   const [viewAssessment, setViewAssessment] = useState(null);

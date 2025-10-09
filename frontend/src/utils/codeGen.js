@@ -1,7 +1,15 @@
 import { slotToCode } from './helpers';
 
-export function detectTypeAndFormat(value) {
+let definedVariables = []; // ✅ Track declared variable names
+
+export function detectTypeAndFormat(value, definedVars = []) {
   if (value == null || value === "") return { code: "None", type: "unknown" };
+
+  // ✅ Check if it's a variable name
+  if (definedVars.includes(value)) {
+    return { code: value, type: "variable" };
+  }
+
   if (/^-?\d+$/.test(value)) return { code: value, type: "int" };
   if (/^-?\d*\.\d+$/.test(value)) return { code: value, type: "float" };
   if (value.length === 1) return { code: `'${value}'`, type: "char" };
@@ -9,22 +17,6 @@ export function detectTypeAndFormat(value) {
     return { code: value.toLowerCase() === "true" ? "True" : "False", type: "bool" };
   }
   return { code: `"${value}"`, type: "string" };
-}
-
-function formatCondition(expr) {
-  if (!expr || !expr.code) return "False";
-  switch (expr.type) {
-    case "int":
-    case "float":
-      return `${expr.code} != 0`;
-    case "string":
-    case "char":
-      return `${expr.code} != ""`;
-    case "bool":
-      return expr.code;
-    default:
-      return expr.code;
-  }
 }
 
 export function exprFromSlot(slot) {
@@ -36,7 +28,7 @@ export function exprFromSlot(slot) {
     if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
       val = val.slice(1, -1);
     }
-    return detectTypeAndFormat(val);
+    return detectTypeAndFormat(val, definedVariables);
   }
 
   // --- Process children recursively ---
@@ -52,14 +44,14 @@ export function exprFromSlot(slot) {
         return generateNodeCode(child).code;
       }
 
-      if (child.tagName === "INPUT") return detectTypeAndFormat(child.value.trim()).code;
+      if (child.tagName === "INPUT") return detectTypeAndFormat(child.value.trim(), definedVariables).code;
 
       if (child.dataset?.value && child.dataset.value.trim() !== "") {
         let val = child.dataset.value.trim();
         if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
           val = val.slice(1, -1);
         }
-        return detectTypeAndFormat(val).code;
+        return detectTypeAndFormat(val, definedVariables).code;
       }
 
       return child.textContent.trim() || "";
@@ -70,7 +62,7 @@ export function exprFromSlot(slot) {
 
   // --- Fallback input inside slot ---
   const input = slot.querySelector("input");
-  if (input) return detectTypeAndFormat(input.value.trim());
+  if (input) return detectTypeAndFormat(input.value.trim(), definedVariables);
 
   return { code: "0", type: "unknown" };
 }
@@ -106,12 +98,14 @@ export function generateNodeCode(node) {
   // ---- Variable ----
   if (node.classList.contains("variable")) {
     const varName = node.dataset.varName?.trim() || "result";
+    if (!definedVariables.includes(varName)) definedVariables.push(varName); // ✅ Track declared variable
+
     const slot = node.querySelector(".variable-slot");
     const rhs = exprFromSlot(slot);
 
     const typedValue = node.dataset.value?.trim();
     if (typedValue && (!slot || slot.children.length === 0)) {
-      const detected = detectTypeAndFormat(typedValue);
+      const detected = detectTypeAndFormat(typedValue, definedVariables);
       return { code: `${varName} = ${detected.code}  # ${detected.type}`, type: detected.type };
     }
     return { code: `${varName} = ${rhs.code}  # ${rhs.type}`, type: rhs.type };
@@ -126,23 +120,30 @@ export function generateNodeCode(node) {
     // --- Try dataset.value first ---
     if (value) {
       // Handle operator-like expressions e.g. "a+1", "x>=y"
-      if (/[\+\-\*\/<>=]/.test(value)) {
-        const tokens = value.match(/([^\+\-\*\/<>=]+|[+\-*/<>=])/g) || [value];
-        const formatted = tokens
-          .map(t => {
-            const trimmed = t.trim();
-            if (trimmed === "") return "";
-            if (/^[+\-*/<>=]+$/.test(trimmed)) return ` ${trimmed} `;
-            return detectTypeAndFormat(trimmed).code;
-          })
-          .join("")
-          .replace(/\s+/g, " ")
-          .trim();
-        return { code: `print(${formatted})`, type: "print" };
+      // Handle operator-like expressions e.g. "a+1", "x>=y"
+if (/[+\-*/<>=]/.test(value)) {
+  const tokens = value.match(/([^+\-*/<>=]+|[+\-*/<>=])/g) || [value];
+  const formatted = tokens
+    .map(t => {
+      const trimmed = t.trim();
+      if (trimmed === "") return "";
+      if (/^[+\-*/<>=]+$/.test(trimmed)) return ` ${trimmed} `;
+      return detectTypeAndFormat(trimmed, definedVariables).code;
+    })
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+  return { code: `print(${formatted})`, type: "print" };
+}
+
+
+      // ✅ If variable exists, print variable without quotes
+      if (definedVariables.includes(value)) {
+        return { code: `print(${value})`, type: "print" };
       }
 
       // Normal value (no operators)
-      const detected = detectTypeAndFormat(value);
+      const detected = detectTypeAndFormat(value, definedVariables);
       return { code: `print(${detected.code})`, type: "print" };
     }
 
@@ -157,7 +158,7 @@ export function generateNodeCode(node) {
     // --- Fallback to node.dataset.value if set ---
     if (node.dataset?.value && node.dataset.value.trim() !== "") {
       const fallbackVal = node.dataset.value.trim();
-      const detected = detectTypeAndFormat(fallbackVal);
+      const detected = detectTypeAndFormat(fallbackVal, definedVariables);
       return { code: `print(${detected.code})`, type: "print" };
     }
 
@@ -165,6 +166,35 @@ export function generateNodeCode(node) {
     return { code: "print()", type: "print" };
   }
 
+  // ---- While Loop ----
+  if (node.classList.contains("while-node")) {
+    const condSlot = node.querySelector('.while-cond');
+    const bodySlot = node.querySelector('.while-body');
+
+    const condExpr = exprFromSlot(condSlot);
+    const bodyCode = bodySlot ? slotToCode(bodySlot, 1) : '    pass';
+
+    const code = `while ${condExpr.code}:\n${bodyCode}`;
+    return { code, type: "loop" };
+  }
+
+  // ---- Do While Loop ----
+  if (node.classList.contains("do-while-node")) {
+    const condSlot = node.querySelector('.do-while-cond');
+    const bodySlot = node.querySelector('.do-body');
+
+    const condExpr = exprFromSlot(condSlot);
+    const bodyCode = bodySlot ? slotToCode(bodySlot, 1) : '    pass';
+
+    // Python doesn't have native do...while; emulate it
+    const code =
+`while True:
+${bodyCode}
+    if not (${condExpr.code}):
+        break`;
+
+    return { code, type: "loop" };
+  }
 
   // ---- If / Elif / Else ----
   if (node.classList.contains("if-node")) {
@@ -194,7 +224,7 @@ export function generateNodeCode(node) {
   }
 
 
-  if (node.tagName === "INPUT") return detectTypeAndFormat(node.value.trim());
+  if (node.tagName === "INPUT") return detectTypeAndFormat(node.value.trim(), definedVariables);
   return { code: "", type: "unknown" };
 }
 
@@ -212,14 +242,19 @@ export function updateVariableTooltips(whiteboard) {
 }
 
 export function updateCode(whiteboard, codeArea) {
+  definedVariables = []; // ✅ Reset before regeneration
+
   const nodes = Array.from(whiteboard.children).filter(child =>
-    child.classList.contains("variable") ||
-    child.classList.contains("print-node") ||
-    child.classList.contains("operator") ||
-    child.classList.contains("if-node") ||
-    child.classList.contains("elif-node") ||
-    child.classList.contains("else-node")
-  );
+  child.classList.contains("variable") ||
+  child.classList.contains("print-node") ||
+  child.classList.contains("operator") ||
+  child.classList.contains("if-node") ||
+  child.classList.contains("elif-node") ||
+  child.classList.contains("else-node") ||
+  child.classList.contains("while-node") ||
+  child.classList.contains("do-while-node")
+);
+
 
   let code = "";
   nodes.forEach(n => {

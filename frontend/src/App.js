@@ -25,7 +25,7 @@ import ManageLesson from "./page/admin/manageLesson";
 import AddMaterial from "./page/admin/addMaterial";
 import AddActivity from "./page/admin/addActivity";
 import AddAssessment from "./page/admin/addAssessment";
-import ManageAssessment from "./page/admin/manageAssessment"; // ✅ Import ManageAssessment
+import ManageAssessment from "./page/admin/manageAssessment"; 
 
 // Others
 import "bootstrap/dist/css/bootstrap.min.css";

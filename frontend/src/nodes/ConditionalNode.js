@@ -17,14 +17,13 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
 
     const labelIf = document.createElement('span');
     labelIf.className = 'if-label';
-    labelIf.textContent = 'if (';
 
     const condSlot = createSlot(whiteboard, codeArea, dimOverlay);
     condSlot.classList.add('if-cond');
 
     const labelArrow = document.createElement('span');
     labelArrow.className = 'if-colon';
-    labelArrow.textContent = '):';
+    labelArrow.textContent = '->';
 
     // body should accept multiple statements -> vertical stack
     const bodySlot = createSlot(whiteboard, codeArea, dimOverlay, { multi: true });
@@ -66,14 +65,13 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
 
     const labelElif = document.createElement('span');
     labelElif.className = 'elif-label';
-    labelElif.textContent = 'elif (';
 
     const condSlot = createSlot(whiteboard, codeArea, dimOverlay);
     condSlot.classList.add('elif-cond');
 
     const labelArrow = document.createElement('span');
     labelArrow.className = 'elif-colon';
-    labelArrow.textContent = '):';
+    labelArrow.textContent = '->';
 
     const bodySlot = createSlot(whiteboard, codeArea, dimOverlay, { multi: true });
     bodySlot.classList.add('elif-body');
@@ -100,46 +98,63 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
   }
 
   // ---------------- ELSE ----------------
-  if (type === 'else') {
-    const ifNode = whiteboard.querySelector('.if-node');
-    if (!ifNode) {
-      alert("You need an IF block first before adding ELSE!");
-      return null;
-    }
-
-    const connector = ifNode.querySelector('.if-connectors');
-    // guard: only 1 else allowed
-    const existingElse = connector.querySelector('.else-node');
-    if (existingElse) {
-      alert("Only one ELSE is allowed per IF!");
-      return null;
-    }
-
-    const elseNode = document.createElement('div');
-    elseNode.className = 'else-node';
-    elseNode.id = makeId('else');
-
-    const header = document.createElement('div');
-    header.className = 'else-header';
-
-    const labelElse = document.createElement('span');
-    labelElse.className = 'else-label';
-    labelElse.textContent = 'else:';
-
-    const bodySlot = createSlot(whiteboard, codeArea, dimOverlay, { multi: true });
-    bodySlot.classList.add('else-body');
-
-    header.appendChild(labelElse);
-    header.appendChild(bodySlot);
-    elseNode.appendChild(header);
-
-    // always append else at the very bottom
-    connector.appendChild(elseNode);
-
-    makeDraggable(elseNode);
-    makeMovable(elseNode, whiteboard, codeArea, dimOverlay);
-    attachTooltip(elseNode, "Else: default branch at the end of the conditional chain.");
-
-    return elseNode;
+if (type === 'else') {
+  const ifNode = whiteboard.querySelector('.if-node');
+  if (!ifNode) {
+    alert("You need an IF block first before adding ELSE!");
+    return null;
   }
+
+  const connector = ifNode.querySelector('.if-connectors');
+  if (!connector) {
+    alert("Connector section missing in IF node!");
+    return null;
+  }
+
+  // ✅ Guard: only one ELSE allowed
+  const existingElse = connector.querySelector('.else-node');
+  if (existingElse) {
+    alert("Only one ELSE is allowed per IF!");
+    return null;
+  }
+
+  // Create ELSE node
+  const elseNode = document.createElement('div');
+  elseNode.className = 'else-node';
+  elseNode.id = makeId('else');
+
+  const header = document.createElement('div');
+  header.className = 'else-header';
+
+  const labelElse = document.createElement('span');
+  labelElse.className = 'else-label';
+  labelElse.textContent = 'else ->';
+
+  const bodySlot = createSlot(whiteboard, codeArea, dimOverlay, { multi: true });
+  bodySlot.classList.add('else-body');
+
+  header.appendChild(labelElse);
+  header.appendChild(bodySlot);
+  elseNode.appendChild(header);
+
+  // ✅ Always append ELSE to the bottom — even if user later adds more ELIFs
+  connector.appendChild(elseNode);
+
+  // ✅ MutationObserver ensures ELSE stays last if user drags/creates more ELIFs
+  const observer = new MutationObserver(() => {
+    const els = Array.from(connector.children);
+    const currentElse = connector.querySelector('.else-node');
+    if (currentElse && els.indexOf(currentElse) !== els.length - 1) {
+      connector.appendChild(currentElse); // move ELSE to the bottom
+    }
+  });
+  observer.observe(connector, { childList: true });
+
+  makeDraggable(elseNode);
+  makeMovable(elseNode, whiteboard, codeArea, dimOverlay);
+  attachTooltip(elseNode, "Else: default branch at the end of the conditional chain.");
+
+  return elseNode;
+}
+
 }
