@@ -46,8 +46,8 @@ export function createVariableNode(whiteboard, codeArea, dimOverlay) {
   container.src = '/assets/images/container-body1.png';
   container.alt = 'Variable Container';
   container.className = 'variable-container';
-  container.style.width = '175px';
-  container.style.height = '80px';
+  container.style.width = '170px';
+  container.style.height = '90px';
   v.appendChild(container);
 
   let editing = false;

@@ -92,6 +92,16 @@ function Sidebar() {
               </li>
               <li>
                 <NavLink
+                  to="/admin/manage-assessment"
+                  className={({ isActive }) =>
+                    `nav-link text-white ${isActive ? "bg-primary text-white rounded px-2" : ""}`
+                  }
+                >
+                  View Assessment
+                </NavLink>
+                </li>
+              <li>
+                <NavLink
                   to="/admin/add-assessment"
                   className={({ isActive }) =>
                     `nav-link text-white ${isActive ? "bg-primary text-white rounded px-2" : ""}`
