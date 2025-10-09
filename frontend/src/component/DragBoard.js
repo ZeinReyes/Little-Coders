@@ -71,8 +71,7 @@ export default function DragBoard() {
             <img src="/assets/images/else.png" data-type="else" draggable="true" alt="Else"/>
 
             {/* Loops */}
-            <img src="/assets/images/while.png" data-type="while" draggable="true" alt="If"/>
-            <img src="/assets/images/dowhile.png" data-type="dowhile" draggable="true" alt="Elif"/>
+            <img src="/assets/images/while.png" data-type="while" draggable="true" alt="While"/>
           </div>
         </div>
 
