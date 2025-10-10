@@ -40,8 +40,8 @@
 
 .module-card {
   border-radius: 15px;
-  width: 240px;
-  height: 200px;
+  flex: 1;
+  height: 220px;
   font-family: 'Poppins', sans-serif;
   cursor: pointer;
   transition: transform 0.3s ease, box-shadow 0.3s;

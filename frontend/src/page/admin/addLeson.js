@@ -70,7 +70,7 @@ function AddLesson() {
           <div className="mb-3">
             <label className="form-label">Topic Covered</label>
             <div className="d-flex gap-4 mt-2">
-              {["variables", "operators", "conditionals", "loops", "functions"].map((t) => (
+              {["variables", "operators", "conditionals", "loops", "overview"].map((t) => (
                 <div className="form-check" key={t}>
                   <input
                     type="radio"

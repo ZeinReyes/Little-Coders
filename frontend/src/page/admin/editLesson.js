@@ -7,7 +7,7 @@ function EditLesson() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const topicKeys = ["variables", "operators", "conditionals", "loops", "functions"];
+  const topicKeys = ["variables", "operators", "conditionals", "loops", "overview"];
 
   const [lesson, setLesson] = useState({
     title: "",
