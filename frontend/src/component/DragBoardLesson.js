@@ -65,6 +65,14 @@ export default function DragBoardLesson() {
         return;
       }
 
+      if (lesson?.dataTypesRequired) {
+        console.log(
+          "🔹 Required data types for this lesson/activity/assessment:",
+          lesson.dataTypesRequired
+        );
+      }
+      
+
       const destroy = initDragAndDrop({
         paletteSelector: ".elements img",
         whiteboard,
@@ -75,25 +83,25 @@ export default function DragBoardLesson() {
 
       const onRun = async () => {
         if (!lesson) return;
-
+      
         if (lesson.type === "activity" || lesson.type === "assessment") {
           const activityMeta = {
-            expectedOutput: lesson.expectedOutput,
-            dataTypes: lesson.dataTypes || [],
+            expectedOutput: lesson.expectedOutput || null,
+            dataTypesRequired: lesson.dataTypesRequired || [], // <-- use backend field
           };
           const { codeChecker } = await import("../utils/codeChecker");
           const result = await codeChecker(whiteboard, codeArea, outputArea, activityMeta);
-
-          // Always show program output
+      
+          // Always show user's stdout/stderr in output area
           outputArea.textContent = result.stdout || result.stderr || "/* No output */";
-
-          if (result.passedOutput && result.passedNodes) {
+      
+          // ✅ Use passedAll to determine completion
+          if (result.passedAll) {
             markCompleted();
             setShowCongratsModal(true);
           } else {
-            // Show notification about missing requirements
             const notifText = [];
-            if (!result.passedOutput) notifText.push("Output does not match expected.");
+            if (lesson.expectedOutput && !result.passedOutput) notifText.push("Output does not match expected.");
             if (!result.passedNodes) notifText.push(`Missing objects: ${result.missingNodes.join(", ")}`);
             notification.textContent = notifText.join(" ");
             notification.style.display = "block";
@@ -103,6 +111,7 @@ export default function DragBoardLesson() {
           await runProgram(codeArea, outputArea);
         }
       };
+      
 
       runButton.addEventListener("click", onRun);
 

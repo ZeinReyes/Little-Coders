@@ -7,7 +7,6 @@ let pyodideInstance = null;
 async function initPyodide() {
   if (!pyodideInstance) {
     if (!window.loadPyodide) {
-      // Dynamically load Pyodide script
       const script = document.createElement("script");
       script.src = "https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js";
       document.head.appendChild(script);
@@ -43,6 +42,10 @@ function checkRequiredNodes(whiteboard, requiredTypes = []) {
   requiredTypes.forEach((req) => {
     if (!usedTypes.has(req)) missingTypes.push(req);
   });
+
+  console.log("🔹 Required types:", requiredTypes);
+  console.log("🔹 Used types on whiteboard:", Array.from(usedTypes));
+  console.log("🔹 Missing types:", missingTypes);
 
   return {
     passed: missingTypes.length === 0,
@@ -99,7 +102,8 @@ function normalizeString(str) {
  * Main codeChecker function
  */
 export async function codeChecker(whiteboard, codeArea, outputArea, meta = {}) {
-  if (!whiteboard || !codeArea) return { passedOutput: false, passedNodes: false, missingNodes: [] };
+  if (!whiteboard || !codeArea)
+    return { passedOutput: false, passedNodes: false, missingNodes: [] };
 
   // Generate Python code from whiteboard nodes
   const nodes = Array.from(whiteboard.children).filter(
@@ -122,30 +126,46 @@ export async function codeChecker(whiteboard, codeArea, outputArea, meta = {}) {
 
   codeArea.textContent = generatedCode.trim() || "# No code built yet";
 
-  // Always run Python code to capture output
-  const { stdout, stderr } = await runPythonCode(generatedCode);
+  // Check required node types
+  const requiredTypes = meta.dataTypesRequired || [];
+  const { passed: passedNodes, missingNodes } = checkRequiredNodes(whiteboard, requiredTypes);
 
-  // Compare output only if expectedOutput exists
   let passedOutput = true;
+  let stdout = "";
+  let stderr = "";
+
+  // Run Python code only if expectedOutput exists
   if (meta.expectedOutput) {
+    const result = await runPythonCode(generatedCode);
+    stdout = result.stdout;
+    stderr = result.stderr;
+
     const expected = meta.expectedOutput.trim();
     passedOutput = normalizeString(stdout) === normalizeString(expected);
   }
 
-  // Check required nodes
-  const { passed: passedNodes, missingNodes } = checkRequiredNodes(whiteboard, meta.dataTypes || []);
-
-  // Update outputArea with feedback
-  let feedback = "";
-  if (passedOutput && passedNodes) {
-    feedback = "✅ Correct output and used all required objects!";
+  // Determine final pass condition
+  let passedAll;
+  if (meta.expectedOutput) {
+    // Must pass both output and nodes
+    passedAll = passedOutput && passedNodes;
   } else {
-    feedback = "❌ Issues found:\n";
-    if (meta.expectedOutput && !passedOutput) feedback += `- Output mismatch (got: "${stdout}", expected: "${meta.expectedOutput}")\n`;
-    if (!passedNodes) feedback += `- Missing objects: ${missingNodes.join(", ")}\n`;
+    // Only node types are required
+    passedAll = passedNodes;
   }
 
-  // Always show the user's stdout and stderr
+  // Build feedback
+  let feedback = "";
+  if (passedAll) {
+    feedback = "✅ Correct!";
+  } else {
+    feedback = "❌ Issues found:\n";
+    if (meta.expectedOutput && !passedOutput)
+      feedback += `- Output mismatch (got: "${stdout}", expected: "${meta.expectedOutput}")\n`;
+    if (!passedNodes)
+      feedback += `- Missing objects: ${missingNodes.join(", ")}\n`;
+  }
+
   if (stdout) feedback += `\n📤 Output:\n${stdout}`;
   if (stderr) feedback += `\n⚠️ Errors:\n${stderr}`;
 
@@ -154,6 +174,7 @@ export async function codeChecker(whiteboard, codeArea, outputArea, meta = {}) {
   return {
     passedOutput,
     passedNodes,
+    passedAll,
     missingNodes,
     stdout,
     stderr,
