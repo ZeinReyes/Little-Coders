@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 
+const dataTypeOptions = [
+  "print", "variable", "multiple", "add", "subtract", "divide",
+  "equal", "notequal", "less", "lessequal", "greater", "greaterequal",
+  "if", "elif", "else", "while"
+];
+
 const AddAssessment = () => {
   const [formData, setFormData] = useState({
     title: "",
@@ -9,16 +15,17 @@ const AddAssessment = () => {
     expectedOutput: "",
     difficulty: "Easy",
     lessonId: "",
+    dataTypesRequired: [], // ✅ New field
   });
 
   const [lessons, setLessons] = useState([]);
   const [message, setMessage] = useState("");
 
-  // ✅ Fetch lessons to populate dropdown
+  // ✅ Fetch lessons
   useEffect(() => {
     const fetchLessons = async () => {
       try {
-        const token = localStorage.getItem("token"); // ✅ match ManageLesson
+        const token = localStorage.getItem("token");
         const res = await axios.get("http://localhost:5000/api/lessons", {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -36,7 +43,7 @@ const AddAssessment = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  // ✅ Handle hint field changes
+  // ✅ Handle hint changes
   const handleHintChange = (index, value) => {
     const newHints = [...formData.hints];
     newHints[index] = value;
@@ -45,6 +52,22 @@ const AddAssessment = () => {
 
   const addHintField = () => {
     setFormData({ ...formData, hints: [...formData.hints, ""] });
+  };
+
+  // ✅ Handle Data Types checkbox changes
+  const handleDataTypeChange = (type) => {
+    const currentTypes = [...formData.dataTypesRequired];
+    if (currentTypes.includes(type)) {
+      setFormData({
+        ...formData,
+        dataTypesRequired: currentTypes.filter((t) => t !== type),
+      });
+    } else {
+      setFormData({
+        ...formData,
+        dataTypesRequired: [...currentTypes, type],
+      });
+    }
   };
 
   // ✅ Submit form
@@ -70,6 +93,7 @@ const AddAssessment = () => {
         expectedOutput: "",
         difficulty: "Easy",
         lessonId: "",
+        dataTypesRequired: [],
       });
     } catch (err) {
       console.error(err);
@@ -160,15 +184,32 @@ const AddAssessment = () => {
 
         {/* Expected Output */}
         <div>
-          <label>Expected Output:</label>
+          <label>Expected Output (optional):</label>
           <textarea
             name="expectedOutput"
             value={formData.expectedOutput}
             onChange={handleChange}
             rows="3"
-            required
             className="form-control"
           />
+        </div>
+
+        {/* Data Types Required */}
+        <div>
+          <label>Data Type Required:</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+            {dataTypeOptions.map((type) => (
+              <label key={type} style={{ display: "flex", alignItems: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={formData.dataTypesRequired.includes(type)}
+                  onChange={() => handleDataTypeChange(type)}
+                  style={{ marginRight: "5px" }}
+                />
+                {type}
+              </label>
+            ))}
+          </div>
         </div>
 
         {/* Difficulty */}

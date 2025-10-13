@@ -3,20 +3,33 @@ import Assessment from "../model/Assessment.js";
 // ✅ Create Assessment
 export const createAssessment = async (req, res) => {
   try {
-    const { title, instructions, hints, expectedOutput, difficulty, lessonId } = req.body;
+    const { title, instructions, hints, expectedOutput, difficulty, lessonId, dataTypesRequired } = req.body;
 
-    if (!title || !instructions || !expectedOutput || !lessonId) {
+    if (!title || !instructions || !lessonId) {
       return res.status(400).json({
         success: false,
-        message: "All required fields must be filled.",
+        message: "Title, instructions, and lessonId are required.",
       });
     }
 
     const validDifficulties = ["Easy", "Medium", "Hard"];
-    if (!validDifficulties.includes(difficulty)) {
+    if (difficulty && !validDifficulties.includes(difficulty)) {
       return res.status(400).json({
         success: false,
         message: "Invalid difficulty value.",
+      });
+    }
+
+    const validDataTypes = [
+      "print", "variable", "multiple", "add", "subtract", "divide",
+      "equal", "notequal", "less", "lessequal", "greater", "greaterequal",
+      "if", "elif", "else", "while"
+    ];
+
+    if (dataTypesRequired && !dataTypesRequired.every(dt => validDataTypes.includes(dt))) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid data type selected.",
       });
     }
 
@@ -27,6 +40,7 @@ export const createAssessment = async (req, res) => {
       expectedOutput,
       difficulty,
       lessonId,
+      dataTypesRequired,
     });
 
     await newAssessment.save();
@@ -104,7 +118,7 @@ export const getAssessmentByLessonAndId = async (req, res) => {
 // ✅ Update Assessment
 export const updateAssessment = async (req, res) => {
   try {
-    const { title, instructions, hints, expectedOutput, difficulty, lessonId } = req.body;
+    const { title, instructions, hints, expectedOutput, difficulty, lessonId, dataTypesRequired } = req.body;
 
     const validDifficulties = ["Easy", "Medium", "Hard"];
     if (difficulty && !validDifficulties.includes(difficulty)) {
@@ -114,7 +128,19 @@ export const updateAssessment = async (req, res) => {
       });
     }
 
-    // ✅ Build only the fields that exist (avoid overwriting with undefined)
+    const validDataTypes = [
+      "print", "variable", "multiple", "add", "subtract", "divide",
+      "equal", "notequal", "less", "lessequal", "greater", "greaterequal",
+      "if", "elif", "else", "while"
+    ];
+
+    if (dataTypesRequired && !dataTypesRequired.every(dt => validDataTypes.includes(dt))) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid data type selected.",
+      });
+    }
+
     const updateFields = {};
     if (title) updateFields.title = title;
     if (instructions) updateFields.instructions = instructions;
@@ -122,6 +148,7 @@ export const updateAssessment = async (req, res) => {
     if (expectedOutput) updateFields.expectedOutput = expectedOutput;
     if (difficulty) updateFields.difficulty = difficulty;
     if (lessonId) updateFields.lessonId = lessonId;
+    if (dataTypesRequired) updateFields.dataTypesRequired = dataTypesRequired;
 
     const updatedAssessment = await Assessment.findByIdAndUpdate(
       req.params.id,
@@ -149,6 +176,7 @@ export const updateAssessment = async (req, res) => {
     });
   }
 };
+
 
 
 // ✅ Delete Assessment

@@ -5,6 +5,12 @@ import axios from "axios";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
+const dataTypeOptions = [
+  "print", "variable", "multiple", "add", "subtract", "divide",
+  "equal", "notequal", "less", "lessequal", "greater", "greaterequal",
+  "if", "elif", "else", "while"
+];
+
 function AddActivity() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -13,10 +19,10 @@ function AddActivity() {
     instructions: "",
     hints: [""],
     difficulty: "easy",
-    expectedOutput: "", // ✅ Added Expected Output field
+    expectedOutput: "",
+    dataTypesRequired: [], // ✅ New field
   });
 
-  // ✅ Word counter (remove HTML)
   const countWords = (text) => {
     const plain = text.replace(/<[^>]+>/g, "").trim();
     return plain ? plain.split(/\s+/).length : 0;
@@ -41,10 +47,25 @@ function AddActivity() {
     });
   };
 
-  // ✅ Validation logic
   const isInvalid =
     countWords(formData.instructions) > 70 ||
     formData.hints.some((h) => countWords(h) > 70);
+
+  // ✅ Handle Data Type checkbox toggle
+  const handleDataTypeChange = (type) => {
+    const current = [...formData.dataTypesRequired];
+    if (current.includes(type)) {
+      setFormData({
+        ...formData,
+        dataTypesRequired: current.filter((t) => t !== type),
+      });
+    } else {
+      setFormData({
+        ...formData,
+        dataTypesRequired: [...current, type],
+      });
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -71,7 +92,7 @@ function AddActivity() {
         <Card.Body>
           <h3 className="mb-4">Add Activity</h3>
           <Form onSubmit={handleSubmit}>
-            {/* ✅ Activity Name */}
+            {/* Activity Name */}
             <Form.Group className="mb-3">
               <Form.Label className="fw-bold">Activity Name</Form.Label>
               <Form.Control
@@ -85,7 +106,7 @@ function AddActivity() {
               />
             </Form.Group>
 
-            {/* ✅ Instructions */}
+            {/* Instructions */}
             <Form.Group className="mb-3">
               <Form.Label className="fw-bold">
                 Instructions (max 70 words)
@@ -113,7 +134,7 @@ function AddActivity() {
               )}
             </Form.Group>
 
-            {/* ✅ Hints */}
+            {/* Hints */}
             <div className="d-flex justify-content-between align-items-center mb-2">
               <Form.Label className="fw-bold mb-0">Hints</Form.Label>
               <Button
@@ -146,9 +167,7 @@ function AddActivity() {
                   onChange={(val) => handleHintChange(index, val)}
                 />
                 <small
-                  className={
-                    countWords(hint) > 70 ? "text-danger" : "text-muted"
-                  }
+                  className={countWords(hint) > 70 ? "text-danger" : "text-muted"}
                 >
                   Word count: {countWords(hint)} / 70
                 </small>
@@ -160,7 +179,7 @@ function AddActivity() {
               </div>
             ))}
 
-            {/* ✅ Expected Output */}
+            {/* Expected Output */}
             <Form.Group className="mb-3">
               <Form.Label className="fw-bold">Activity Expected Output</Form.Label>
               <Form.Control
@@ -178,7 +197,25 @@ function AddActivity() {
               </small>
             </Form.Group>
 
-            {/* ✅ Difficulty */}
+            {/* Data Types Required */}
+            <Form.Group className="mb-3">
+              <Form.Label className="fw-bold">Data Type Required</Form.Label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                {dataTypeOptions.map((type) => (
+                  <label key={type} style={{ display: "flex", alignItems: "center" }}>
+                    <input
+                      type="checkbox"
+                      checked={formData.dataTypesRequired.includes(type)}
+                      onChange={() => handleDataTypeChange(type)}
+                      style={{ marginRight: "5px" }}
+                    />
+                    {type}
+                  </label>
+                ))}
+              </div>
+            </Form.Group>
+
+            {/* Difficulty */}
             <Form.Group className="mb-3">
               <Form.Label className="fw-bold">Difficulty</Form.Label>
               <Form.Select
@@ -193,7 +230,7 @@ function AddActivity() {
               </Form.Select>
             </Form.Group>
 
-            {/* ✅ Buttons */}
+            {/* Buttons */}
             <div className="d-flex justify-content-end gap-2">
               <Button
                 variant="outline-secondary"

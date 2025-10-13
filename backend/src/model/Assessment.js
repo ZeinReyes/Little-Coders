@@ -1,4 +1,3 @@
-// backend/src/model/Assessment.js
 import mongoose from "mongoose";
 
 const assessmentSchema = new mongoose.Schema(
@@ -6,7 +5,7 @@ const assessmentSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     instructions: { type: String, required: true },
     hints: { type: [String], default: [] },
-    expectedOutput: { type: String, required: true },
+    expectedOutput: { type: String }, // now optional
     difficulty: {
       type: String,
       enum: ["Easy", "Medium", "Hard"],
@@ -32,6 +31,28 @@ const assessmentSchema = new mongoose.Schema(
         output: { type: String },
       },
     ],
+    dataTypesRequired: {
+      type: [String],
+      enum: [
+        "print",
+        "variable",
+        "multiple",
+        "add",
+        "subtract",
+        "divide",
+        "equal",
+        "notequal",
+        "less",
+        "lessequal",
+        "greater",
+        "greaterequal",
+        "if",
+        "elif",
+        "else",
+        "while",
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );
