@@ -75,6 +75,30 @@ export const getAssessmentById = async (req, res) => {
 
   }
 };
+export const getAssessmentsByLesson = async (req, res) => {
+  try {
+    const { lessonId } = req.params;
+    const assessments = await Assessment.find({ lessonId }).sort({ createdAt: 1 });
+
+    res.status(200).json(assessments);
+  } catch (err) {
+    console.error("Error fetching assessments by lesson:", err);
+    res.status(500).json({ message: "Error fetching assessments by lesson" });
+  }
+};
+
+export const getAssessmentByLessonAndId = async (req, res) => {
+  try {
+    const { lessonId, assessmentId } = req.params;
+    const assessment = await Assessment.findOne({ _id: assessmentId, lessonId });
+    if (!assessment) {
+      return res.status(404).json({ message: "Assessment not found for this lesson." });
+    }
+    res.status(200).json(assessment);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching assessment.", error: err.message });
+  }
+};
 
 
 // ✅ Update Assessment

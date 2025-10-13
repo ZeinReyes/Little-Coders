@@ -1,9 +1,10 @@
 // src/pages/LessonList.js
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Button, Spinner, ListGroup } from "react-bootstrap";
 import { CheckCircleFill, Circle } from "react-bootstrap-icons";
+import { AuthContext } from "../../context/authContext";
 
 function LessonList() {
   const { lessonId } = useParams();
@@ -11,42 +12,77 @@ function LessonList() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
 
   useEffect(() => {
-    fetchData();
-  }, [lessonId]);
+    if (user) {
+      fetchData();
+    }
+  }, [lessonId, user]);
 
   const fetchData = async () => {
     try {
       const token = localStorage.getItem("token");
+      const userId = user?.id;
 
-      const [moduleRes, materialsRes, activitiesRes] = await Promise.all([
-        axios.get(`http://localhost:5000/api/lessons/${lessonId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        axios.get(
-          `http://localhost:5000/api/materials/lessons/${lessonId}/materials`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        ),
-        axios.get(
-          `http://localhost:5000/api/activities/lessons/${lessonId}/activities`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        ),
-      ]);
+      if (!userId) {
+        console.warn("⚠️ No user ID found — skipping progress fetch");
+        return;
+      }
+
+      // ✅ Fetch lessons, activities, assessments, and progress in parallel
+      const [moduleRes, materialsRes, activitiesRes, assessmentsRes, progressRes] =
+        await Promise.all([
+          axios.get(`http://localhost:5000/api/lessons/${lessonId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          axios.get(
+            `http://localhost:5000/api/materials/lessons/${lessonId}/materials`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          ),
+          axios.get(
+            `http://localhost:5000/api/activities/lessons/${lessonId}/activities`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          ),
+          axios.get(
+            `http://localhost:5000/api/assessments/lessons/${lessonId}/assessments`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          ),
+          axios.get(
+            `http://localhost:5000/api/progress/${userId}/${lessonId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          ),
+        ]);
 
       setModule(moduleRes.data);
+      const progress = progressRes.data || {};
 
+      // ✅ Completed item IDs
+      const completedMaterialIds = progress.completedMaterials?.map((m) => m._id) || [];
+      const completedActivityIds = progress.completedActivities?.map((a) => a._id) || [];
+      const completedAssessmentIds = progress.completedAssessments?.map((a) => a._id) || [];
+
+      // ✅ Add completion state + type
       const materials = materialsRes.data.map((m) => ({
         ...m,
         type: "lesson",
+        isCompleted: completedMaterialIds.includes(m._id),
       }));
 
       const activities = activitiesRes.data.map((a) => ({
         ...a,
         type: "activity",
+        isCompleted: completedActivityIds.includes(a._id),
       }));
 
-      const merged = [...materials, ...activities].sort(
+      const assessments = assessmentsRes.data.map((a) => ({
+        ...a,
+        type: "assessment",
+        isCompleted: completedAssessmentIds.includes(a._id),
+      }));
+
+      // ✅ Merge and sort by order or creation date
+      const merged = [...materials, ...activities, ...assessments].sort(
         (a, b) =>
           (a.order ?? 0) - (b.order ?? 0) ||
           new Date(a.createdAt) - new Date(b.createdAt)
@@ -54,14 +90,14 @@ function LessonList() {
 
       setItems(merged);
     } catch (err) {
-      console.error("Error fetching module data:", err);
+      console.error("❌ Error fetching lesson data:", err);
     } finally {
       setLoading(false);
     }
   };
 
   const handleItemClick = (item) => {
-    navigate(`/lessons/${lessonId}/${item._id}`);
+    navigate(`/lessons/${lessonId}/${item._id || item.id}`);
   };
 
   if (loading) {
@@ -74,6 +110,7 @@ function LessonList() {
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#FFF9F0" }}>
+      {/* HEADER */}
       <header
         className="d-flex align-items-center justify-content-between"
         style={{
@@ -87,7 +124,11 @@ function LessonList() {
         <Button
           variant="light"
           onClick={() => navigate(-1)}
-          style={{ fontWeight: "bold", borderRadius: "20px", fontSize: "0.9rem" }}
+          style={{
+            fontWeight: "bold",
+            borderRadius: "20px",
+            fontSize: "0.9rem",
+          }}
         >
           ← Back
         </Button>
@@ -103,12 +144,16 @@ function LessonList() {
         </div>
       </header>
 
+      {/* LESSONS, ACTIVITIES & ASSESSMENTS */}
       <div className="p-4" style={{ maxWidth: "800px", margin: "0 auto" }}>
         <h5
           className="mb-3"
-          style={{ fontFamily: "'Comic Sans MS', cursive", color: "#FF6F61" }}
+          style={{
+            fontFamily: "'Comic Sans MS', cursive",
+            color: "#FF6F61",
+          }}
         >
-          Lessons & Activities
+          Lessons, Activities & Assessments
         </h5>
 
         <ListGroup>
@@ -118,7 +163,11 @@ function LessonList() {
               className="d-flex align-items-center justify-content-between shadow-sm mb-2 rounded-3"
               style={{
                 backgroundColor:
-                  item.type === "activity" ? "#E0F7FA" : "#FFF3E0",
+                  item.type === "activity"
+                    ? "#E0F7FA"
+                    : item.type === "assessment"
+                    ? "#E8F5E9"
+                    : "#FFF3E0",
                 cursor: "pointer",
                 padding: "0.8rem 1rem",
                 transition: "transform 0.2s",
@@ -144,7 +193,9 @@ function LessonList() {
                   }}
                 >
                   {item.type === "activity"
-                    ? `Act: ${item.name}`
+                    ? `Activity: ${item.name}`
+                    : item.type === "assessment"
+                    ? `Assessment: ${item.title}`
                     : `Lesson: ${item.title}`}
                 </div>
               </div>

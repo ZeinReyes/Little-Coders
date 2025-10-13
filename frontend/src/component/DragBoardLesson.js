@@ -1,9 +1,9 @@
-// src/pages/DragBoardLesson.js
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import "./DragBoard.css";
 import axios from "axios";
 import { Modal, Button, Spinner } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router-dom";
+import { AuthContext } from "../context/authContext";
 
 import { initDragAndDrop } from "../utils/dragAndDrop";
 import { updateCode } from "../utils/codeGen";
@@ -16,39 +16,45 @@ export default function DragBoardLesson() {
   const [loading, setLoading] = useState(true);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
 
-  useEffect(() => {
-    const fetchLessonOrActivity = async () => {
-      try {
-        const token = localStorage.getItem("token");
+// ✅ Fetch lesson, activity, or assessment
+useEffect(() => {
+  const fetchLessonOrActivity = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-        // Try fetching as a lesson first
-        let res;
-        try {
-            res = await axios.get(`http://localhost:5000/api/materials/lessons/${lessonId}/materials/${itemId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-        } catch {
-          res = await axios.get(`http://localhost:5000/api/activities/lessons/${lessonId}/activities/${itemId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-        }
-
-        setLesson({
-          ...res.data,
-          currentContentIndex: 0,
-          type: res.data.overview ? "lesson" : "activity",
+      // Try material first
+      let res = await axios
+        .get(`http://localhost:5000/api/materials/lessons/${lessonId}/materials/${itemId}`, { headers })
+        .then((r) => ({ ...r.data, type: "lesson" }))
+        .catch(async () => {
+          // Try assessment next
+          return axios
+            .get(`http://localhost:5000/api/assessments/lessons/${lessonId}/assessments/${itemId}`, { headers })
+            .then((r) => ({ ...r.data, type: "assessment" }))
+            .catch(async () => {
+              // Try activity last
+              return axios
+                .get(`http://localhost:5000/api/activities/lessons/${lessonId}/activities/${itemId}`, { headers })
+                .then((r) => ({ ...r.data, type: "activity" }));
+            });
         });
-      } catch (err) {
-        console.error("Error fetching lesson or activity:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    fetchLessonOrActivity();
-  }, [itemId]);
+      setLesson({ ...res, currentContentIndex: res.type === "lesson" ? 0 : null });
+    } catch (err) {
+      console.error("❌ Error fetching lesson/activity/assessment:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  fetchLessonOrActivity();
+}, [itemId, lessonId]);
+
+
+  // ✅ Initialize drag and drop
   useEffect(() => {
     const init = () => {
       const whiteboard = document.getElementById("whiteboard");
@@ -94,18 +100,50 @@ export default function DragBoardLesson() {
     return cleanup;
   }, []);
 
-  if (loading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center vh-100">
-        <Spinner animation="border" variant="primary" />
-      </div>
-    );
-  }
+  // ✅ Mark item as completed (fixed: correctly maps types)
+  const markCompleted = async () => {
+    if (!user || !user.id) {
+      console.warn("⚠️ No user logged in — cannot update progress");
+      return;
+    }
 
-  if (!lesson) {
-    return <div className="text-center mt-5">Lesson or Activity not found.</div>;
-  }
+    try {
+      const token = localStorage.getItem("token");
+      let endpoint = "";
+      const payload = { userId: user.id, lessonId };
 
+      // Choose correct endpoint based on type
+      switch (lesson?.type) {
+        case "lesson":
+          endpoint = "complete-material";
+          payload.materialId = itemId;
+          break;
+        case "activity":
+          endpoint = "complete-activity";
+          payload.activityId = itemId;
+          break;
+        case "assessment":
+          endpoint = "complete-assessment";
+          payload.assessmentId = itemId;
+          break;
+        default:
+          console.warn("⚠️ Unknown lesson type, skipping completion update");
+          return;
+      }
+
+      const res = await axios.post(
+        `http://localhost:5000/api/progress/${endpoint}`,
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      console.log(`✅ ${lesson.type} ${itemId} marked as completed`, res.data);
+    } catch (err) {
+      console.error("❌ Error marking item as completed:", err);
+    }
+  };
+
+  // ✅ Navigation logic
   const handleNextContent = () => {
     if (lesson.type === "lesson" && lesson.currentContentIndex < lesson.contents.length) {
       setLesson((prev) => ({
@@ -113,31 +151,26 @@ export default function DragBoardLesson() {
         currentContentIndex: prev.currentContentIndex + 1,
       }));
     } else {
+      markCompleted();
       setShowCompletionModal(true);
     }
   };
 
   const handlePreviousContent = () => {
-    if (lesson.currentContentIndex > 0) {
+    if (lesson.type === "lesson" && lesson.currentContentIndex > 0) {
       setLesson((prev) => ({
         ...prev,
         currentContentIndex: prev.currentContentIndex - 1,
       }));
     }
   };
+
   const handleContinue = () => {
-  setShowCompletionModal(false);
-  
-  // 🚀 Example: Navigate to the next lesson/activity (you can modify this)
-  // For instance, assuming you have lesson.nextLessonId in your data
-  if (lesson.nextLessonId) {
-    navigate(`/dragboardlesson/${lesson.nextLessonId}`);
-  } else {
-    navigate(-1); // fallback
-  }
-};
+    setShowCompletionModal(false);
+    navigate(-1);
+  };
 
-
+  // ✅ Proper rendering for all types
   const renderLessonContent = () => {
     if (lesson.type === "activity") {
       return (
@@ -172,6 +205,56 @@ export default function DragBoardLesson() {
       );
     }
 
+    if (lesson.type === "assessment") {
+      return (
+        <div>
+          <h5 style={{ color: "#00796B" }}>{lesson.title}</h5>
+          <p dangerouslySetInnerHTML={{ __html: lesson.instructions || "" }} />
+
+          {lesson.hints?.length > 0 && (
+            <>
+              <h6 style={{ color: "#0288D1" }}>Hints:</h6>
+              <ul>
+                {lesson.hints.map((hint, i) => (
+                  <li key={i} dangerouslySetInnerHTML={{ __html: hint }} />
+                ))}
+              </ul>
+            </>
+          )}
+
+          {lesson.expectedOutput && (
+            <>
+              <h6 style={{ color: "#E65100" }}>Expected Output:</h6>
+              <pre
+                style={{
+                  backgroundColor: "#f4f4f4",
+                  padding: "10px",
+                  borderRadius: "8px",
+                }}
+              >
+                {lesson.expectedOutput}
+              </pre>
+            </>
+          )}
+
+          {lesson.testCases?.length > 0 && (
+            <>
+              <h6 style={{ color: "#7B1FA2" }}>Test Cases:</h6>
+              <ul>
+                {lesson.testCases.map((test, index) => (
+                  <li key={index}>
+                    <strong>Input:</strong> {test.input} <br />
+                    <strong>Expected Output:</strong> {test.output}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      );
+    }
+
+
     if (lesson.currentContentIndex === 0) {
       return <div dangerouslySetInnerHTML={{ __html: lesson.overview }} />;
     }
@@ -181,6 +264,22 @@ export default function DragBoardLesson() {
       <div dangerouslySetInnerHTML={{ __html: lesson.contents[index] || "" }} />
     );
   };
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center vh-100">
+        <Spinner animation="border" variant="primary" />
+      </div>
+    );
+  }
+
+  if (!lesson) {
+    return (
+      <div className="text-center mt-5">
+        Lesson / Activity / Assessment not found.
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -217,9 +316,7 @@ export default function DragBoardLesson() {
 
         <div className="right-panel">
           <div className="code-panel">
-            <button id="runButton" className="run-button">
-              ▶ Run Program
-            </button>
+            <button id="runButton" className="run-button">▶ Run Program</button>
             <div>Source Code (preview)</div>
             <pre id="codeArea">/* Build expressions on the whiteboard */</pre>
           </div>
@@ -232,10 +329,16 @@ export default function DragBoardLesson() {
 
       <div id="notification" className="notification"></div>
 
-      {/* Lesson/Activity Modal */}
+      {/* Lesson Modal */}
       <Modal show backdrop="static" centered size="lg">
         <Modal.Header>
-          <Modal.Title>{lesson.type === "activity" ? `Activity: ${lesson.name}` : lesson.title}</Modal.Title>
+          <Modal.Title>
+            {lesson.type === "activity"
+              ? `Activity: ${lesson.name}`
+              : lesson.type === "assessment"
+              ? `Assessment: ${lesson.title}`
+              : lesson.title}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body
           style={{
@@ -261,21 +364,27 @@ export default function DragBoardLesson() {
           <Button variant="primary" onClick={handleNextContent}>
             {lesson.type === "activity"
               ? "Finish Activity"
+              : lesson.type === "assessment"
+              ? "Finish Assessment"
               : lesson.currentContentIndex >= lesson.contents.length
               ? "Finish Lesson"
               : "Next →"}
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Completion Modal */}
       <Modal show={showCompletionModal} onHide={() => setShowCompletionModal(false)} centered backdrop="static">
         <Modal.Header closeButton>
           <Modal.Title>🎉 Great Job!</Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ textAlign: "center", fontSize: "1.2rem" }}>
           {lesson.type === "activity" ? (
-            <p>You’ve completed this activity! Would you like to continue to the next one?</p>
+            <p>You’ve completed this activity! Would you like to continue?</p>
+          ) : lesson.type === "assessment" ? (
+            <p>You’ve finished this assessment! Continue to the next one?</p>
           ) : (
-            <p>You’ve finished the lesson! Continue to the next lesson?</p>
+            <p>You’ve finished this lesson! Continue to the next one?</p>
           )}
         </Modal.Body>
         <Modal.Footer className="d-flex justify-content-center">

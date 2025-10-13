@@ -7,25 +7,10 @@ const LessonMaterialSchema = new mongoose.Schema(
       ref: "Lesson",
       required: true,
     },
-    title: {
-      type: String,
-      required: true,
-    },
-    overview: {
-      type: String,
-      default: "",
-    },
-    contents: [
-      {
-        type: String,
-        required: true,
-      },
-    ],
+    title: { type: String, required: true },
+    overview: { type: String, default: "" },
+    contents: [{ type: String, required: true }],
     order: { type: Number, default: 0 },
-    isCompleted: {
-      type: Boolean,
-      required: true,
-    }
   },
   { timestamps: true }
 );

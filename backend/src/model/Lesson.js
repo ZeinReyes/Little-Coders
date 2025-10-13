@@ -11,7 +11,7 @@ const LessonSchema = new mongoose.Schema({
   },
   topic: {
     type: String,
-    enum: ["variables", "operators", "conditionals", "loops", "functions"],
+    enum: ["variables", "operators", "conditionals", "loops", "overview"],
     required: true,
   },
 
