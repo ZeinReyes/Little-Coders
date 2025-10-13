@@ -4,21 +4,45 @@ import axios from "axios";
 const AddAssessment = () => {
   const [formData, setFormData] = useState({
     title: "",
+    question: "",
     instructions: "",
     hints: [""],
-    expectedOutput: "",
     difficulty: "Easy",
     lessonId: "",
+    dataTypeChecks: [], // ✅ operators & keywords
+    expectedOutput: "",
+    category: "Logic and Control Flow",
   });
 
   const [lessons, setLessons] = useState([]);
   const [message, setMessage] = useState("");
 
-  // ✅ Fetch lessons to populate dropdown
+  // ✅ Default data type/operator options
+  const checkOptions = [
+    "print",
+    "variable",
+    "if",
+    "elif",
+    "else",
+    "for",
+    "while",
+    "+",
+    "-",
+    "*",
+    "/",
+    "==",
+    "!=",
+    "<",
+    "<=",
+    ">",
+    ">=",
+  ];
+
+  // ✅ Fetch lessons
   useEffect(() => {
     const fetchLessons = async () => {
       try {
-        const token = localStorage.getItem("token"); // ✅ match ManageLesson
+        const token = localStorage.getItem("token");
         const res = await axios.get("http://localhost:5000/api/lessons", {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -30,60 +54,78 @@ const AddAssessment = () => {
     fetchLessons();
   }, []);
 
-  // ✅ Handle input changes
+  // ✅ Handle form field changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  // ✅ Handle hint field changes
-  const handleHintChange = (index, value) => {
-    const newHints = [...formData.hints];
-    newHints[index] = value;
-    setFormData({ ...formData, hints: newHints });
+  // ✅ Toggle operator/data type selection (click = required: true)
+const toggleCheck = (name) => {
+  setFormData((prev) => {
+    const exists = prev.dataTypeChecks.find((c) => c.name === name);
+    if (exists) {
+      // Remove if already selected
+      return {
+        ...prev,
+        dataTypeChecks: prev.dataTypeChecks.filter((c) => c.name !== name),
+      };
+    } else {
+      // Add with required: true
+      return { ...prev, dataTypeChecks: [...prev.dataTypeChecks, { name, required: true }] };
+    }
+  });
+};
+
+
+  // ✅ Toggle required flag for each check
+  const toggleRequired = (name) => {
+    setFormData((prev) => ({
+      ...prev,
+      dataTypeChecks: prev.dataTypeChecks.map((c) =>
+        c.name === name ? { ...c, required: !c.required } : c
+      ),
+    }));
   };
 
-  const addHintField = () => {
-    setFormData({ ...formData, hints: [...formData.hints, ""] });
-  };
-
-  // ✅ Submit form
+  // ✅ Add assessment
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
 
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.post(
-        "http://localhost:5000/api/assessments",
-        formData,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const payload = {
+        ...formData,
+        hints: formData.hints.filter((h) => h.trim() !== ""),
+      };
+
+      const res = await axios.post("http://localhost:5000/api/assessments", payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       setMessage(`✅ ${res.data.message || "Assessment added successfully!"}`);
 
-      // Reset form
       setFormData({
         title: "",
+        question: "",
         instructions: "",
         hints: [""],
-        expectedOutput: "",
         difficulty: "Easy",
         lessonId: "",
+        dataTypeChecks: [],
+        expectedOutput: "",
+        category: "Logic and Control Flow",
       });
     } catch (err) {
-      console.error(err);
-      setMessage(
-        `❌ ${err.response?.data?.message || "Failed to add assessment."}`
-      );
+      console.error("Error submitting assessment:", err.response?.data || err);
+      setMessage(`❌ ${err.response?.data?.message || "Failed to add assessment."}`);
     }
   };
 
   return (
     <div style={{ padding: "40px", maxWidth: "700px", margin: "auto" }}>
-      <h2 style={{ textAlign: "center", marginBottom: "20px" }}>
-        Add New Assessment
-      </h2>
+      <h2 style={{ textAlign: "center", marginBottom: "20px" }}>Add New Assessment</h2>
 
       {message && (
         <p
@@ -122,6 +164,19 @@ const AddAssessment = () => {
           />
         </div>
 
+        {/* Question */}
+        <div>
+          <label>Question:</label>
+          <textarea
+            name="question"
+            value={formData.question}
+            onChange={handleChange}
+            rows="2"
+            required
+            className="form-control"
+          />
+        </div>
+
         {/* Instructions */}
         <div>
           <label>Instructions:</label>
@@ -143,7 +198,11 @@ const AddAssessment = () => {
               key={index}
               type="text"
               value={hint}
-              onChange={(e) => handleHintChange(index, e.target.value)}
+              onChange={(e) => {
+                const newHints = [...formData.hints];
+                newHints[index] = e.target.value;
+                setFormData({ ...formData, hints: newHints });
+              }}
               placeholder={`Hint ${index + 1}`}
               className="form-control"
               style={{ marginBottom: "8px" }}
@@ -151,24 +210,11 @@ const AddAssessment = () => {
           ))}
           <button
             type="button"
-            onClick={addHintField}
+            onClick={() => setFormData({ ...formData, hints: [...formData.hints, ""] })}
             className="btn btn-secondary btn-sm"
           >
             ➕ Add Hint
           </button>
-        </div>
-
-        {/* Expected Output */}
-        <div>
-          <label>Expected Output:</label>
-          <textarea
-            name="expectedOutput"
-            value={formData.expectedOutput}
-            onChange={handleChange}
-            rows="3"
-            required
-            className="form-control"
-          />
         </div>
 
         {/* Difficulty */}
@@ -205,11 +251,58 @@ const AddAssessment = () => {
           </select>
         </div>
 
-        <button
-          type="submit"
-          className="btn btn-primary"
-          style={{ marginTop: "15px" }}
+        {/* Data Type / Operator Checks */}
+        <div>
+  <label>Data Type & Operator Checks:</label>
+  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+    {checkOptions.map((name) => {
+      const selected = formData.dataTypeChecks.find((c) => c.name === name);
+      return (
+        <div
+          key={name}
+          onClick={() => toggleCheck(name)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+            padding: "6px 12px",
+            borderRadius: "20px",
+            border: selected ? "2px solid #007bff" : "1px solid #ccc",
+            backgroundColor: selected ? "#007bff" : "#f2f2f2",
+            color: selected ? "white" : "black",
+            cursor: "pointer",
+            userSelect: "none",
+          }}
         >
+          {selected && (
+            <input
+              type="checkbox"
+              checked={selected.required}
+              readOnly
+              style={{ marginRight: "6px" }} // ✅ move checkbox to left
+            />
+          )}
+          <span>{name}</span>
+        </div>
+      );
+    })}
+  </div>
+</div>
+
+
+        {/* Expected Output */}
+        <div>
+          <label>Expected Output (optional):</label>
+          <input
+            type="text"
+            name="expectedOutput"
+            value={formData.expectedOutput}
+            onChange={handleChange}
+            className="form-control"
+          />
+        </div>
+
+        <button type="submit" className="btn btn-primary" style={{ marginTop: "15px" }}>
           Submit Assessment
         </button>
       </form>

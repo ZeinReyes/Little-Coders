@@ -2,13 +2,22 @@ import mongoose from "mongoose";
 
 const lessonActivitySchema = new mongoose.Schema(
   {
-    lessonId: { type: mongoose.Schema.Types.ObjectId, ref: "Lesson", required: true },
-    name: { type: String, required: true },
-    instructions: { type: String, required: true },
-    hints: { type: [String], default: [] },  // ✅ Array of strings
+    name: { type: String, required: true, trim: true },
+    instructions: { type: String, required: true, trim: true },
+    hints: { type: [String], default: [] },
     expectedOutput: { type: String, default: "" },
-    difficulty: { type: String, enum: ["easy", "medium", "hard"], default: "easy" },
-    order: { type: Number, default: 0 },
+    dataTypeChecks: [
+      {
+        name: { type: String, required: true },
+        required: { type: Boolean, default: false },
+      },
+    ],
+    difficulty: {
+      type: String,
+      enum: ["easy", "medium", "hard"],
+      default: "easy",
+    },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
 );

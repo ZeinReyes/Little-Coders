@@ -52,10 +52,10 @@ export default function DragBoard() {
             <img src="/assets/images/container.png" data-type="variable" draggable="true" alt="Variable" />
             
             {/* Arithmetic operators */}
-            <img src="/assets/images/multiply.png" data-type="multiply" draggable="true" alt="Multiply"/>
-            <img src="/assets/images/add.png" data-type="add" draggable="true" alt="Add"/>
-            <img src="/assets/images/subtract.png" data-type="subtract" draggable="true" alt="Subtract"/>
-            <img src="/assets/images/divide.png" data-type="divide" draggable="true" alt="Divide"/>
+            <img src="/assets/images/multiply1.png" data-type="multiply" draggable="true" alt="Multiply"/>
+            <img src="/assets/images/plus (2).png" data-type="add" draggable="true" alt="Add"/>
+            <img src="/assets/images/minus (2).png" data-type="subtract" draggable="true" alt="Subtract"/>
+            <img src="/assets/images/division (2).png" data-type="divide" draggable="true" alt="Divide"/>
 
             {/* NEW: Comparison operators */}
             <img src="/assets/images/equalto.png" data-type="equal" draggable="true" alt="Equal ==" />
@@ -63,12 +63,12 @@ export default function DragBoard() {
             <img src="/assets/images/lessthan.png" data-type="less" draggable="true" alt="Less Than <" />
             <img src="/assets/images/lessthanequal.png" data-type="lessequal" draggable="true" alt="Less or Equal <=" />
             <img src="/assets/images/greaterthan.png" data-type="greater" draggable="true" alt="Greater Than >" />
-            <img src="/assets/images/greaterthanequal.png" data-type="greaterequal" draggable="true" alt="Greater or Equal >=" />
+            <img src="/assets/images/greaterequal.png" data-type="greaterequal" draggable="true" alt="Greater or Equal >=" />
 
             {/* Conditionals */}
-            <img src="/assets/images/if.png" data-type="if" draggable="true" alt="If"/>
-            <img src="/assets/images/elif.png" data-type="elif" draggable="true" alt="Elif"/>
-            <img src="/assets/images/else.png" data-type="else" draggable="true" alt="Else"/>
+            <img src="/assets/images/if2.png" data-type="if" draggable="true" alt="If"/>
+            <img src="/assets/images/elif1.png" data-type="elif" draggable="true" alt="Elif"/>
+            <img src="/assets/images/else1.png" data-type="else" draggable="true" alt="Else"/>
 
             {/* Loops */}
             <img src="/assets/images/while.png" data-type="while" draggable="true" alt="While"/>

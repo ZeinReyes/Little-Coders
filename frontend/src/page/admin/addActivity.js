@@ -1,215 +1,270 @@
 import React, { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Button, Form, Card } from "react-bootstrap";
 import axios from "axios";
-import ReactQuill from "react-quill";
-import "react-quill/dist/quill.snow.css";
 
-function AddActivity() {
-  const { id } = useParams();
-  const navigate = useNavigate();
+const AddActivity = () => {
   const [formData, setFormData] = useState({
     name: "",
     instructions: "",
     hints: [""],
     difficulty: "easy",
-    expectedOutput: "", // ✅ Added Expected Output field
+    dataTypeChecks: [],
+    expectedOutput: "",
   });
 
-  // ✅ Word counter (remove HTML)
-  const countWords = (text) => {
-    const plain = text.replace(/<[^>]+>/g, "").trim();
-    return plain ? plain.split(/\s+/).length : 0;
+  const [message, setMessage] = useState("");
+
+  // ✅ Default operator / keyword options
+  const checkOptions = [
+    "print",
+    "variable",
+    "if",
+    "elif",
+    "else",
+    "for",
+    "while",
+    "+",
+    "-",
+    "*",
+    "/",
+    "==",
+    "!=",
+    "<",
+    "<=",
+    ">",
+    ">=",
+  ];
+
+  // ✅ Handle form field changes
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
   };
 
-  const handleHintChange = (index, value) => {
-    const updated = [...formData.hints];
-    updated[index] = value;
-    setFormData({ ...formData, hints: updated });
-  };
-
-  const addHintBox = () => {
-    if (formData.hints.length < 3) {
-      setFormData({ ...formData, hints: [...formData.hints, ""] });
-    }
-  };
-
-  const removeHintBox = (index) => {
-    setFormData({
-      ...formData,
-      hints: formData.hints.filter((_, i) => i !== index),
+  // ✅ Toggle operator/keyword selection
+  const toggleCheck = (name) => {
+    setFormData((prev) => {
+      const exists = prev.dataTypeChecks.find((c) => c.name === name);
+      if (exists) {
+        return {
+          ...prev,
+          dataTypeChecks: prev.dataTypeChecks.filter((c) => c.name !== name),
+        };
+      } else {
+        return {
+          ...prev,
+          dataTypeChecks: [...prev.dataTypeChecks, { name, required: true }],
+        };
+      }
     });
   };
 
-  // ✅ Validation logic
-  const isInvalid =
-    countWords(formData.instructions) > 70 ||
-    formData.hints.some((h) => countWords(h) > 70);
+  // ✅ Toggle required flag for a check
+  const toggleRequired = (name) => {
+    setFormData((prev) => ({
+      ...prev,
+      dataTypeChecks: prev.dataTypeChecks.map((c) =>
+        c.name === name ? { ...c, required: !c.required } : c
+      ),
+    }));
+  };
 
+  // ✅ Add new hint
+  const addHint = () => {
+    setFormData({ ...formData, hints: [...formData.hints, ""] });
+  };
+
+  // ✅ Update hint
+  const updateHint = (index, value) => {
+    const newHints = [...formData.hints];
+    newHints[index] = value;
+    setFormData({ ...formData, hints: newHints });
+  };
+
+  // ✅ Submit activity
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isInvalid) return;
+    setMessage("");
 
     try {
       const token = localStorage.getItem("token");
+      const payload = {
+        ...formData,
+        hints: formData.hints.filter((h) => h.trim() !== ""),
+      };
 
-      await axios.post(
-        `http://localhost:5000/api/activities/lessons/${id}/activities`,
-        formData,
-        { headers: { Authorization: `Bearer ${token}` } }
+      const res = await axios.post(
+        "http://localhost:5000/api/activities",
+        payload,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
 
-      navigate(`/admin/lessons/${id}/manage`);
+      setMessage(`✅ ${res.data.message || "Activity added successfully!"}`);
+
+      // Reset form
+      setFormData({
+        name: "",
+        instructions: "",
+        hints: [""],
+        difficulty: "easy",
+        dataTypeChecks: [],
+        expectedOutput: "",
+      });
     } catch (err) {
-      console.error("Error adding activity:", err);
+      console.error(err);
+      setMessage(
+        `❌ ${err.response?.data?.message || "Failed to add activity."}`
+      );
     }
   };
 
   return (
-    <div className="p-3">
-      <Card className="shadow-sm">
-        <Card.Body>
-          <h3 className="mb-4">Add Activity</h3>
-          <Form onSubmit={handleSubmit}>
-            {/* ✅ Activity Name */}
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-bold">Activity Name</Form.Label>
-              <Form.Control
-                type="text"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                placeholder="Enter activity name"
-                required
-              />
-            </Form.Group>
+    <div style={{ maxWidth: "700px", margin: "40px auto", padding: "20px" }}>
+      <h2 style={{ textAlign: "center", marginBottom: "20px" }}>
+        Add New Activity
+      </h2>
 
-            {/* ✅ Instructions */}
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-bold">
-                Instructions (max 70 words)
-              </Form.Label>
-              <ReactQuill
-                theme="snow"
-                value={formData.instructions}
-                onChange={(val) =>
-                  setFormData({ ...formData, instructions: val })
-                }
-              />
-              <small
-                className={
-                  countWords(formData.instructions) > 70
-                    ? "text-danger"
-                    : "text-muted"
-                }
-              >
-                Word count: {countWords(formData.instructions)} / 70
-              </small>
-              {countWords(formData.instructions) > 70 && (
-                <div className="text-danger">
-                  ⚠ Instructions must not exceed 70 words.
-                </div>
-              )}
-            </Form.Group>
+      {message && (
+        <p
+          style={{
+            textAlign: "center",
+            color: message.startsWith("✅") ? "green" : "red",
+            fontWeight: "bold",
+          }}
+        >
+          {message}
+        </p>
+      )}
 
-            {/* ✅ Hints */}
-            <div className="d-flex justify-content-between align-items-center mb-2">
-              <Form.Label className="fw-bold mb-0">Hints</Form.Label>
-              <Button
-                variant="outline-primary"
-                size="sm"
-                onClick={addHintBox}
-                disabled={formData.hints.length >= 3}
-              >
-                + Add Hint
-              </Button>
-            </div>
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "15px",
+          background: "#f9f9f9",
+          padding: "30px",
+          borderRadius: "10px",
+          boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+        }}
+      >
+        {/* Name */}
+        <div>
+          <label>Activity Name:</label>
+          <input
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            required
+            className="form-control"
+          />
+        </div>
 
-            {formData.hints.map((hint, index) => (
-              <div key={index} className="mb-3 border rounded p-2">
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <span className="fw-bold">Hint {index + 1}</span>
-                  {formData.hints.length > 1 && (
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      onClick={() => removeHintBox(index)}
-                    >
-                      Remove
-                    </Button>
-                  )}
-                </div>
-                <ReactQuill
-                  theme="snow"
-                  value={hint}
-                  onChange={(val) => handleHintChange(index, val)}
-                />
-                <small
-                  className={
-                    countWords(hint) > 70 ? "text-danger" : "text-muted"
-                  }
+        {/* Instructions */}
+        <div>
+          <label>Instructions:</label>
+          <textarea
+            name="instructions"
+            value={formData.instructions}
+            onChange={handleChange}
+            rows="3"
+            required
+            className="form-control"
+          />
+        </div>
+
+        {/* Hints */}
+        <div>
+          <label>Hints:</label>
+          {formData.hints.map((hint, index) => (
+            <input
+              key={index}
+              type="text"
+              value={hint}
+              onChange={(e) => updateHint(index, e.target.value)}
+              placeholder={`Hint ${index + 1}`}
+              className="form-control"
+              style={{ marginBottom: "8px" }}
+            />
+          ))}
+          <button type="button" onClick={addHint} className="btn btn-secondary btn-sm">
+            ➕ Add Hint
+          </button>
+        </div>
+
+        {/* Difficulty */}
+        <div>
+          <label>Difficulty:</label>
+          <select
+            name="difficulty"
+            value={formData.difficulty}
+            onChange={handleChange}
+            className="form-select"
+          >
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
+
+        {/* Operator / Keyword Checks */}
+        <div>
+          <label>Data Type / Operator Checks:</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+            {checkOptions.map((name) => {
+              const selected = formData.dataTypeChecks.find((c) => c.name === name);
+              return (
+                <div
+                  key={name}
+                  onClick={() => toggleCheck(name)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "6px 12px",
+                    borderRadius: "20px",
+                    border: selected ? "2px solid #007bff" : "1px solid #ccc",
+                    backgroundColor: selected ? "#007bff" : "#f2f2f2",
+                    color: selected ? "white" : "black",
+                    cursor: "pointer",
+                    userSelect: "none",
+                  }}
                 >
-                  Word count: {countWords(hint)} / 70
-                </small>
-                {countWords(hint) > 70 && (
-                  <div className="text-danger">
-                    ⚠ Hint {index + 1} must not exceed 70 words.
-                  </div>
-                )}
-              </div>
-            ))}
+                  {selected && (
+                    <input
+                      type="checkbox"
+                      checked={selected.required}
+                      readOnly
+                      style={{ marginRight: "6px" }}
+                    />
+                  )}
+                  <span>{name}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-            {/* ✅ Expected Output */}
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-bold">Activity Expected Output</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={6}
-                value={formData.expectedOutput}
-                onChange={(e) =>
-                  setFormData({ ...formData, expectedOutput: e.target.value })
-                }
-                placeholder="Enter the expected output for this activity (can include images/text)"
-                style={{ fontFamily: "Arial, sans-serif", whiteSpace: "pre-wrap" }}
-              />
-              <small className="text-muted">
-                Supports paragraphs, spacing, and pasting images directly.
-              </small>
-            </Form.Group>
+        {/* Expected Output */}
+        <div>
+          <label>Expected Output (optional):</label>
+          <input
+            type="text"
+            name="expectedOutput"
+            value={formData.expectedOutput}
+            onChange={handleChange}
+            className="form-control"
+          />
+        </div>
 
-            {/* ✅ Difficulty */}
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-bold">Difficulty</Form.Label>
-              <Form.Select
-                value={formData.difficulty}
-                onChange={(e) =>
-                  setFormData({ ...formData, difficulty: e.target.value })
-                }
-              >
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
-              </Form.Select>
-            </Form.Group>
-
-            {/* ✅ Buttons */}
-            <div className="d-flex justify-content-end gap-2">
-              <Button
-                variant="outline-secondary"
-                onClick={() => navigate(`/admin/lessons/${id}/manage`)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" variant="primary" disabled={isInvalid}>
-                Save Activity
-              </Button>
-            </div>
-          </Form>
-        </Card.Body>
-      </Card>
+        <button type="submit" className="btn btn-primary" style={{ marginTop: "15px" }}>
+          Submit Activity
+        </button>
+      </form>
     </div>
   );
-}
+};
 
 export default AddActivity;

@@ -1,124 +1,137 @@
+// 📁 controller/activityController.js
 import LessonActivity from "../model/LessonActivity.js";
 
+/* ===========================================================
+   🧩 CREATE ACTIVITY
+   =========================================================== */
 export const createActivity = async (req, res) => {
   try {
-    const { lessonId } = req.params;
-    let { name, instructions, hints, expectedOutput, difficulty } = req.body;
+    const { name, instructions, hints = [], difficulty, dataTypeChecks = [], expectedOutput = "" } = req.body;
 
-    // ✅ Ensure hints is always an array
-    if (!Array.isArray(hints)) {
-      hints = hints ? [hints] : [];
+    if (!name?.trim() || !instructions?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "All required fields must be filled.",
+      });
     }
 
-    const activity = new LessonActivity({
-      lessonId,
-      name,
-      instructions,
-      hints,
-      expectedOutput,
-      difficulty,
+    const cleanedHints = hints.filter((h) => h.trim() !== "");
+    const cleanedChecks = dataTypeChecks.filter((c) => c.name?.trim() !== "");
+
+    const newActivity = new LessonActivity({
+      name: name.trim(),
+      instructions: instructions.trim(),
+      hints: cleanedHints,
+      difficulty: difficulty?.toLowerCase() || "easy",
+      dataTypeChecks: cleanedChecks,
+      expectedOutput: expectedOutput?.trim() || "",
+      createdBy: req.user?.id || null,
     });
 
-    await activity.save();
-    res.status(201).json(activity);
-  } catch (err) {
-    res.status(500).json({ message: "Error creating activity", error: err });
+    await newActivity.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Activity created successfully!",
+      data: newActivity,
+    });
+  } catch (error) {
+    console.error("❌ Error creating activity:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while creating activity.",
+      error: error.message,
+    });
   }
 };
 
+/* ===========================================================
+   🔍 GET ACTIVITY BY ID
+   =========================================================== */
 export const getActivityById = async (req, res) => {
   try {
-    const { activityId } = req.params;
-    const activity = await LessonActivity.findById(activityId);
+    const activity = await LessonActivity.findById(req.params.id);
+    if (!activity) return res.status(404).json({ success: false, message: "Activity not found." });
 
-    if (!activity) {
-      return res.status(404).json({ message: "Activity not found" });
-    }
-
-    res.status(200).json(activity);
-  } catch (err) {
-    console.error("Error fetching activity:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-
-export const getActivitiesByLesson = async (req, res) => {
-  try {
-    const { lessonId } = req.params;
-    const activities = await LessonActivity.find({ lessonId }).sort({
-      order: 1,
-      createdAt: 1,
-    });
-
-    // ✅ Normalize before sending response
-    const normalized = activities.map((a) => ({
-      ...a.toObject(),
-      hints: Array.isArray(a.hints) ? a.hints : a.hints ? [a.hints] : [],
-      expectedOutput: a.expectedOutput || "",
-    }));
-
-    res.status(200).json(normalized);
-  } catch (err) {
-    res.status(500).json({ message: "Error fetching activities", error: err });
-  }
-};
-
-export const deleteActivity = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const deleted = await LessonActivity.findByIdAndDelete(id);
-    if (!deleted) {
-      return res.status(404).json({ message: "Activity not found" });
-    }
-    res.status(200).json({ message: "Activity deleted successfully" });
+    res.status(200).json({ success: true, data: activity });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error });
+    res.status(500).json({ success: false, message: "Server error while fetching activity.", error: error.message });
   }
 };
+
+/* ===========================================================
+   ✏️ UPDATE ACTIVITY
+   =========================================================== */
 export const updateActivity = async (req, res) => {
   try {
+    const { name, instructions, hints, difficulty, dataTypeChecks, expectedOutput } = req.body;
+
+    const validDifficulties = ["easy", "medium", "hard"];
+    if (difficulty && !validDifficulties.includes(difficulty.toLowerCase())) {
+      return res.status(400).json({ success: false, message: "Invalid difficulty value." });
+    }
+
+    const updateFields = {};
+    if (name) updateFields.name = name.trim();
+    if (instructions) updateFields.instructions = instructions.trim();
+    if (hints) updateFields.hints = hints.filter((h) => h.trim() !== "");
+    if (difficulty) updateFields.difficulty = difficulty.toLowerCase();
+    if (expectedOutput !== undefined) updateFields.expectedOutput = expectedOutput.trim();
+    if (dataTypeChecks) updateFields.dataTypeChecks = dataTypeChecks.filter((c) => c.name?.trim() !== "");
+
+    const updatedActivity = await LessonActivity.findByIdAndUpdate(req.params.id, updateFields, { new: true, runValidators: true });
+
+    if (!updatedActivity) return res.status(404).json({ success: false, message: "Activity not found." });
+
+    res.status(200).json({ success: true, message: "Activity updated successfully!", data: updatedActivity });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error while updating activity.", error: error.message });
+  }
+};
+
+/* ===========================================================
+   🗑️ DELETE ACTIVITY
+   =========================================================== */
+export const deleteActivity = async (req, res) => {
+  try {
+    const deleted = await LessonActivity.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ success: false, message: "Activity not found." });
+
+    res.status(200).json({ success: true, message: "Activity deleted successfully!" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error while deleting activity.", error: error.message });
+  }
+};
+
+/* ===========================================================
+   🔍 CODE CHECKER (regex + operator validation)
+   =========================================================== */
+export const checkUserCode = async (req, res) => {
+  try {
+    const { code } = req.body;
     const { id } = req.params;
 
-    let { name, instructions, hints, expectedOutput, difficulty, lessonId } = req.body;
+    const activity = await LessonActivity.findById(id);
+    if (!activity) return res.status(404).json({ success: false, message: "Activity not found." });
 
-    // ✅ Fetch existing if lessonId not sent
-    if (!lessonId) {
-      const existing = await LessonActivity.findById(id);
-      if (!existing) {
-        return res.status(404).json({ message: "Activity not found" });
-      }
-      lessonId = existing.lessonId;
+    let results = [];
+    let passed = true;
+
+    for (const check of activity.dataTypeChecks || []) {
+      const regex = new RegExp(`\\b${check.name}\\b`);
+      const ok = regex.test(code);
+      if (check.required && !ok) passed = false;
+
+      results.push({ description: `Use of "${check.name}"`, operator: check.name, passed: ok });
     }
 
-    // ✅ Normalize hints
-    if (!Array.isArray(hints)) {
-      hints = hints ? [hints] : [];
-    }
-
-    const updated = await LessonActivity.findByIdAndUpdate(
-      id,
-      {
-        lessonId,
-        name,
-        instructions,
-        hints,
-        expectedOutput: expectedOutput || "",
-        difficulty: difficulty || "easy",
-      },
-      { new: true, runValidators: true }
-    );
-
-    if (!updated) {
-      return res.status(404).json({ message: "Activity not found" });
-    }
-
-    res.status(200).json(updated);
-  } catch (err) {
-    console.error("❌ Error updating activity:", err);
-    res.status(500).json({
-      message: "Error updating activity",
-      error: err.message,
+    res.status(200).json({
+      success: true,
+      passed,
+      results,
+      message: passed ? "✅ Code passed all checks." : "⚠️ Some required elements are missing.",
     });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error while checking code.", error: error.message });
   }
 };
