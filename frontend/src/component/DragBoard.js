@@ -27,9 +27,19 @@ export default function DragBoard() {
     runButton.addEventListener('click', onRun);
 
     const observer = new MutationObserver(() => {
+      // Log everything dropped in the whiteboard
+      const droppedElements = whiteboard.querySelectorAll('[data-type]');
+      droppedElements.forEach((el) => {
+        console.log('Dropped Element:', {
+          className: el.className,
+          dataType: el.getAttribute('data-type')
+        });
+      });
+
       updateVariableState(whiteboard);
       updateCode(whiteboard, codeArea);
     });
+
     observer.observe(whiteboard, { childList: true, subtree: true });
 
     updateVariableState(whiteboard);

@@ -65,7 +65,7 @@ export function createOperatorNode(type, whiteboard, codeArea, dimOverlay) {
   op.id = `operator-${opId}`;
   op.dataset.op = type;
   op.dataset.opId = opId; // store operator instance ID
-  op.dataset.type = 'operator';
+  op.dataset.type = `operator ${type}`;
 
   // Left slot
   const left = createSlot(whiteboard, codeArea, dimOverlay);

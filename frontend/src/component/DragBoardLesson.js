@@ -280,52 +280,84 @@ useEffect(() => {
       </div>
     );
   }
+if (!lesson) return null; // safety check
+
+const isLesson = lesson.type === "lesson";
+const actionButtonText = isLesson ? "▶ Run Program" : "Submit";
 
   return (
     <div>
-      {/* Dragboard */}
-      <div className="main-container">
-        <div className="draggable">
-          <h3>Elements</h3>
-          <div className="elements">
-            <img src="/assets/images/print1.png" data-type="print" draggable="true" alt="Print" />
-            <img src="/assets/images/container.png" data-type="variable" draggable="true" alt="Variable" />
-            <img src="/assets/images/multiply.png" data-type="multiply" draggable="true" alt="Multiply" />
-            <img src="/assets/images/add.png" data-type="add" draggable="true" alt="Add" />
-            <img src="/assets/images/subtract.png" data-type="subtract" draggable="true" alt="Subtract" />
-            <img src="/assets/images/divide.png" data-type="divide" draggable="true" alt="Divide" />
-            <img src="/assets/images/equalto.png" data-type="equal" draggable="true" alt="Equal ==" />
-            <img src="/assets/images/notequal.png" data-type="notequal" draggable="true" alt="Not Equal !=" />
-            <img src="/assets/images/lessthan.png" data-type="less" draggable="true" alt="Less Than <" />
-            <img src="/assets/images/lessthanequal.png" data-type="lessequal" draggable="true" alt="Less or Equal <=" />
-            <img src="/assets/images/greaterthan.png" data-type="greater" draggable="true" alt="Greater Than >" />
-            <img src="/assets/images/greaterthanequal.png" data-type="greaterequal" draggable="true" alt="Greater or Equal >=" />
-            <img src="/assets/images/if.png" data-type="if" draggable="true" alt="If" />
-            <img src="/assets/images/elif.png" data-type="elif" draggable="true" alt="Elif" />
-            <img src="/assets/images/else.png" data-type="else" draggable="true" alt="Else" />
-          </div>
-        </div>
+      <div className="dragboard-wrapper">
+  {lesson.type !== "lesson" && (
+    <div className="activity-instructions mb-3 p-3" style={{ backgroundColor: "#FFF8F2", borderRadius: "8px" }}>
+      <h5 style={{ color: "#00796B" }}>Instructions</h5>
+      <p dangerouslySetInnerHTML={{ __html: lesson.instructions }} />
+      {lesson.hints?.length > 0 && (
+        <>
+          <h6 style={{ color: "#0288D1" }}>Hints:</h6>
+          <ul>
+            {lesson.hints.map((hint, i) => (
+              <li key={i} dangerouslySetInnerHTML={{ __html: hint }} />
+            ))}
+          </ul>
+        </>
+      )}
+      {lesson.expectedOutput && (
+        <>
+          <h6 style={{ color: "#E65100" }}>Expected Output:</h6>
+          <pre style={{ backgroundColor: "#f4f4f4", padding: "10px", borderRadius: "8px" }}>
+            {lesson.expectedOutput}
+          </pre>
+        </>
+      )}
+    </div>
+  )}
 
-        <div className="workspace">
-          <div className="whiteboard-wrap">
-            <div id="whiteboard" className="whiteboard">
-              <div id="trashCan" className="trash-can">🗑️</div>
-            </div>
-          </div>
-        </div>
+  <div className="main-container">
+    <div className="draggable">
+      <h3>Elements</h3>
+      <div className="elements">
+        {/* All draggable images */}
+        <img src="/assets/images/print1.png" data-type="print" draggable="true" alt="Print" />
+        <img src="/assets/images/container.png" data-type="variable" draggable="true" alt="Variable" />
+        <img src="/assets/images/multiply.png" data-type="multiply" draggable="true" alt="Multiply" />
+        <img src="/assets/images/add.png" data-type="add" draggable="true" alt="Add" />
+        <img src="/assets/images/subtract.png" data-type="subtract" draggable="true" alt="Subtract" />
+        <img src="/assets/images/divide.png" data-type="divide" draggable="true" alt="Divide" />
+        <img src="/assets/images/equalto.png" data-type="equal" draggable="true" alt="Equal ==" />
+        <img src="/assets/images/notequal.png" data-type="notequal" draggable="true" alt="Not Equal !=" />
+        <img src="/assets/images/lessthan.png" data-type="less" draggable="true" alt="Less Than <" />
+        <img src="/assets/images/lessthanequal.png" data-type="lessequal" draggable="true" alt="Less or Equal <=" />
+        <img src="/assets/images/greaterthan.png" data-type="greater" draggable="true" alt="Greater Than >" />
+        <img src="/assets/images/greaterthanequal.png" data-type="greaterequal" draggable="true" alt="Greater or Equal >=" />
+        <img src="/assets/images/if.png" data-type="if" draggable="true" alt="If" />
+        <img src="/assets/images/elif.png" data-type="elif" draggable="true" alt="Elif" />
+        <img src="/assets/images/else.png" data-type="else" draggable="true" alt="Else" />
+      </div>
+    </div>
 
-        <div className="right-panel">
-          <div className="code-panel">
-            <button id="runButton" className="run-button">▶ Run Program</button>
-            <div>Source Code (preview)</div>
-            <pre id="codeArea">/* Build expressions on the whiteboard */</pre>
-          </div>
-          <div className="output">
-            <div>Program Output</div>
-            <pre id="outputArea">/* Results will appear here */</pre>
-          </div>
+    <div className="workspace">
+      <div className="whiteboard-wrap">
+        <div id="whiteboard" className="whiteboard">
+          <div id="trashCan" className="trash-can">🗑️</div>
         </div>
       </div>
+    </div>
+
+    <div className="right-panel">
+      <div className="code-panel">
+        <button id="runButton" className="run-button">{actionButtonText}</button>
+        <div>Source Code (preview)</div>
+        <pre id="codeArea">/* Build expressions on the whiteboard */</pre>
+      </div>
+      <div className="output">
+        <div>Program Output</div>
+        <pre id="outputArea">/* Results will appear here */</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
 
       <div id="notification" className="notification"></div>
 
