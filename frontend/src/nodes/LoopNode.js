@@ -10,7 +10,7 @@ export function createLoopNode(type, whiteboard, codeArea, dimOverlay) {
     const whileNode = document.createElement('div');
     whileNode.className = 'while-node';
     whileNode.id = makeId('while');
-    whileNode.dataset.type = `loops ${type}`;
+    whileNode.dataset.type = `${type}`;
 
     const header = document.createElement('div');
     header.className = 'while-header';
@@ -51,7 +51,7 @@ export function createLoopNode(type, whiteboard, codeArea, dimOverlay) {
     const forNode = document.createElement('div');
     forNode.className = 'for-node';
     forNode.id = makeId('for');
-    forNode.dataset.type = `loops ${type}`;
+    forNode.dataset.type = `${type}`;
 
     const header = document.createElement('div');
     header.className = 'for-header';

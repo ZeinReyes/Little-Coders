@@ -1,35 +1,8 @@
 export function canNest(slot, node) {
   if (!slot || !node) return false;
+  return true;
+}
 
-  const slotType = slot.dataset.type?.toLowerCase();
-  const nodeType = node.dataset.type?.toLowerCase();
-
-  // ---------------- Generic slot ----------------
-  if (slotType === 'slot' || slot.classList.contains('slot')) {
-    // Slots inside variables, print, or operator nodes
-    return ['variable', 'value', 'operator', 'print', 'input'].some((t) => nodeType.includes(t));
-  }
-
-  // ---------------- Variable node ----------------
-  if (slotType === 'variable') {
-    // Variables can store operators, inputs, or other variables
-    return ['variable', 'operator', 'value'].some((t) => nodeType.includes(t));
-  }
-
-  // ---------------- Print node ----------------
-  if (slotType === 'print') {
-    return ['variable', 'operator', 'value'].some((t) => nodeType.includes(t));
-  }
-
-  // ---------------- Operator node ----------------
-  if (slotType.includes('operator')) {
-    // Operators can store variables, values, or other operators
-    return ['variable', 'operator', 'value'].some((t) => nodeType.includes(t));
-  }
-
-  // ---------------- Fallback ----------------
-  return false;
-};
 
 
 
