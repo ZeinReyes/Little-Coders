@@ -61,7 +61,7 @@ function App() {
         <Route path="lessons/edit/:id" element={<EditLesson />} />
         <Route path="lessons/:id/manage" element={<ManageLesson />} />
         <Route path="lessons/:id/add-material" element={<AddMaterial />} />
-        <Route path="lessons/:id/add-activity" element={<AddActivity />} />
+        <Route path="materials/:id/add-activity" element={<AddActivity />} />
         <Route path="add-assessment" element={<AddAssessment />} />
         <Route path="manage-assessment" element={<ManageAssessment />} /> {/* ✅ New Route */}
       </Route>

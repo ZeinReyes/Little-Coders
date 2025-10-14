@@ -1,3 +1,4 @@
+// src/pages/DragBoardLesson.js
 import React, { useEffect, useState, useContext } from "react";
 import "./DragBoard.css";
 import axios from "axios";
@@ -27,17 +28,17 @@ export default function DragBoardLesson() {
 
         let res = await axios
           .get(`http://localhost:5000/api/materials/lessons/${lessonId}/materials/${itemId}`, { headers })
-          .then((r) => ({ ...r.data, type: "lesson" }))
-          .catch(async () => {
-            return axios
+          .then(r => ({ ...r.data, type: "lesson" }))
+          .catch(async () =>
+            axios
               .get(`http://localhost:5000/api/assessments/lessons/${lessonId}/assessments/${itemId}`, { headers })
-              .then((r) => ({ ...r.data, type: "assessment" }))
-              .catch(async () => {
-                return axios
+              .then(r => ({ ...r.data, type: "assessment" }))
+              .catch(() =>
+                axios
                   .get(`http://localhost:5000/api/activities/lessons/${lessonId}/activities/${itemId}`, { headers })
-                  .then((r) => ({ ...r.data, type: "activity" }));
-              });
-          });
+                  .then(r => ({ ...r.data, type: "activity" }))
+              )
+          );
 
         setLesson({ ...res, currentContentIndex: res.type === "lesson" ? 0 : null });
       } catch (err) {
@@ -50,7 +51,7 @@ export default function DragBoardLesson() {
     fetchLessonOrActivity();
   }, [itemId, lessonId]);
 
-  // Initialize drag and drop and Pyodide runner
+  // Initialize drag and drop & Pyodide runner
   useEffect(() => {
     const init = () => {
       const whiteboard = document.getElementById("whiteboard");
@@ -60,18 +61,14 @@ export default function DragBoardLesson() {
       const runButton = document.getElementById("runButton");
       const outputArea = document.getElementById("outputArea");
 
-      if (!whiteboard || !codeArea || !trashCan || !notification) {
+      if (!whiteboard || !codeArea || !trashCan || !notification || !runButton) {
         setTimeout(init, 200);
         return;
       }
 
       if (lesson?.dataTypesRequired) {
-        console.log(
-          "🔹 Required data types for this lesson/activity/assessment:",
-          lesson.dataTypesRequired
-        );
+        console.log("🔹 Required data types:", lesson.dataTypesRequired);
       }
-      
 
       const destroy = initDragAndDrop({
         paletteSelector: ".elements img",
@@ -83,25 +80,24 @@ export default function DragBoardLesson() {
 
       const onRun = async () => {
         if (!lesson) return;
-      
+
         if (lesson.type === "activity" || lesson.type === "assessment") {
           const activityMeta = {
             expectedOutput: lesson.expectedOutput || null,
-            dataTypesRequired: lesson.dataTypesRequired || [], // <-- use backend field
+            dataTypesRequired: lesson.dataTypesRequired || [],
           };
           const { codeChecker } = await import("../utils/codeChecker");
           const result = await codeChecker(whiteboard, codeArea, outputArea, activityMeta);
-      
-          // Always show user's stdout/stderr in output area
+
           outputArea.textContent = result.stdout || result.stderr || "/* No output */";
-      
-          // ✅ Use passedAll to determine completion
+
           if (result.passedAll) {
             markCompleted();
             setShowCongratsModal(true);
           } else {
             const notifText = [];
-            if (lesson.expectedOutput && !result.passedOutput) notifText.push("Output does not match expected.");
+            if (lesson.expectedOutput && !result.passedOutput)
+              notifText.push("Output does not match expected.");
             if (!result.passedNodes) notifText.push(`Missing objects: ${result.missingNodes.join(", ")}`);
             notification.textContent = notifText.join(" ");
             notification.style.display = "block";
@@ -111,7 +107,6 @@ export default function DragBoardLesson() {
           await runProgram(codeArea, outputArea);
         }
       };
-      
 
       runButton.addEventListener("click", onRun);
 
@@ -137,7 +132,7 @@ export default function DragBoardLesson() {
 
   // Mark item as completed
   const markCompleted = async () => {
-    if (!user || !user.id) return;
+    if (!user?.id) return;
 
     try {
       const token = localStorage.getItem("token");
@@ -170,20 +165,14 @@ export default function DragBoardLesson() {
   };
 
   const handleNextContent = () => {
-    if (lesson.type === "lesson" && lesson.currentContentIndex < lesson.contents.length) {
-      setLesson((prev) => ({
-        ...prev,
-        currentContentIndex: prev.currentContentIndex + 1,
-      }));
+    if (lesson?.type === "lesson" && lesson.currentContentIndex < lesson.contents.length) {
+      setLesson(prev => ({ ...prev, currentContentIndex: prev.currentContentIndex + 1 }));
     }
   };
 
   const handlePreviousContent = () => {
-    if (lesson.type === "lesson" && lesson.currentContentIndex > 0) {
-      setLesson((prev) => ({
-        ...prev,
-        currentContentIndex: prev.currentContentIndex - 1,
-      }));
+    if (lesson?.type === "lesson" && lesson.currentContentIndex > 0) {
+      setLesson(prev => ({ ...prev, currentContentIndex: prev.currentContentIndex - 1 }));
     }
   };
 
@@ -192,7 +181,6 @@ export default function DragBoardLesson() {
     navigate(-1);
   };
 
-  // Render lesson contents
   const renderLessonContent = () => {
     if (!lesson || lesson.type !== "lesson") return null;
     if (lesson.currentContentIndex === 0) return <div dangerouslySetInnerHTML={{ __html: lesson.overview }} />;
@@ -216,115 +204,88 @@ export default function DragBoardLesson() {
   const actionButtonText = isLesson ? "▶ Run Program" : "Submit";
 
   return (
-    <div>
-      <div className="dragboard-wrapper">
-        {(lesson.type === "activity" || lesson.type === "assessment") && (
-          <div className="activity-instructions mb-3 p-3" style={{ backgroundColor: "#FFF8F2", borderRadius: "8px" }}>
-            <h5 style={{ color: "#00796B" }}>Instructions</h5>
-            <p dangerouslySetInnerHTML={{ __html: lesson.instructions }} />
-            {lesson.hints?.length > 0 && (
-              <>
-                <h6 style={{ color: "#0288D1" }}>Hints:</h6>
-                <ul>
-                  {lesson.hints.map((hint, i) => (
-                    <li key={i} dangerouslySetInnerHTML={{ __html: hint }} />
-                  ))}
-                </ul>
-              </>
-            )}
-            {lesson.expectedOutput && (
-              <>
-                <h6 style={{ color: "#E65100" }}>Expected Output:</h6>
-                <pre style={{ backgroundColor: "#f4f4f4", padding: "10px", borderRadius: "8px" }}>
-                  {lesson.expectedOutput}
-                </pre>
-              </>
-            )}
+    <div className="dragboard-wrapper">
+      {/* Instructions for Activity/Assessment */}
+      {(lesson.type === "activity" || lesson.type === "assessment") && (
+        <div className="activity-instructions mb-3 p-3" style={{ backgroundColor: "#FFF8F2", borderRadius: "8px" }}>
+          <h5 style={{ color: "#00796B" }}>Instructions</h5>
+          <p dangerouslySetInnerHTML={{ __html: lesson.instructions }} />
+          {lesson.hints?.length > 0 && (
+            <>
+              <h6 style={{ color: "#0288D1" }}>Hints:</h6>
+              <ul>{lesson.hints.map((hint, i) => <li key={i} dangerouslySetInnerHTML={{ __html: hint }} />)}</ul>
+            </>
+          )}
+          {lesson.expectedOutput && (
+            <>
+              <h6 style={{ color: "#E65100" }}>Expected Output:</h6>
+              <pre style={{ backgroundColor: "#f4f4f4", padding: "10px", borderRadius: "8px" }}>
+                {lesson.expectedOutput}
+              </pre>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Drag & Drop + Workspace */}
+      <div className="main-container">
+        <div className="draggable">
+          <h3>Elements</h3>
+          <div className="elements">
+            <img src="/assets/images/print1.png" data-type="print" draggable alt="Print" />
+            <img src="/assets/images/container.png" data-type="variable" draggable alt="Variable" />
+            <img src="/assets/images/multiply.png" data-type="multiply" draggable alt="Multiply" />
+            <img src="/assets/images/add.png" data-type="add" draggable alt="Add" />
+            <img src="/assets/images/subtract.png" data-type="subtract" draggable alt="Subtract" />
+            <img src="/assets/images/divide.png" data-type="divide" draggable alt="Divide" />
+            <img src="/assets/images/equalto.png" data-type="equal" draggable alt="Equal" />
+            <img src="/assets/images/notequal.png" data-type="notequal" draggable alt="Not Equal" />
+            <img src="/assets/images/lessthan.png" data-type="less" draggable alt="Less Than" />
+            <img src="/assets/images/lessthanequal.png" data-type="lessequal" draggable alt="Less or Equal" />
+            <img src="/assets/images/greaterthan.png" data-type="greater" draggable alt="Greater Than" />
+            <img src="/assets/images/greaterthanequal.png" data-type="greaterequal" draggable alt="Greater or Equal" />
+            <img src="/assets/images/if.png" data-type="if" draggable alt="If" />
+            <img src="/assets/images/elif.png" data-type="elif" draggable alt="Elif" />
+            <img src="/assets/images/else.png" data-type="else" draggable alt="Else" />
+            <img src="/assets/images/while.png" data-type="while" draggable alt="While" />
           </div>
-        )}
+        </div>
 
-        <div className="main-container">
-          <div className="draggable">
-            <h3>Elements</h3>
-            <div className="elements">
-            <img src="/assets/images/print1.png" data-type="print" draggable="true" alt="Print" />
-            <img src="/assets/images/container.png" data-type="variable" draggable="true" alt="Variable" />
-            
-            {/* Arithmetic operators */}
-            <img src="/assets/images/multiply.png" data-type="multiply" draggable="true" alt="Multiply"/>
-            <img src="/assets/images/add.png" data-type="add" draggable="true" alt="Add"/>
-            <img src="/assets/images/subtract.png" data-type="subtract" draggable="true" alt="Subtract"/>
-            <img src="/assets/images/divide.png" data-type="divide" draggable="true" alt="Divide"/>
-
-            {/* NEW: Comparison operators */}
-            <img src="/assets/images/equalto.png" data-type="equal" draggable="true" alt="Equal ==" />
-            <img src="/assets/images/notequal.png" data-type="notequal" draggable="true" alt="Not Equal !=" />
-            <img src="/assets/images/lessthan.png" data-type="less" draggable="true" alt="Less Than <" />
-            <img src="/assets/images/lessthanequal.png" data-type="lessequal" draggable="true" alt="Less or Equal <=" />
-            <img src="/assets/images/greaterthan.png" data-type="greater" draggable="true" alt="Greater Than >" />
-            <img src="/assets/images/greaterthanequal.png" data-type="greaterequal" draggable="true" alt="Greater or Equal >=" />
-
-            {/* Conditionals */}
-            <img src="/assets/images/if.png" data-type="if" draggable="true" alt="If"/>
-            <img src="/assets/images/elif.png" data-type="elif" draggable="true" alt="Elif"/>
-            <img src="/assets/images/else.png" data-type="else" draggable="true" alt="Else"/>
-
-            {/* Loops */}
-            <img src="/assets/images/while.png" data-type="while" draggable="true" alt="While"/>
-          </div>
-          </div>
-
-          <div className="workspace">
-            <div className="whiteboard-wrap">
-              <div id="whiteboard" className="whiteboard">
-                <div id="trashCan" className="trash-can">🗑️</div>
-              </div>
+        <div className="workspace">
+          <div className="whiteboard-wrap">
+            <div id="whiteboard" className="whiteboard">
+              <div id="trashCan" className="trash-can">🗑️</div>
             </div>
           </div>
+        </div>
 
-          <div className="right-panel">
-            <div className="code-panel">
-              <button id="runButton" className="run-button">{actionButtonText}</button>
-              <div>Source Code (preview)</div>
-              <pre id="codeArea">/* Build expressions on the whiteboard */</pre>
-            </div>
-            <div className="output">
-              <div>Program Output</div>
-              <pre id="outputArea">/* Results will appear here */</pre>
-            </div>
+        <div className="right-panel">
+          <div className="code-panel">
+            <button id="runButton" className="run-button">{actionButtonText}</button>
+            <div>Source Code (preview)</div>
+            <pre id="codeArea">/* Build expressions on the whiteboard */</pre>
+          </div>
+          <div className="output">
+            <div>Program Output</div>
+            <pre id="outputArea">/* Results will appear here */</pre>
           </div>
         </div>
       </div>
 
-      <div id="notification" className="notification" style={{ display: "none" }}></div>
+      <div id="notification" className="notification" style={{ display: "none" }} />
 
+      {/* Lesson Modal */}
       {isLesson && (
         <Modal show backdrop="static" centered size="lg">
           <Modal.Header>
             <Modal.Title>{lesson.title}</Modal.Title>
           </Modal.Header>
-          <Modal.Body
-            style={{
-              maxHeight: "65vh",
-              overflowY: "auto",
-              padding: "1.5rem",
-              backgroundColor: "#FFF8F2",
-              fontFamily: "'Comic Sans MS', cursive",
-            }}
-          >
+          <Modal.Body style={{ maxHeight: "65vh", overflowY: "auto", padding: "1.5rem", backgroundColor: "#FFF8F2", fontFamily: "'Comic Sans MS', cursive" }}>
             {renderLessonContent()}
           </Modal.Body>
           <Modal.Footer className="d-flex justify-content-between">
-            <Button
-              variant="secondary"
-              onClick={handlePreviousContent}
-              disabled={lesson.currentContentIndex === 0}
-            >
-              ← Previous
-            </Button>
-            <Button variant="primary" onClick={handleNextContent}>
-              {lesson.currentContentIndex >= lesson.contents.length ? "Finish Lesson" : "Next →"}
-            </Button>
+            <Button variant="secondary" onClick={handlePreviousContent} disabled={lesson.currentContentIndex === 0}>← Previous</Button>
+            <Button variant="primary" onClick={handleNextContent}>{lesson.currentContentIndex >= lesson.contents.length ? "Finish Lesson" : "Next →"}</Button>
           </Modal.Footer>
         </Modal>
       )}
@@ -338,12 +299,8 @@ export default function DragBoardLesson() {
           <p>You completed the activity successfully!</p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowCongratsModal(false)}>
-            Stay
-          </Button>
-          <Button variant="primary" onClick={handleContinue}>
-            Continue
-          </Button>
+          <Button variant="secondary" onClick={() => setShowCongratsModal(false)}>Stay</Button>
+          <Button variant="primary" onClick={handleContinue}>Continue</Button>
         </Modal.Footer>
       </Modal>
     </div>

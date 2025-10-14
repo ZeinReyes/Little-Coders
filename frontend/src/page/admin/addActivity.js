@@ -12,7 +12,7 @@ const dataTypeOptions = [
 ];
 
 function AddActivity() {
-  const { id } = useParams();
+  const { id } = useParams(); // id = LessonMaterial ID
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
@@ -20,7 +20,7 @@ function AddActivity() {
     hints: [""],
     difficulty: "easy",
     expectedOutput: "",
-    dataTypesRequired: [], // ✅ New field
+    dataTypesRequired: [],
   });
 
   const countWords = (text) => {
@@ -47,11 +47,6 @@ function AddActivity() {
     });
   };
 
-  const isInvalid =
-    countWords(formData.instructions) > 70 ||
-    formData.hints.some((h) => countWords(h) > 70);
-
-  // ✅ Handle Data Type checkbox toggle
   const handleDataTypeChange = (type) => {
     const current = [...formData.dataTypesRequired];
     if (current.includes(type)) {
@@ -67,22 +62,30 @@ function AddActivity() {
     }
   };
 
+  const isInvalid =
+    countWords(formData.instructions) > 70 ||
+    formData.hints.some((h) => countWords(h) > 70);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isInvalid) return;
+    if (isInvalid) {
+      alert("Instructions or hints exceed 70 words.");
+      return;
+    }
 
     try {
       const token = localStorage.getItem("token");
 
       await axios.post(
-        `http://localhost:5000/api/activities/lessons/${id}/activities`,
+        `http://localhost:5000/api/activities/materials/${id}/activities`,
         formData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      navigate(`/admin/lessons/${id}/manage`);
+      navigate(-1); // go back to previous page (lesson view)
     } catch (err) {
       console.error("Error adding activity:", err);
+      alert("Failed to add activity. Check console for details.");
     }
   };
 
@@ -108,9 +111,7 @@ function AddActivity() {
 
             {/* Instructions */}
             <Form.Group className="mb-3">
-              <Form.Label className="fw-bold">
-                Instructions (max 70 words)
-              </Form.Label>
+              <Form.Label className="fw-bold">Instructions (max 70 words)</Form.Label>
               <ReactQuill
                 theme="snow"
                 value={formData.instructions}
@@ -118,20 +119,9 @@ function AddActivity() {
                   setFormData({ ...formData, instructions: val })
                 }
               />
-              <small
-                className={
-                  countWords(formData.instructions) > 70
-                    ? "text-danger"
-                    : "text-muted"
-                }
-              >
+              <small className={countWords(formData.instructions) > 70 ? "text-danger" : "text-muted"}>
                 Word count: {countWords(formData.instructions)} / 70
               </small>
-              {countWords(formData.instructions) > 70 && (
-                <div className="text-danger">
-                  ⚠ Instructions must not exceed 70 words.
-                </div>
-              )}
             </Form.Group>
 
             {/* Hints */}
@@ -166,22 +156,15 @@ function AddActivity() {
                   value={hint}
                   onChange={(val) => handleHintChange(index, val)}
                 />
-                <small
-                  className={countWords(hint) > 70 ? "text-danger" : "text-muted"}
-                >
+                <small className={countWords(hint) > 70 ? "text-danger" : "text-muted"}>
                   Word count: {countWords(hint)} / 70
                 </small>
-                {countWords(hint) > 70 && (
-                  <div className="text-danger">
-                    ⚠ Hint {index + 1} must not exceed 70 words.
-                  </div>
-                )}
               </div>
             ))}
 
             {/* Expected Output */}
             <Form.Group className="mb-3">
-              <Form.Label className="fw-bold">Activity Expected Output</Form.Label>
+              <Form.Label className="fw-bold">Expected Output</Form.Label>
               <Form.Control
                 as="textarea"
                 rows={6}
@@ -189,17 +172,14 @@ function AddActivity() {
                 onChange={(e) =>
                   setFormData({ ...formData, expectedOutput: e.target.value })
                 }
-                placeholder="Enter the expected output for this activity (can include images/text)"
+                placeholder="Enter expected output (can include images/text)"
                 style={{ fontFamily: "Arial, sans-serif", whiteSpace: "pre-wrap" }}
               />
-              <small className="text-muted">
-                Supports paragraphs, spacing, and pasting images directly.
-              </small>
             </Form.Group>
 
             {/* Data Types Required */}
             <Form.Group className="mb-3">
-              <Form.Label className="fw-bold">Data Type Required</Form.Label>
+              <Form.Label className="fw-bold">Data Types Required</Form.Label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
                 {dataTypeOptions.map((type) => (
                   <label key={type} style={{ display: "flex", alignItems: "center" }}>
@@ -234,7 +214,7 @@ function AddActivity() {
             <div className="d-flex justify-content-end gap-2">
               <Button
                 variant="outline-secondary"
-                onClick={() => navigate(`/admin/lessons/${id}/manage`)}
+                onClick={() => navigate(-1)}
               >
                 Cancel
               </Button>

@@ -2,13 +2,11 @@ import LessonActivity from "../model/LessonActivity.js";
 
 export const createActivity = async (req, res) => {
   try {
-    const { lessonId } = req.params;
+    const { materialId } = req.params; // now materialId refers to LessonMaterial
     let { name, instructions, hints, expectedOutput, difficulty, dataTypesRequired } = req.body;
 
-    // Ensure hints is always an array
     if (!Array.isArray(hints)) hints = hints ? [hints] : [];
 
-    // Validate data types
     const validDataTypes = [
       "print", "variable", "multiple", "add", "subtract", "divide",
       "equal", "notequal", "less", "lessequal", "greater", "greaterequal",
@@ -19,7 +17,7 @@ export const createActivity = async (req, res) => {
     }
 
     const activity = new LessonActivity({
-      lessonId,
+      materialId,
       name,
       instructions,
       hints,
@@ -35,32 +33,22 @@ export const createActivity = async (req, res) => {
   }
 };
 
-
 export const getActivityById = async (req, res) => {
   try {
     const { activityId } = req.params;
     const activity = await LessonActivity.findById(activityId);
-
-    if (!activity) {
-      return res.status(404).json({ message: "Activity not found" });
-    }
-
+    if (!activity) return res.status(404).json({ message: "Activity not found" });
     res.status(200).json(activity);
   } catch (err) {
-    console.error("Error fetching activity:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-export const getActivitiesByLesson = async (req, res) => {
+export const getActivitiesByMaterial = async (req, res) => {
   try {
-    const { lessonId } = req.params;
-    const activities = await LessonActivity.find({ lessonId }).sort({
-      order: 1,
-      createdAt: 1,
-    });
+    const { materialId } = req.params; // materialId is now LessonMaterial
+    const activities = await LessonActivity.find({ materialId }).sort({ order: 1, createdAt: 1 });
 
-    // ✅ Normalize before sending response
     const normalized = activities.map((a) => ({
       ...a.toObject(),
       hints: Array.isArray(a.hints) ? a.hints : a.hints ? [a.hints] : [],
@@ -73,35 +61,19 @@ export const getActivitiesByLesson = async (req, res) => {
   }
 };
 
-export const deleteActivity = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const deleted = await LessonActivity.findByIdAndDelete(id);
-    if (!deleted) {
-      return res.status(404).json({ message: "Activity not found" });
-    }
-    res.status(200).json({ message: "Activity deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error });
-  }
-};
-
 export const updateActivity = async (req, res) => {
   try {
     const { id } = req.params;
-    let { name, instructions, hints, expectedOutput, difficulty, lessonId, dataTypesRequired } = req.body;
+    let { name, instructions, hints, expectedOutput, difficulty, materialId, dataTypesRequired } = req.body;
 
-    // Fetch existing if lessonId not sent
-    if (!lessonId) {
+    if (!materialId) {
       const existing = await LessonActivity.findById(id);
       if (!existing) return res.status(404).json({ message: "Activity not found" });
-      lessonId = existing.lessonId;
+      materialId = existing.materialId;
     }
 
-    // Normalize hints
     if (!Array.isArray(hints)) hints = hints ? [hints] : [];
 
-    // Validate data types
     const validDataTypes = [
       "print", "variable", "multiple", "add", "subtract", "divide",
       "equal", "notequal", "less", "lessequal", "greater", "greaterequal",
@@ -114,7 +86,7 @@ export const updateActivity = async (req, res) => {
     const updated = await LessonActivity.findByIdAndUpdate(
       id,
       {
-        lessonId,
+        materialId,
         name,
         instructions,
         hints,
@@ -129,8 +101,17 @@ export const updateActivity = async (req, res) => {
 
     res.status(200).json(updated);
   } catch (err) {
-    console.error("❌ Error updating activity:", err);
     res.status(500).json({ message: "Error updating activity", error: err.message });
   }
 };
 
+export const deleteActivity = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await LessonActivity.findByIdAndDelete(id);
+    if (!deleted) return res.status(404).json({ message: "Activity not found" });
+    res.status(200).json({ message: "Activity deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err });
+  }
+};

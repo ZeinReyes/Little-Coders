@@ -15,9 +15,7 @@ function LessonList() {
   const { user } = useContext(AuthContext);
 
   useEffect(() => {
-    if (user) {
-      fetchData();
-    }
+    if (user) fetchData();
   }, [lessonId, user]);
 
   const fetchData = async () => {
@@ -25,70 +23,56 @@ function LessonList() {
       const token = localStorage.getItem("token");
       const userId = user?.id;
 
-      if (!userId) {
-        console.warn("⚠️ No user ID found — skipping progress fetch");
-        return;
-      }
+      if (!userId) return console.warn("⚠️ No user ID found — skipping progress fetch");
 
-      // ✅ Fetch lessons, activities, assessments, and progress in parallel
-      const [moduleRes, materialsRes, activitiesRes, assessmentsRes, progressRes] =
-        await Promise.all([
-          axios.get(`http://localhost:5000/api/lessons/${lessonId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          axios.get(
-            `http://localhost:5000/api/materials/lessons/${lessonId}/materials`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          ),
-          axios.get(
-            `http://localhost:5000/api/activities/lessons/${lessonId}/activities`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          ),
-          axios.get(
-            `http://localhost:5000/api/assessments/lessons/${lessonId}/assessments`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          ),
-          axios.get(
-            `http://localhost:5000/api/progress/${userId}/${lessonId}`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          ),
-        ]);
+      // 1️⃣ Fetch module and materials
+      const [moduleRes, materialsRes, assessmentsRes, progressRes] = await Promise.all([
+        axios.get(`http://localhost:5000/api/lessons/${lessonId}`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`http://localhost:5000/api/materials/lessons/${lessonId}/materials`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`http://localhost:5000/api/assessments/lessons/${lessonId}/assessments`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`http://localhost:5000/api/progress/${userId}/${lessonId}`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
 
       setModule(moduleRes.data);
       const progress = progressRes.data || {};
+      const completedMaterialIds = progress.completedMaterials?.map(m => m._id) || [];
+      const completedActivityIds = progress.completedActivities?.map(a => a._id) || [];
+      const completedAssessmentIds = progress.completedAssessments?.map(a => a._id) || [];
 
-      // ✅ Completed item IDs
-      const completedMaterialIds = progress.completedMaterials?.map((m) => m._id) || [];
-      const completedActivityIds = progress.completedActivities?.map((a) => a._id) || [];
-      const completedAssessmentIds = progress.completedAssessments?.map((a) => a._id) || [];
+      // 2️⃣ Fetch activities per material
+      const activitiesByMaterial = {};
+      for (const m of materialsRes.data) {
+        const activitiesRes = await axios.get(
+          `http://localhost:5000/api/activities/materials/${m._id}/activities`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        activitiesByMaterial[m._id] = activitiesRes.data || [];
+      }
 
-      // ✅ Add completion state + type
-      const materials = materialsRes.data.map((m) => ({
-        ...m,
-        type: "lesson",
-        isCompleted: completedMaterialIds.includes(m._id),
-      }));
+      // 3️⃣ Merge materials + activities + assessments
+      const mergedItems = [];
+      for (const m of materialsRes.data) {
+        mergedItems.push({ ...m, type: "lesson", isCompleted: completedMaterialIds.includes(m._id) });
 
-      const activities = activitiesRes.data.map((a) => ({
-        ...a,
-        type: "activity",
-        isCompleted: completedActivityIds.includes(a._id),
-      }));
+        (activitiesByMaterial[m._id] || []).forEach(a => {
+          mergedItems.push({ ...a, type: "activity", isCompleted: completedActivityIds.includes(a._id) });
+        });
+      }
 
-      const assessments = assessmentsRes.data.map((a) => ({
+      const assessments = assessmentsRes.data.map(a => ({
         ...a,
         type: "assessment",
         isCompleted: completedAssessmentIds.includes(a._id),
       }));
 
-      // ✅ Merge and sort by order or creation date
-      const merged = [...materials, ...activities, ...assessments].sort(
-        (a, b) =>
-          (a.order ?? 0) - (b.order ?? 0) ||
-          new Date(a.createdAt) - new Date(b.createdAt)
+      mergedItems.push(...assessments);
+
+      // 4️⃣ Sort by order or creation date
+      mergedItems.sort(
+        (a, b) => (a.order ?? 0) - (b.order ?? 0) || new Date(a.createdAt) - new Date(b.createdAt)
       );
 
-      setItems(merged);
+      setItems(mergedItems);
     } catch (err) {
       console.error("❌ Error fetching lesson data:", err);
     } finally {
@@ -124,35 +108,18 @@ function LessonList() {
         <Button
           variant="light"
           onClick={() => navigate(-1)}
-          style={{
-            fontWeight: "bold",
-            borderRadius: "20px",
-            fontSize: "0.9rem",
-          }}
+          style={{ fontWeight: "bold", borderRadius: "20px", fontSize: "0.9rem" }}
         >
           ← Back
         </Button>
-        <div
-          style={{
-            flexGrow: 1,
-            textAlign: "center",
-            fontSize: "1.6rem",
-            fontWeight: "bold",
-          }}
-        >
+        <div style={{ flexGrow: 1, textAlign: "center", fontSize: "1.6rem", fontWeight: "bold" }}>
           {module?.title}
         </div>
       </header>
 
-      {/* LESSONS, ACTIVITIES & ASSESSMENTS */}
+      {/* ITEMS */}
       <div className="p-4" style={{ maxWidth: "800px", margin: "0 auto" }}>
-        <h5
-          className="mb-3"
-          style={{
-            fontFamily: "'Comic Sans MS', cursive",
-            color: "#FF6F61",
-          }}
-        >
+        <h5 className="mb-3" style={{ fontFamily: "'Comic Sans MS', cursive", color: "#FF6F61" }}>
           Lessons, Activities & Assessments
         </h5>
 
@@ -173,12 +140,8 @@ function LessonList() {
                 transition: "transform 0.2s",
               }}
               onClick={() => handleItemClick(item)}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.transform = "scale(1.02)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.transform = "scale(1)")
-              }
+              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.02)")}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
               <div className="d-flex align-items-center">
                 {item.isCompleted ? (
@@ -186,12 +149,7 @@ function LessonList() {
                 ) : (
                   <Circle color="#9E9E9E" className="me-3" size={24} />
                 )}
-                <div
-                  style={{
-                    fontFamily: "'Comic Sans MS', cursive",
-                    fontSize: "1rem",
-                  }}
-                >
+                <div style={{ fontFamily: "'Comic Sans MS', cursive", fontSize: "1rem" }}>
                   {item.type === "activity"
                     ? `Activity: ${item.name}`
                     : item.type === "assessment"
