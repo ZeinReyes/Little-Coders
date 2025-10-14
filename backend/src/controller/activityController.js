@@ -110,6 +110,7 @@ export const checkUserCode = async (req, res) => {
   try {
     const { code } = req.body;
     const { id } = req.params;
+    let { name, instructions, hints, expectedOutput, difficulty, lessonId, dataTypesRequired } = req.body;
 
     const activity = await LessonActivity.findById(id);
     if (!activity) return res.status(404).json({ success: false, message: "Activity not found." });
@@ -135,3 +136,4 @@ export const checkUserCode = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error while checking code.", error: error.message });
   }
 };
+

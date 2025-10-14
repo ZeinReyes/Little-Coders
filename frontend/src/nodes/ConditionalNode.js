@@ -10,6 +10,7 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
     const ifNode = document.createElement('div');
     ifNode.className = 'if-node';
     ifNode.id = makeId('if');
+    ifNode.dataset.type = `conditional ${type}`;
 
     // header holds: label + cond slot + colon + body (body is to the right)
     const header = document.createElement('div');
@@ -59,6 +60,7 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
     const elifNode = document.createElement('div');
     elifNode.className = 'elif-node';
     elifNode.id = makeId('elif');
+    elifNode.dataset.type = `conditional ${type}`;
 
     const header = document.createElement('div');
     header.className = 'elif-header';
@@ -122,6 +124,7 @@ if (type === 'else') {
   const elseNode = document.createElement('div');
   elseNode.className = 'else-node';
   elseNode.id = makeId('else');
+  elseNode.dataset.type = `conditional ${type}`;
 
   const header = document.createElement('div');
   header.className = 'else-header';

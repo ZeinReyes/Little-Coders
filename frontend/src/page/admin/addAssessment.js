@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 
+const dataTypeOptions = [
+  "print", "variable", "multiple", "add", "subtract", "divide",
+  "equal", "notequal", "less", "lessequal", "greater", "greaterequal",
+  "if", "elif", "else", "while"
+];
+
 const AddAssessment = () => {
   const [formData, setFormData] = useState({
     title: "",

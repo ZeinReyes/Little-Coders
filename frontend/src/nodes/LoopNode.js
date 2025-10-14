@@ -10,6 +10,7 @@ export function createLoopNode(type, whiteboard, codeArea, dimOverlay) {
     const whileNode = document.createElement('div');
     whileNode.className = 'while-node';
     whileNode.id = makeId('while');
+    whileNode.dataset.type = `loops ${type}`;
 
     const header = document.createElement('div');
     header.className = 'while-header';
@@ -45,61 +46,12 @@ export function createLoopNode(type, whiteboard, codeArea, dimOverlay) {
     return whileNode;
   }
 
-  // ---------------- DO WHILE ----------------
-  if (type === 'doWhile') {
-    const doWhileNode = document.createElement('div');
-    doWhileNode.className = 'do-while-node';
-    doWhileNode.id = makeId('doWhile');
-
-    const header = document.createElement('div');
-    header.className = 'do-while-header';
-
-    const labelDo = document.createElement('span');
-    labelDo.className = 'do-label';
-    labelDo.textContent = 'do ->';
-
-    const bodySlot = createSlot(whiteboard, codeArea, dimOverlay, { multi: true });
-    bodySlot.classList.add('do-body');
-
-    const condWrapper = document.createElement('div');
-    condWrapper.className = 'do-while-cond-wrapper';
-
-    const labelWhile = document.createElement('span');
-    labelWhile.className = 'do-while-label';
-    labelWhile.textContent = 'while (';
-
-    const condSlot = createSlot(whiteboard, codeArea, dimOverlay);
-    condSlot.classList.add('do-while-cond');
-
-    const closeParen = document.createElement('span');
-    closeParen.className = 'do-while-close';
-    closeParen.textContent = ');';
-
-    condWrapper.appendChild(labelWhile);
-    condWrapper.appendChild(condSlot);
-    condWrapper.appendChild(closeParen);
-
-    header.appendChild(labelDo);
-    header.appendChild(bodySlot);
-    header.appendChild(condWrapper);
-
-    doWhileNode.appendChild(header);
-
-    makeDraggable(doWhileNode);
-    makeMovable(doWhileNode, whiteboard, codeArea, dimOverlay);
-    attachTooltip(
-      doWhileNode,
-      "Do While loop: executes body first, then checks condition to repeat."
-    );
-
-    return doWhileNode;
-  }
-
   // ---------------- FOR (optional) ----------------
   if (type === 'for') {
     const forNode = document.createElement('div');
     forNode.className = 'for-node';
     forNode.id = makeId('for');
+    forNode.dataset.type = `loops ${type}`;
 
     const header = document.createElement('div');
     header.className = 'for-header';
