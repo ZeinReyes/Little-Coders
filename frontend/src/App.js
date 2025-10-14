@@ -1,4 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { useContext } from "react";
+import { AuthContext } from "./context/authContext"; 
 
 // Authentication
 import Login from "./page/authentication/loginPage";
@@ -12,6 +14,7 @@ import LessonPlayer from "./page/user/lessonPlayer";
 import ModuleList from "./page/user/moduleList";
 import LessonList from "./page/user/lessonList";
 import DragBoard from "./component/DragBoard";
+import DragBoardLesson from "./component/DragBoardLesson";
 
 // Admin
 import AdminPage from "./page/admin/adminPage";
@@ -21,17 +24,37 @@ import AddUser from "./page/admin/addUser";
 import Lessons from "./page/admin/lessons";
 import AddLesson from "./page/admin/addLeson";
 import EditLesson from "./page/admin/editLesson";
-import ManageLesson from "./page/admin/manageLesson";
 import AddMaterial from "./page/admin/addMaterial";
+import EditMaterial from "./page/admin/editMaterial";
 import AddActivity from "./page/admin/addActivity";
+import EditActivity from "./page/admin/editActivity";
 import AddAssessment from "./page/admin/addAssessment";
-import ManageAssessment from "./page/admin/manageAssessment"; 
+import ManageAssessment from "./page/admin/manageAssessment";
 
 // Others
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import "bootstrap-icons/font/bootstrap-icons.css";
-import DragBoardLesson from "./component/DragBoardLesson";
+
+
+// ✅ Protected Route Component (using AuthContext)
+function ProtectedRoute({ element, allowedRoles }) {
+  const { user, loading } = useContext(AuthContext);
+
+  if (loading) {
+    return <div>Loading...</div>; // optional loading state
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/home" replace />;
+  }
+
+  return element;
+}
 
 function App() {
   return (
@@ -43,15 +66,36 @@ function App() {
       <Route path="/reset-password/:token" element={<ResetPassword />} />
 
       {/* User */}
-      <Route path="/home" element={<HomePage />} />
-      <Route path="/lesson/:id" element={<LessonPlayer />} />
-      <Route path="/module-list" element={<ModuleList />} />
-      <Route path="/lessons/:lessonId" element={<LessonList />} />
-      <Route path="/lessons/:lessonId/:itemId" element={<DragBoardLesson />} />
-      <Route path="/dragboard" element={<DragBoard />} />
+      <Route
+        path="/home"
+        element={<ProtectedRoute element={<HomePage />} allowedRoles={["user", "admin"]} />}
+      />
+      <Route
+        path="/lesson/:id"
+        element={<ProtectedRoute element={<LessonPlayer />} allowedRoles={["user", "admin"]} />}
+      />
+      <Route
+        path="/module-list"
+        element={<ProtectedRoute element={<ModuleList />} allowedRoles={["user", "admin"]} />}
+      />
+      <Route
+        path="/lessons/:lessonId"
+        element={<ProtectedRoute element={<LessonList />} allowedRoles={["user", "admin"]} />}
+      />
+      <Route
+        path="/lessons/:lessonId/:itemId"
+        element={<ProtectedRoute element={<DragBoardLesson />} allowedRoles={["user", "admin"]} />}
+      />
+      <Route
+        path="/dragboard"
+        element={<ProtectedRoute element={<DragBoard />} allowedRoles={["user", "admin"]} />}
+      />
 
       {/* Admin */}
-      <Route path="/admin" element={<AdminPage />}>
+      <Route
+        path="/admin"
+        element={<ProtectedRoute element={<AdminPage />} allowedRoles={["admin"]} />}
+      >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="users" element={<Users />} />
@@ -59,14 +103,15 @@ function App() {
         <Route path="lessons" element={<Lessons />} />
         <Route path="lessons/add" element={<AddLesson />} />
         <Route path="lessons/edit/:id" element={<EditLesson />} />
-        <Route path="lessons/:id/manage" element={<ManageLesson />} />
         <Route path="lessons/:id/add-material" element={<AddMaterial />} />
+        <Route path="lessons/:lessonId/materials/:id" element={<EditMaterial />} />
         <Route path="materials/:id/add-activity" element={<AddActivity />} />
+        <Route path="lessons/:lessonId/activities/:id" element={<EditActivity />} />
         <Route path="add-assessment" element={<AddAssessment />} />
-        <Route path="manage-assessment" element={<ManageAssessment />} /> {/* ✅ New Route */}
+        <Route path="manage-assessment" element={<ManageAssessment />} />
       </Route>
 
-      {/* Redirect any unknown routes */}
+      {/* Default redirect */}
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
   );

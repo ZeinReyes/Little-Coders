@@ -167,6 +167,9 @@ export default function DragBoardLesson() {
   const handleNextContent = () => {
     if (lesson?.type === "lesson" && lesson.currentContentIndex < lesson.contents.length) {
       setLesson(prev => ({ ...prev, currentContentIndex: prev.currentContentIndex + 1 }));
+    } else {
+      markCompleted();
+      setShowCongratsModal(true);
     }
   };
 

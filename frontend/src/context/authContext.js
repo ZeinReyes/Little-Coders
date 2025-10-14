@@ -5,10 +5,11 @@ export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true); // ✅ to handle initial state
 
   const login = (userData, token) => {
     localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(userData)); 
+    localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
   };
 
@@ -25,6 +26,7 @@ export const AuthProvider = ({ children }) => {
     if (token && storedUser) {
       try {
         const decoded = jwtDecode(token);
+
         if (decoded.exp * 1000 > Date.now()) {
           setUser(JSON.parse(storedUser));
         } else {
@@ -35,10 +37,12 @@ export const AuthProvider = ({ children }) => {
         logout();
       }
     }
+
+    setLoading(false);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

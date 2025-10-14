@@ -109,7 +109,7 @@ function LessonsList() {
     console.log(`[handleAddMaterial] navigate to add material for lesson ${lessonId}`);
     navigate(`/admin/lessons/${lessonId}/add-material`);
   };
-  const handleAddActivity = (materialId) => {
+  const handleAddActivity = (lessonId, materialId) => {
     console.log(`[handleAddActivity] navigate to add activity for material ${materialId}`);
     navigate(`/admin/materials/${materialId}/add-activity`);
   };
@@ -293,37 +293,46 @@ function LessonsList() {
 
   // small inline edit/delete menu
   const ActionMenu = ({ type, id, lessonId, materialId, title, difficulty }) =>
-    openMenu === id && (
-      <div
-        className="position-absolute bg-white border rounded shadow-sm p-2"
-        style={{
-          top: "100%",
-          right: 0,
-          zIndex: 10,
-          minWidth: "100px",
+  openMenu === id && (
+    <div
+      className="position-absolute bg-white border rounded shadow-sm p-2"
+      style={{
+        top: "100%",
+        right: 0,
+        zIndex: 10,
+        minWidth: "100px",
+      }}
+    >
+      <button
+        className="btn btn-sm w-100 text-start"
+        onClick={() => {
+          console.log(`[ActionMenu] Edit clicked type=${type} id=${id}`);
+          setOpenMenu(null);
+
+          if (type === "lesson") {
+            navigate(`/admin/lessons/edit/${id}`);
+          } else if (type === "material") {
+            navigate(`/admin/lessons/${lessonId}/materials/${id}`);
+          } else if (type === "activity") {
+            navigate(`/admin/lessons/${lessonId}/activities/${id}`);
+          }
+
         }}
       >
-        <button
-          className="btn btn-sm w-100 text-start"
-          onClick={() => {
-            console.log(`[ActionMenu] Edit clicked type=${type} id=${id}`);
-            setOpenMenu(null);
-            setEditTarget({ type, id, title, difficulty });
-          }}
-        >
-          <i className="bi bi-pencil me-2"></i>Edit
-        </button>
-        <button
-          className="btn btn-sm w-100 text-start text-danger"
-          onClick={() => {
-            console.log(`[ActionMenu] Delete clicked type=${type} id=${id}`);
-            handleDeleteClick(type, id, lessonId, materialId);
-          }}
-        >
-          <i className="bi bi-trash me-2"></i>Delete
-        </button>
-      </div>
-    );
+        <i className="bi bi-pencil me-2"></i>Edit
+      </button>
+      <button
+        className="btn btn-sm w-100 text-start text-danger"
+        onClick={() => {
+          console.log(`[ActionMenu] Delete clicked type=${type} id=${id}`);
+          handleDeleteClick(type, id, lessonId, materialId);
+        }}
+      >
+        <i className="bi bi-trash me-2"></i>Delete
+      </button>
+    </div>
+  );
+
 
   const filteredLessons = lessons.filter((lesson) =>
     lesson.title.toLowerCase().includes(search.toLowerCase())
@@ -412,7 +421,7 @@ function LessonsList() {
                                 variant="primary"
                                 onClick={() => {
                                   console.log(`[Add Activity Button] clicked for material ${m._id}`);
-                                  handleAddActivity(m._id);
+                                  handleAddActivity(lesson._id, m._id);
                                 }}
                               >
                                 <i className="bi bi-plus-lg me-1"></i>Add Activity

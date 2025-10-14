@@ -55,7 +55,7 @@ export default function AddMaterial() {
         { title: title.trim(), overview, contents },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      navigate(`/admin/lessons/${id}/manage`);
+      navigate(`/admin/lessons`);
     } catch (err) {
       setError(err.response?.data?.message || "Error adding material");
       console.error("Error adding material:", err);
@@ -147,7 +147,7 @@ export default function AddMaterial() {
           <div className="d-flex justify-content-end gap-2">
             <Button
               variant="outline-secondary"
-              onClick={() => navigate(`/admin/lessons/${id}/manage`)}
+              onClick={() => navigate(`/admin/lessons/`)}
             >
               Cancel
             </Button>
