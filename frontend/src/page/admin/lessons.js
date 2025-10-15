@@ -109,6 +109,7 @@ function LessonsList() {
     console.log(`[handleAddMaterial] navigate to add material for lesson ${lessonId}`);
     navigate(`/admin/lessons/${lessonId}/add-material`);
   };
+
   const handleAddActivity = (lessonId, materialId) => {
     console.log(`[handleAddActivity] navigate to add activity for material ${materialId}`);
     navigate(`/admin/materials/${materialId}/add-activity`);
@@ -176,7 +177,6 @@ function LessonsList() {
     }
   };
 
-  // ---------------------- Edit Update Functions ----------------------
   const updateLesson = async (id, title) => {
     console.log(`[updateLesson] start id=${id} title="${title}"`);
     const token = localStorage.getItem("token");
@@ -213,7 +213,6 @@ function LessonsList() {
     return res.data;
   };
 
-  // ---------------------- Edit Modal ----------------------
   const EditModal = () =>
     editTarget && (
       <Modal show={!!editTarget} onHide={() => { console.log("[EditModal] closed by user"); setEditTarget(null); }} centered>
@@ -277,7 +276,7 @@ function LessonsList() {
 
                 console.log("[EditModal] update finished, refreshing lessons");
                 setEditTarget(null);
-                await fetchLessons(); // Refresh data
+                await fetchLessons();
                 console.log("[EditModal] UI refreshed after update");
               } catch (err) {
                 console.error("[EditModal] Error updating:", err);
@@ -291,48 +290,45 @@ function LessonsList() {
       </Modal>
     );
 
-  // small inline edit/delete menu
   const ActionMenu = ({ type, id, lessonId, materialId, title, difficulty }) =>
-  openMenu === id && (
-    <div
-      className="position-absolute bg-white border rounded shadow-sm p-2"
-      style={{
-        top: "100%",
-        right: 0,
-        zIndex: 10,
-        minWidth: "100px",
-      }}
-    >
-      <button
-        className="btn btn-sm w-100 text-start"
-        onClick={() => {
-          console.log(`[ActionMenu] Edit clicked type=${type} id=${id}`);
-          setOpenMenu(null);
-
-          if (type === "lesson") {
-            navigate(`/admin/lessons/edit/${id}`);
-          } else if (type === "material") {
-            navigate(`/admin/lessons/${lessonId}/materials/${id}`);
-          } else if (type === "activity") {
-            navigate(`/admin/lessons/${lessonId}/activities/${id}`);
-          }
-
+    openMenu === id && (
+      <div
+        className="position-absolute bg-white border rounded shadow-sm p-2"
+        style={{
+          top: "100%",
+          right: 0,
+          zIndex: 10,
+          minWidth: "100px",
         }}
       >
-        <i className="bi bi-pencil me-2"></i>Edit
-      </button>
-      <button
-        className="btn btn-sm w-100 text-start text-danger"
-        onClick={() => {
-          console.log(`[ActionMenu] Delete clicked type=${type} id=${id}`);
-          handleDeleteClick(type, id, lessonId, materialId);
-        }}
-      >
-        <i className="bi bi-trash me-2"></i>Delete
-      </button>
-    </div>
-  );
+        <button
+          className="btn btn-sm w-100 text-start"
+          onClick={() => {
+            console.log(`[ActionMenu] Edit clicked type=${type} id=${id}`);
+            setOpenMenu(null);
 
+            if (type === "lesson") {
+              navigate(`/admin/lessons/edit/${id}`);
+            } else if (type === "material") {
+              navigate(`/admin/lessons/${lessonId}/materials/${id}`);
+            } else if (type === "activity") {
+              navigate(`/admin/lessons/${lessonId}/activities/${id}`);
+            }
+          }}
+        >
+          <i className="bi bi-pencil me-2"></i>Edit
+        </button>
+        <button
+          className="btn btn-sm w-100 text-start text-danger"
+          onClick={() => {
+            console.log(`[ActionMenu] Delete clicked type=${type} id=${id}`);
+            handleDeleteClick(type, id, lessonId, materialId);
+          }}
+        >
+          <i className="bi bi-trash me-2"></i>Delete
+        </button>
+      </div>
+    );
 
   const filteredLessons = lessons.filter((lesson) =>
     lesson.title.toLowerCase().includes(search.toLowerCase())
@@ -340,7 +336,6 @@ function LessonsList() {
 
   return (
     <div className="p-3">
-      {/* Search + Add Lesson */}
       <div className="d-flex justify-content-between mb-3">
         <div className="input-group w-75">
           <span className="input-group-text">
@@ -399,7 +394,6 @@ function LessonsList() {
             </div>
           </div>
 
-          {/* Lesson Content */}
           {expandedLesson === lesson._id && (
             <div className="p-3 bg-white">
               {loadingLessons[lesson._id] ? (
@@ -485,9 +479,7 @@ function LessonsList() {
                                 </li>
                               ))}
                             </ul>
-                          ) : (
-                            <p className="text-muted ms-4">No activities yet.</p>
-                          )}
+                          ) : null}
                         </li>
                       ))}
                     </ul>
@@ -499,6 +491,8 @@ function LessonsList() {
             </div>
           )}
         </div>
+     
+
       ))}
 
       {/* Delete Confirmation Modal */}

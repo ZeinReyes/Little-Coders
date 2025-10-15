@@ -1,38 +1,58 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import "./DragBoard.css";
 
-import { initDragAndDrop } from '../utils/dragAndDrop';
-import { updateCode } from '../utils/codeGen';
-import { updateVariableState } from '../utils/state';
-import { runProgram } from '../utils/runner';
+import { initDragAndDrop } from "../utils/dragAndDrop";
+import { updateCode } from "../utils/codeGen";
+import { updateVariableState } from "../utils/state";
+import { runProgram } from "../utils/runner";
+import LoadingScreen from "./LoadingScreen";
 
 export default function DragBoard() {
+  const [loading, setLoading] = useState(true);
+  const [fadeOut, setFadeOut] = useState(false);
+
+  // Initial loading delay
   useEffect(() => {
-    const whiteboard = document.getElementById('whiteboard');
-    const codeArea = document.getElementById('codeArea');
-    const trashCan = document.getElementById('trashCan');
-    const notification = document.getElementById('notification');
-    const runButton = document.getElementById('runButton');
-    const outputArea = document.getElementById('outputArea');
+    const timer = setTimeout(() => {
+      setFadeOut(true); // start fade out
+      setTimeout(() => setLoading(false), 500); // remove after fade
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Drag-and-drop initialization AFTER whiteboard exists
+  useEffect(() => {
+    if (loading) return;
+
+    const whiteboard = document.getElementById("whiteboard");
+    const codeArea = document.getElementById("codeArea");
+    const trashCan = document.getElementById("trashCan");
+    const notification = document.getElementById("notification");
+    const runButton = document.getElementById("runButton");
+    const outputArea = document.getElementById("outputArea");
+
+    if (!whiteboard) {
+      console.error("Whiteboard element not found!");
+      return;
+    }
 
     const destroy = initDragAndDrop({
-      paletteSelector: '.elements img',
+      paletteSelector: ".elements img",
       whiteboard,
       codeArea,
       trashCan,
-      notification
+      notification,
     });
 
     const onRun = () => runProgram(codeArea, outputArea);
-    runButton.addEventListener('click', onRun);
+    runButton.addEventListener("click", onRun);
 
     const observer = new MutationObserver(() => {
-      // Log everything dropped in the whiteboard
-      const droppedElements = whiteboard.querySelectorAll('[data-type]');
+      const droppedElements = whiteboard.querySelectorAll("[data-type]");
       droppedElements.forEach((el) => {
-        console.log('Dropped Element:', {
+        console.log("Dropped Element:", {
           className: el.className,
-          dataType: el.getAttribute('data-type')
+          dataType: el.getAttribute("data-type"),
         });
       });
 
@@ -47,10 +67,12 @@ export default function DragBoard() {
 
     return () => {
       destroy && destroy();
-      runButton.removeEventListener('click', onRun);
+      runButton.removeEventListener("click", onRun);
       observer.disconnect();
     };
-  }, []);
+  }, [loading]);
+
+  if (loading) return <LoadingScreen fadeOut={fadeOut} />;
 
   return (
     <div>
@@ -60,28 +82,24 @@ export default function DragBoard() {
           <div className="elements">
             <img src="/assets/images/print1.png" data-type="print" draggable="true" alt="Print" />
             <img src="/assets/images/container.png" data-type="variable" draggable="true" alt="Variable" />
-            
             {/* Arithmetic operators */}
-            <img src="/assets/images/multiply.png" data-type="multiply" draggable="true" alt="Multiply"/>
-            <img src="/assets/images/add.png" data-type="add" draggable="true" alt="Add"/>
-            <img src="/assets/images/subtract.png" data-type="subtract" draggable="true" alt="Subtract"/>
-            <img src="/assets/images/divide.png" data-type="divide" draggable="true" alt="Divide"/>
-
-            {/* NEW: Comparison operators */}
+            <img src="/assets/images/multiply.png" data-type="multiply" draggable="true" alt="Multiply" />
+            <img src="/assets/images/add.png" data-type="add" draggable="true" alt="Add" />
+            <img src="/assets/images/subtract.png" data-type="subtract" draggable="true" alt="Subtract" />
+            <img src="/assets/images/divide.png" data-type="divide" draggable="true" alt="Divide" />
+            {/* Comparison operators */}
             <img src="/assets/images/equalto.png" data-type="equal" draggable="true" alt="Equal ==" />
             <img src="/assets/images/notequal.png" data-type="notequal" draggable="true" alt="Not Equal !=" />
             <img src="/assets/images/lessthan.png" data-type="less" draggable="true" alt="Less Than <" />
             <img src="/assets/images/lessthanequal.png" data-type="lessequal" draggable="true" alt="Less or Equal <=" />
             <img src="/assets/images/greaterthan.png" data-type="greater" draggable="true" alt="Greater Than >" />
             <img src="/assets/images/greaterthanequal.png" data-type="greaterequal" draggable="true" alt="Greater or Equal >=" />
-
             {/* Conditionals */}
-            <img src="/assets/images/if.png" data-type="if" draggable="true" alt="If"/>
-            <img src="/assets/images/elif.png" data-type="elif" draggable="true" alt="Elif"/>
-            <img src="/assets/images/else.png" data-type="else" draggable="true" alt="Else"/>
-
+            <img src="/assets/images/if.png" data-type="if" draggable="true" alt="If" />
+            <img src="/assets/images/elif.png" data-type="elif" draggable="true" alt="Elif" />
+            <img src="/assets/images/else.png" data-type="else" draggable="true" alt="Else" />
             {/* Loops */}
-            <img src="/assets/images/while.png" data-type="while" draggable="true" alt="While"/>
+            <img src="/assets/images/while.png" data-type="while" draggable="true" alt="While" />
           </div>
         </div>
 
@@ -94,7 +112,7 @@ export default function DragBoard() {
           </div>
         </div>
 
-        <div className="right-panel"> 
+        <div className="right-panel">
           <div className="code-panel">
             <button id="runButton" className="run-button">▶ Run Program</button>
             <div>Source Code (preview)</div>

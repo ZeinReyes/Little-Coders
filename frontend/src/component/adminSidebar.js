@@ -16,59 +16,32 @@ function Sidebar() {
           </NavLink>
         </li>
 
+        {/* Manage Users (no dropdown) */}
         <li className="nav-item mb-3 fs-5">
-          <a
-            className="nav-link text-white d-flex justify-content-between align-items-center"
-            data-bs-toggle="collapse"
-            href="#sidebarUserMenu"
-            role="button"
-            aria-expanded="false"
-            aria-controls="sidebarUserMenu"
+          <NavLink
+            to="/admin/users"
+            className={({ isActive }) =>
+              `nav-link text-white ${isActive ? "bg-primary text-white rounded px-2" : ""}`
+            }
           >
-            <span>User</span>
-            <span className="ms-2">&#9662;</span>
-          </a>
-          <div className="collapse" id="sidebarUserMenu">
-            <ul className="nav flex-column ms-3">
-              <li>
-                <NavLink
-                  to="/admin/users"
-                  end
-                  className={({ isActive }) =>
-                    `nav-link text-white ${isActive ? "bg-primary text-white rounded px-2" : ""}`
-                  }
-                >
-                  Manage Users
-                </NavLink>
-              </li>
-
-              <li>
-                <NavLink
-                  to="/admin/users/add"
-                  className={({ isActive }) =>
-                    `nav-link text-white ${isActive ? "bg-primary text-white rounded px-2" : ""}`
-                  }
-                >
-                  Add User
-                </NavLink>
-              </li>
-            </ul>
-          </div>
+            Manage Users
+          </NavLink>
         </li>
 
+        {/* Module Dropdown */}
         <li className="nav-item fs-5">
           <a
             className="nav-link text-white d-flex justify-content-between align-items-center"
             data-bs-toggle="collapse"
-            href="#sidebarLessonMenu"
+            href="#sidebarModuleMenu"
             role="button"
             aria-expanded="false"
-            aria-controls="sidebarLessonMenu"
+            aria-controls="sidebarModuleMenu"
           >
-            <span>Lessons</span>
+            <span>Module</span>
             <span className="ms-2">&#9662;</span>
           </a>
-          <div className="collapse" id="sidebarLessonMenu">
+          <div className="collapse" id="sidebarModuleMenu">
             <ul className="nav flex-column ms-3">
               <li>
                 <NavLink
@@ -77,17 +50,7 @@ function Sidebar() {
                     `nav-link text-white ${isActive ? "bg-primary text-white rounded px-2" : ""}`
                   }
                 >
-                  View Lessons
-                </NavLink>
-              </li>
-              <li>
-                <NavLink
-                  to="/admin/lessons/add"
-                  className={({ isActive }) =>
-                    `nav-link text-white ${isActive ? "bg-primary text-white rounded px-2" : ""}`
-                  }
-                >
-                  Add Lesson
+                  Lessons
                 </NavLink>
               </li>
               <li>
@@ -97,19 +60,9 @@ function Sidebar() {
                     `nav-link text-white ${isActive ? "bg-primary text-white rounded px-2" : ""}`
                   }
                 >
-                  View Assessment
+                  Assessments
                 </NavLink>
-                </li>
-              <li>
-                <NavLink
-                  to="/admin/add-assessment"
-                  className={({ isActive }) =>
-                    `nav-link text-white ${isActive ? "bg-primary text-white rounded px-2" : ""}`
-                  }
-                >
-                  Add Assessment
-                </NavLink>
-                </li>
+              </li>
             </ul>
           </div>
         </li>

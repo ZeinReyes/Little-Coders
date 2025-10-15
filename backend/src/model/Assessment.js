@@ -3,55 +3,35 @@ import mongoose from "mongoose";
 const assessmentSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
-    instructions: { type: String, required: true },
-    hints: { type: [String], default: [] },
-    expectedOutput: { type: String }, // now optional
-    difficulty: {
-      type: String,
-      enum: ["Easy", "Medium", "Hard"],
-      default: "Easy",
-    },
     lessonId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Lesson",
       required: true,
     },
+    questions: [
+      {
+        instructions: { type: String, required: true },
+        hints: { type: [String], default: [] },
+        expectedOutput: { type: String },
+        difficulty: {
+          type: String,
+          enum: ["Easy", "Medium", "Hard"],
+          default: "Easy",
+        },
+        dataTypesRequired: {
+          type: [String],
+          enum: [
+            "print", "variable", "multiple", "add", "subtract", "divide",
+            "equal", "notequal", "less", "lessequal", "greater", "greaterequal",
+            "if", "elif", "else", "while",
+          ],
+          default: [],
+        },
+      },
+    ],
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-    },
-    category: {
-      type: String,
-      trim: true,
-      default: "General",
-    },
-    testCases: [
-      {
-        input: { type: String },
-        output: { type: String },
-      },
-    ],
-    dataTypesRequired: {
-      type: [String],
-      enum: [
-        "print",
-        "variable",
-        "multiple",
-        "add",
-        "subtract",
-        "divide",
-        "equal",
-        "notequal",
-        "less",
-        "lessequal",
-        "greater",
-        "greaterequal",
-        "if",
-        "elif",
-        "else",
-        "while",
-      ],
-      default: [],
     },
   },
   { timestamps: true }

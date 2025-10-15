@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Collapse, Button } from "react-bootstrap";
+import { useParams, useNavigate } from "react-router-dom";
 
 const dataTypeOptions = [
   "print", "variable", "multiple", "add", "subtract", "divide",
@@ -8,26 +9,21 @@ const dataTypeOptions = [
   "if", "elif", "else", "while"
 ];
 
-const AddAssessment = () => {
+const EditAssessment = () => {
+  const { id } = useParams(); // from route (assessment id)
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     title: "",
     lessonId: "",
-    questions: [
-      {
-        instructions: "",
-        hints: [""],
-        expectedOutput: "",
-        difficulty: "Easy",
-        dataTypesRequired: [],
-      },
-    ],
+    questions: [],
   });
 
   const [lessons, setLessons] = useState([]);
   const [message, setMessage] = useState("");
-  const [expandedQuestions, setExpandedQuestions] = useState([0]); // track open questions
+  const [expandedQuestions, setExpandedQuestions] = useState([]); // open questions
 
-  // ✅ Fetch lessons
+  // ✅ Fetch all lessons
   useEffect(() => {
     const fetchLessons = async () => {
       try {
@@ -43,52 +39,82 @@ const AddAssessment = () => {
     fetchLessons();
   }, []);
 
-  // ✅ Handle top-level changes
+  // ✅ Fetch assessment to edit
+  // ✅ Fetch assessment to edit
+useEffect(() => {
+    const fetchAssessment = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(`http://localhost:5000/api/assessments/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+  
+        // handle various response shapes safely
+        const a = res.data?.data || res.data || {};
+        setFormData({
+          title: a.title || "",
+          lessonId: a.lessonId?._id || a.lessonId || "",
+          questions: Array.isArray(a.questions) ? a.questions : [],
+        });
+  
+        // expand all questions by default
+        setExpandedQuestions(
+          Array.isArray(a.questions) ? a.questions.map((_, i) => i) : []
+        );
+      } catch (err) {
+        console.error("Error fetching assessment:", err.response?.data || err.message);
+        setMessage("❌ Failed to load assessment details. Please check your connection or ID.");
+      }
+    };
+  
+    if (id) fetchAssessment();
+  }, [id]);
+  
+
+  // ✅ Handle main input change
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  // ✅ Handle question field changes
+  // ✅ Handle question field change
   const handleQuestionChange = (index, field, value) => {
-    const updatedQuestions = [...formData.questions];
-    updatedQuestions[index][field] = value;
-    setFormData({ ...formData, questions: updatedQuestions });
+    const updated = [...formData.questions];
+    updated[index][field] = value;
+    setFormData({ ...formData, questions: updated });
   };
 
   // ✅ Handle hint changes
-  const handleHintChange = (qIndex, hintIndex, value) => {
-    const updatedQuestions = [...formData.questions];
-    updatedQuestions[qIndex].hints[hintIndex] = value;
-    setFormData({ ...formData, questions: updatedQuestions });
+  const handleHintChange = (qIndex, hIndex, value) => {
+    const updated = [...formData.questions];
+    updated[qIndex].hints[hIndex] = value;
+    setFormData({ ...formData, questions: updated });
   };
 
   // ✅ Add new hint
   const addHint = (qIndex) => {
-    const updatedQuestions = [...formData.questions];
-    updatedQuestions[qIndex].hints.push("");
-    setFormData({ ...formData, questions: updatedQuestions });
+    const updated = [...formData.questions];
+    updated[qIndex].hints.push("");
+    setFormData({ ...formData, questions: updated });
   };
 
   // ✅ Delete hint
   const deleteHint = (qIndex, hIndex) => {
-    const updatedQuestions = [...formData.questions];
-    updatedQuestions[qIndex].hints.splice(hIndex, 1);
-    setFormData({ ...formData, questions: updatedQuestions });
+    const updated = [...formData.questions];
+    updated[qIndex].hints.splice(hIndex, 1);
+    setFormData({ ...formData, questions: updated });
   };
 
   // ✅ Add new question
   const addQuestion = () => {
-    const newQuestions = [
-      ...formData.questions,
-      {
-        instructions: "",
-        hints: [""],
-        expectedOutput: "",
-        difficulty: "Easy",
-        dataTypesRequired: [],
-      },
-    ];
+    const newQuestion = {
+      instructions: "",
+      hints: [""],
+      expectedOutput: "",
+      difficulty: "Easy",
+      dataTypesRequired: [],
+    };
+    const newQuestions = [...formData.questions, newQuestion];
     setFormData({ ...formData, questions: newQuestions });
     setExpandedQuestions([...expandedQuestions, newQuestions.length - 1]);
   };
@@ -100,66 +126,47 @@ const AddAssessment = () => {
     setExpandedQuestions(expandedQuestions.filter((i) => i !== index));
   };
 
-  // ✅ Toggle question collapse
+  // ✅ Toggle collapse
   const toggleQuestion = (index) => {
     setExpandedQuestions((prev) =>
       prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
     );
   };
 
-  // ✅ Handle Data Type change
+  // ✅ Handle data type checkbox
   const handleDataTypeChange = (qIndex, type) => {
-    const updatedQuestions = [...formData.questions];
-    const currentTypes = updatedQuestions[qIndex].dataTypesRequired;
-    if (currentTypes.includes(type)) {
-      updatedQuestions[qIndex].dataTypesRequired = currentTypes.filter(
-        (t) => t !== type
-      );
-    } else {
-      updatedQuestions[qIndex].dataTypesRequired = [...currentTypes, type];
-    }
-    setFormData({ ...formData, questions: updatedQuestions });
+    const updated = [...formData.questions];
+    const current = updated[qIndex].dataTypesRequired;
+    updated[qIndex].dataTypesRequired = current.includes(type)
+      ? current.filter((t) => t !== type)
+      : [...current, type];
+    setFormData({ ...formData, questions: updated });
   };
 
-  // ✅ Submit form
+  // ✅ Submit (update)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
 
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.post(
-        "http://localhost:5000/api/assessments",
+      const res = await axios.put(
+        `http://localhost:5000/api/assessments/${id}`,
         formData,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setMessage(`✅ ${res.data.message || "Assessment added successfully!"}`);
-      setFormData({
-        title: "",
-        lessonId: "",
-        questions: [
-          {
-            instructions: "",
-            hints: [""],
-            expectedOutput: "",
-            difficulty: "Easy",
-            dataTypesRequired: [],
-          },
-        ],
-      });
-      setExpandedQuestions([0]);
+      setMessage(`✅ ${res.data.message || "Assessment updated successfully!"}`);
+      setTimeout(() => navigate("/admin/manage-assessment"), 1500);
     } catch (err) {
       console.error(err);
-      setMessage(`❌ ${err.response?.data?.message || "Failed to add assessment."}`);
+      setMessage(`❌ ${err.response?.data?.message || "Failed to update assessment."}`);
     }
   };
 
   return (
     <div style={{ padding: "40px", maxWidth: "900px", margin: "auto" }}>
-      <h2 className="text-center mb-4">Add New Assessment</h2>
+      <h2 className="text-center mb-4">Edit Assessment</h2>
 
       {message && (
         <p
@@ -214,25 +221,23 @@ const AddAssessment = () => {
 
         {formData.questions.map((question, qIndex) => (
           <div key={qIndex} className="border rounded mb-3 bg-white shadow-sm">
-            {/* Header with collapse & delete */}
+            {/* Header */}
             <div
               className="d-flex justify-content-between align-items-center p-3 bg-primary text-white"
               style={{ cursor: "pointer" }}
               onClick={() => toggleQuestion(qIndex)}
             >
               <strong>Question {qIndex + 1}</strong>
-              <div>
-                <Button
-                  variant="light"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteQuestion(qIndex);
-                  }}
-                >
-                  Delete
-                </Button>
-              </div>
+              <Button
+                variant="light"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteQuestion(qIndex);
+                }}
+              >
+                Delete
+              </Button>
             </div>
 
             <Collapse in={expandedQuestions.includes(qIndex)}>
@@ -303,9 +308,7 @@ const AddAssessment = () => {
                   {/* Data Types */}
                   <div className="mb-3">
                     <label className="form-label">Data Types Required</label>
-                    <div
-                      style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}
-                    >
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
                       {dataTypeOptions.map((type) => (
                         <label key={type}>
                           <input
@@ -350,11 +353,11 @@ const AddAssessment = () => {
         </button>
 
         <button type="submit" className="btn btn-primary w-100">
-          Submit Assessment
+          💾 Update Assessment
         </button>
       </form>
     </div>
   );
 };
 
-export default AddAssessment;
+export default EditAssessment;

@@ -94,7 +94,6 @@ function ModuleList() {
               onClick={() => navigate(`/lessons/${module._id}`)}
             >
               <h3 className="module-header">{module.title}</h3>
-              <p className="module-description">{module.description}</p>
               <button className="explore-btn">Explore</button>
             </div>
           ))}
