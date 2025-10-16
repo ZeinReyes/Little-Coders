@@ -54,7 +54,7 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
     const ifNode = whiteboard.querySelector('.if-node');
     if (!ifNode) {
       alert("You need an IF block first before adding ELIF!");
-      return null;
+      return undefined;
     }
 
     const elifNode = document.createElement('div');

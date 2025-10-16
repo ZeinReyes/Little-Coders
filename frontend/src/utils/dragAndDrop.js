@@ -66,7 +66,7 @@ export function initDragAndDrop({
     e.preventDefault();
   }
 
-  function onWhiteboardDrop(e) {
+function onWhiteboardDrop(e) {
   if (e.target.closest('.slot') || e.target.closest('#trashCan')) return;
   e.preventDefault();
 
@@ -76,22 +76,23 @@ export function initDragAndDrop({
 
   const { _dragSource, _dragType } = getDragState();
 
-  // Case 1: Moving an existing element
+  // --- Case 1: Moving an existing element ---
   if (_dragSource) {
-    // ✅ Special case: allow reattach for elif/else
     if (_dragSource.classList.contains('elif-node') || _dragSource.classList.contains('else-node')) {
-      if (tryAttachConnectorToIf(_dragSource, whiteboard)) {
+      const attached = tryAttachConnectorToIf(_dragSource, whiteboard);
+      if (attached) {
         clearDragSource();
         updateVariableState(whiteboard, dimOverlay);
         updateCode(whiteboard, codeArea);
         updateVariableTooltips(whiteboard);
-        return; // successfully reattached
+        return;
       }
     }
 
-    // ✅ Otherwise, free float
     freeElement(_dragSource, x, y);
-    whiteboard.appendChild(_dragSource);
+    if (_dragSource instanceof Node) {
+      whiteboard.appendChild(_dragSource);
+    }
 
     _dragSource.dataset.nested = 'false';
     _dragSource.removeAttribute('data-connector-target');
@@ -104,24 +105,38 @@ export function initDragAndDrop({
     return;
   }
 
-  // Case 2: Dropping a new palette item
+  // --- Case 2: Dropping a new palette item ---
   if (_dragType) {
     const el = createElement(_dragType, whiteboard, codeArea, dimOverlay);
 
-    // Auto-attach only when new from palette
-    if (_dragType === 'elif' || _dragType === 'else') {
-      if (tryAttachConnectorToIf(el, whiteboard)) {
-        clearDragType();
-        updateVariableState(whiteboard, dimOverlay);
-        updateCode(whiteboard, codeArea);
-        updateVariableTooltips(whiteboard);
-        return; // ✅ attached into an if-node
-      }
+    // 🧩 Safety check — skip if not a valid element
+    if (!(el instanceof Node)) {
+      console.warn('createElement() did not return a valid DOM node for type:', _dragType);
+      clearDragType();
+      return;
     }
 
-    // Default: free floating
+    let attached = false;
+
+    if (_dragType === 'elif' || _dragType === 'else') {
+      attached = tryAttachConnectorToIf(el, whiteboard);
+    }
+
+    if (attached) {
+      clearDragType();
+      updateVariableState(whiteboard, dimOverlay);
+      updateCode(whiteboard, codeArea);
+      updateVariableTooltips(whiteboard);
+      return;
+    }
+
     freeElement(el, x, y);
-    whiteboard.appendChild(el);
+    if (el instanceof Node) {
+      whiteboard.appendChild(el);
+    }
+
+    el.dataset.nested = 'false';
+    el.style.position = 'absolute';
 
     clearDragType();
     updateVariableState(whiteboard, dimOverlay);
@@ -129,6 +144,7 @@ export function initDragAndDrop({
     updateVariableTooltips(whiteboard);
   }
 }
+
 
 
   whiteboard.addEventListener('dragover', onWhiteboardDragOver);

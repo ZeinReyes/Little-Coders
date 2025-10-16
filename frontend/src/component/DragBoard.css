@@ -110,6 +110,45 @@ body {
   background: #8DE4FF;
   border: 3px dashed blue;
 }
+.diamond-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+}
+
+.diamond-img {
+  width: 164px;
+  height: 164px;
+  pointer-events: none;
+}
+
+.diamond-slot {
+  position: absolute;
+  width: 60%;
+  height: 60%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diamond-preview {
+  position: absolute;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+  pointer-events: none;
+}
+
+.if-arrow, .elif-arrow, .else-arrow {
+  width: 24px;
+  height: 24px;
+  margin: 0 8px;
+  pointer-events: none;
+}
 
 .whiteboard {
   position: relative;
