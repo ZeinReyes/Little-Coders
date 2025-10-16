@@ -10,6 +10,7 @@ import {
   clearDragType
 } from './draggable';
 import { createElement } from './elementFactory';
+import { playDeleteSound } from '../utils/sfx';
 
 export function initDragAndDrop({
   paletteSelector = '.elements img',
@@ -169,7 +170,7 @@ function onWhiteboardDrop(e) {
       if (prevParent && prevParent.classList.contains('slot')) {
         prevParent.classList.add('empty');
       }
-
+      
       const globalTooltip = document.getElementById('globalTooltip');
       if (globalTooltip) {
         globalTooltip.style.display = 'none';
@@ -181,7 +182,7 @@ function onWhiteboardDrop(e) {
         notification.style.display = 'block';
         setTimeout(() => (notification.style.display = 'none'), 3200);
       }
-
+      playDeleteSound();
       clearDragSource();
       clearDragType();
       updateVariableState(whiteboard, dimOverlay);

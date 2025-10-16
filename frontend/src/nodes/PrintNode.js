@@ -3,6 +3,7 @@ import { makeMovable } from '../utils/movable';
 import { attachTooltip } from '../utils/helpers';
 import { makeId } from '../utils/id';
 import { updateCode } from '../utils/codeGen';
+import { playPrintSound } from '../utils/sfx';
 
 // ---------------- Helper: Extract Expression Recursively ----------------
 function extractExpression(node) {
@@ -165,6 +166,7 @@ function createModal(contentBuilder) {
 
 // ---------------- Print Node ----------------
 export function createPrintNode(whiteboard, codeArea, dimOverlay) {
+  playPrintSound();
   const p = document.createElement("div");
   p.className = "print-node";
   p.id = makeId("print");

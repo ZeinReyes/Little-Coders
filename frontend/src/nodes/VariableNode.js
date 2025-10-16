@@ -4,11 +4,13 @@ import { attachTooltip } from '../utils/helpers';
 import { makeId } from '../utils/id';
 import { canNest, nestElement, showNestNotification } from '../utils/nesting.js';
 import { updateCode, updateVariableTooltips } from '../utils/codeGen';
+import { playVariableSound } from '../utils/sfx';
 
 // ✅ Global counter for variable naming
 let variableCounter = 1;
 
 export function createVariableNode(whiteboard, codeArea, dimOverlay) {
+  playVariableSound();
   const v = document.createElement('div');
   v.className = 'variable-node variable card-style';
   v.id = makeId('variable');

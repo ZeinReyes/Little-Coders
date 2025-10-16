@@ -13,10 +13,10 @@ function ModuleList() {
 
   // ✅ Operator images with fixed positions
   const operatorPositions = [
-    { src: "/assets/images/plus (2).png", top: "10%", left: "8%", rotate: "-10deg" },
-    { src: "/assets/images/minus (2).png", top: "25%", left: "20%", rotate: "5deg" },
-    { src: "/assets/images/division (2).png", top: "60%", left: "10%", rotate: "15deg" },
-    { src: "/assets/images/multiply1.png", top: "15%", left: "80%", rotate: "-10deg" },
+    { src: "/assets/images/add.png", top: "10%", left: "8%", rotate: "-10deg" },
+    { src: "/assets/images/subtract.png", top: "25%", left: "20%", rotate: "5deg" },
+    { src: "/assets/images/divide.png", top: "60%", left: "10%", rotate: "15deg" },
+    { src: "/assets/images/multiply.png", top: "15%", left: "80%", rotate: "-10deg" },
     { src: "/assets/images/greaterthan.png", top: "60%", left: "85%", rotate: "15deg" },
     { src: "/assets/images/lessthan.png", top: "30%", left: "65%", rotate: "-5deg" },
     { src: "/assets/images/!.png", top: "62%", left: "50%", rotate: "8deg" },

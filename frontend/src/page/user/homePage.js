@@ -256,46 +256,93 @@ function HomePage() {
 
       {/* ---------- HERO SECTION ---------- */}
       <div style={combinedHero}>
-      <img src="/assets/images/plus (2).png" style={operatorStyle("1%", "-1%", "160px", "10", 0.15)} />
-       <img src="/assets/images/minus (2).png" style={operatorStyle("15%", "25%", "180px", "-10", 0.12)} /> 
-       <img src="/assets/images/division (2).png" style={operatorStyle("70%", "1%", "160px", "20", 0.1)} /> 
-       <img src="/assets/images/multiply1.png" style={operatorStyle("70%", "30%", "150px", "0", 0.15)} /> 
-       <img src="/assets/images/greaterthan.png" style={operatorStyle("15%", "65%", "180px", "-10", 0.15)} /> 
-       <img src="/assets/images/lessthan.png" style={operatorStyle("3%", "87%", "160px", "20", 0.12)} /> 
-       <img src="/assets/images/!.png" style={operatorStyle("55%", "63%", "160px", "-20", 0.1)} />
-       <img src="/assets/images/diamond.png" style={operatorStyle("75%", "90%", "150px", "15", 0.12)} />
-        {/* background operator images omitted for brevity */}
-        <div style={contentContainer}>
-          <div style={imageContainer}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 300" style={blobStyle}>
-              <path
-                d="M100 30 C150 0 250 0 290 60 C320 120 300 200 220 240 C150 280 70 260 10 160 C0 110 40 70 100 30 Z"
-                fill="#F0597E"
-              />
-            </svg>
-            <img src="/assets/images/kid2.jpg" alt="Left kid" style={leftKidStyle} />
-          </div>
+  {/* ✅ Add bounce keyframes */}
+  <style>
+    {`
+      @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-15px); }
+      }
+      .bounce {
+        animation: bounce 2s infinite ease-in-out;
+      }
+    `}
+  </style>
 
-          <div style={textContainer}>
-            <h1 style={learningTitleStyle}>Best Online Learning For Your Kids</h1>
-            <p style={learningSubtitleStyle}>
-              Discover various fun learning programs for your 5 to 12-year-old
-              children with our interactive coding lessons and visual activities.
-            </p>
-            <button style={getStartedButton}>Get Started</button>
-          </div>
+  {/* ✅ Operator images with random bounce delays */}
+  <img
+    src="/assets/images/add.png"
+    style={{ ...operatorStyle("1%", "-1%", "160px", "10", 0.15), animationDelay: "0s" }}
+    className="bounce"
+  />
+  <img
+    src="/assets/images/subtract.png"
+    style={{ ...operatorStyle("15%", "25%", "180px", "-10", 0.12), animationDelay: "0.3s" }}
+    className="bounce"
+  />
+  <img
+    src="/assets/images/divide.png"
+    style={{ ...operatorStyle("70%", "1%", "160px", "20", 0.1), animationDelay: "0.6s" }}
+    className="bounce"
+  />
+  <img
+    src="/assets/images/multiply.png"
+    style={{ ...operatorStyle("70%", "30%", "150px", "0", 0.15), animationDelay: "0.9s" }}
+    className="bounce"
+  />
+  <img
+    src="/assets/images/greaterthan.png"
+    style={{ ...operatorStyle("15%", "65%", "180px", "-10", 0.15), animationDelay: "1.2s" }}
+    className="bounce"
+  />
+  <img
+    src="/assets/images/lessthan.png"
+    style={{ ...operatorStyle("3%", "87%", "160px", "20", 0.12), animationDelay: "1.5s" }}
+    className="bounce"
+  />
+  <img
+    src="/assets/images/!.png"
+    style={{ ...operatorStyle("55%", "63%", "160px", "-20", 0.1), animationDelay: "1.8s" }}
+    className="bounce"
+  />
+  <img
+    src="/assets/images/diamond.png"
+    style={{ ...operatorStyle("75%", "90%", "150px", "15", 0.12), animationDelay: "2.1s" }}
+    className="bounce"
+  />
 
-          <div style={imageContainer}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 300" style={blobStyle}>
-              <path
-                d="M100 30 C150 0 250 0 290 60 C320 120 300 200 220 240 C150 280 60 250 30 190 C0 120 40 70 100 30 Z"
-                fill="#F0597E"
-              />
-            </svg>
-            <img src="/assets/images/kid1.png" alt="Right kid" style={rightKidStyle} />
-          </div>
-        </div>
-      </div>
+  {/* rest of hero content unchanged */}
+  <div style={contentContainer}>
+    <div style={imageContainer}>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 300" style={blobStyle}>
+        <path
+          d="M100 30 C150 0 250 0 290 60 C320 120 300 200 220 240 C150 280 70 260 10 160 C0 110 40 70 100 30 Z"
+          fill="#F0597E"
+        />
+      </svg>
+      <img src="/assets/images/kid2.jpg" alt="Left kid" style={leftKidStyle} />
+    </div>
+
+    <div style={textContainer}>
+      <h1 style={learningTitleStyle}>Best Online Learning For Your Kids</h1>
+      <p style={learningSubtitleStyle}>
+        Discover various fun learning programs for your 5 to 12-year-old
+        children with our interactive coding lessons and visual activities.
+      </p>
+      <button style={getStartedButton}>Get Started</button>
+    </div>
+
+    <div style={imageContainer}>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 300" style={blobStyle}>
+        <path
+          d="M100 30 C150 0 250 0 290 60 C320 120 300 200 220 240 C150 280 60 250 30 190 C0 120 40 70 100 30 Z"
+          fill="#F0597E"
+        />
+      </svg>
+      <img src="/assets/images/kid1.png" alt="Right kid" style={rightKidStyle} />
+    </div>
+  </div>
+</div>
 
       {/* ---------- WHY TEACH PROGRAMMING SECTION ---------- */}
       <section style={whySection}>

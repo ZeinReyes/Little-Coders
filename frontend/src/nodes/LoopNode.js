@@ -3,10 +3,12 @@ import { makeDraggable } from '../utils/draggable';
 import { makeMovable } from '../utils/movable';
 import { attachTooltip } from '../utils/helpers';
 import { makeId } from '../utils/id';
+import { playObjectSound } from '../utils/sfx';
 
 export function createLoopNode(type, whiteboard, codeArea, dimOverlay) {
   // ---------------- WHILE ----------------
   if (type === 'while') {
+    playObjectSound();
     const whileNode = document.createElement('div');
     whileNode.className = 'while-node';
     whileNode.id = makeId('while');
@@ -48,6 +50,7 @@ export function createLoopNode(type, whiteboard, codeArea, dimOverlay) {
 
   // ---------------- FOR (optional) ----------------
   if (type === 'for') {
+    playObjectSound();
     const forNode = document.createElement('div');
     forNode.className = 'for-node';
     forNode.id = makeId('for');

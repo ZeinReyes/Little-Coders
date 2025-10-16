@@ -3,10 +3,12 @@ import { makeDraggable } from '../utils/draggable';
 import { makeMovable } from '../utils/movable';
 import { attachTooltip } from '../utils/helpers';
 import { makeId } from '../utils/id';
+import { playObjectSound } from '../utils/sfx';
 
 export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
   // ---------------- IF ----------------
   if (type === 'if') {
+    playObjectSound();
     const ifNode = document.createElement('div');
     ifNode.className = 'if-node';
     ifNode.id = makeId('if');
@@ -51,6 +53,7 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
 
   // ---------------- ELIF ----------------
   if (type === 'elif') {
+    playObjectSound();
     const ifNode = whiteboard.querySelector('.if-node');
     if (!ifNode) {
       alert("You need an IF block first before adding ELIF!");
@@ -101,6 +104,7 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
 
   // ---------------- ELSE ----------------
 if (type === 'else') {
+  playObjectSound();
   const ifNode = whiteboard.querySelector('.if-node');
   if (!ifNode) {
     alert("You need an IF block first before adding ELSE!");

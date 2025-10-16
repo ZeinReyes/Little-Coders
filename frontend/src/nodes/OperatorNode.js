@@ -4,6 +4,7 @@ import { makeDraggable } from '../utils/draggable';
 import { makeMovable } from '../utils/movable';
 import { attachTooltip } from '../utils/helpers';
 import { makeId } from '../utils/id';   
+import { playObjectSound } from '../utils/sfx';
 
 function getOperatorSymbol(type) {
   const symbols = {
@@ -57,6 +58,7 @@ function operatorTooltip(type) {
 let operatorCounter = 0; // global sequential operator counter
 
 export function createOperatorNode(type, whiteboard, codeArea, dimOverlay) {
+  playObjectSound();
   operatorCounter++;
   const opId = operatorCounter; // unique sequential ID for this operator
 
