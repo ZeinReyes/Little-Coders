@@ -6,6 +6,7 @@ function Register() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -13,21 +14,23 @@ function Register() {
         try {
             const res = await registerService({ name, email, password });
 
-            if (res.data?.message) {
-            alert(res.data.message);
-            } else {
-            alert('Registration successful!');
-            }
+            // Set notification message
+            const message =
+                res.data?.message || 'Registration successful! Redirecting...';
+            setSuccessMessage(message);
 
-            navigate('/login');
+            // After a short delay, navigate to /home
+            setTimeout(() => {
+                navigate('/home');
+            }, 2000);
         } catch (err) {
             const message =
-            err.response?.data?.error ||
-            err.response?.data?.message ||
-            'Registration failed. Please try again.';
+                err.response?.data?.error ||
+                err.response?.data?.message ||
+                'Registration failed. Please try again.';
             alert(message);
         }
-        };
+    };
 
     return (
         <div className="registerContainer d-flex justify-content-center align-items-center w-100 min-vh-100">
@@ -40,6 +43,16 @@ function Register() {
                 <div className="title_container">
                     <p className="title">Create an Account</p>
                 </div>
+
+                {/* Success Notification */}
+                {successMessage && (
+                    <div
+                        className="alert alert-success text-center py-2 mb-3"
+                        role="alert"
+                    >
+                        {successMessage}
+                    </div>
+                )}
 
                 <div className="input_container">
                     <label className="input_label" htmlFor="name_field">

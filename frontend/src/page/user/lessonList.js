@@ -107,7 +107,7 @@ function LessonList() {
       >
         <Button
           variant="light"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/module-list")}
           style={{ fontWeight: "bold", borderRadius: "20px", fontSize: "0.9rem" }}
         >
           ← Back

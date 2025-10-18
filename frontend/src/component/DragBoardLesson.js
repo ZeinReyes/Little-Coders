@@ -247,28 +247,48 @@ const handleNextContent = async () => {
       ...prev,
       currentContentIndex: prev.currentContentIndex + 1,
     }));
-  } else {
-    // --- Lesson finished ---
-    await markCompleted();
+    return;
+  }
 
-    // Stop the lesson sound before switching
-    stopLessonSound();
+  // --- Lesson finished ---
+  await markCompleted();
+  stopLessonSound();
 
-    // Hide the lesson modal
+  try {
+    const token = localStorage.getItem("token");
+    const headers = { Authorization: `Bearer ${token}` };
+
+    // 🔍 Check if THIS specific material has activities
+    const activitiesRes = await axios.get(
+      `http://localhost:5000/api/activities/materials/${itemId}/activities`,
+      { headers }
+    );
+
+    const activities = Array.isArray(activitiesRes.data) ? activitiesRes.data : [];
+
+    if (activities.length > 0) {
+      // ✅ Material has activities → show the activity modal
+      setShowLessonModal(false);
+      setActivitySlide(0);
+      setCharacterImg("/assets/images/activity.png");
+      setActivityText(randomActivityText(0));
+      setShowActivityModal(true);
+
+      setTimeout(() => {
+        playActivitySound();
+      }, 300);
+    } else {
+      // 🚫 No activities → just go back to lesson list
+      setShowLessonModal(false);
+      navigate(`/lessons/${lessonId}`);
+    }
+  } catch (err) {
+    console.error("Error checking activities for this material:", err);
     setShowLessonModal(false);
-
-    // Show the activity modal
-    setActivitySlide(0);
-    setCharacterImg("/assets/images/activity.png");
-    setActivityText(randomActivityText(0));
-    setShowActivityModal(true);
-
-    // Small delay to ensure modal transition feels smooth
-    setTimeout(() => {
-      playActivitySound();
-    }, 300);
+    navigate(`/lessons/${lessonId}`);
   }
 };
+
 
 
   const handlePreviousContent = () => {
