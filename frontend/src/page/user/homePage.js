@@ -3,19 +3,25 @@ import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../../context/authContext";
 import NavbarComponent from "../../component/userNavbar";
 import UserFooter from "../../component/userFooter";
+import TutorialModal from "../../component/TutorialModal";
 
 function HomePage() {
+  const { user, refreshUser, loading, isOnboardingIncomplete } = useContext(AuthContext);
   const [showSplash, setShowSplash] = useState(true);
   const [animate, setAnimate] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  // ✅ Show tutorial if onboarding is incomplete
+  useEffect(() => {
+    if (!loading && isOnboardingIncomplete) {
+      setShowTutorial(true);
+    }
+  }, [loading, isOnboardingIncomplete]);
 
   // ✅ Splash animation timing
   useEffect(() => {
-    // Start animation slightly after mount
     const startTimer = setTimeout(() => setAnimate(true), 200);
-
-    // Hide splash after animation completes
     const hideTimer = setTimeout(() => setShowSplash(false), 800);
-
     return () => {
       clearTimeout(startTimer);
       clearTimeout(hideTimer);
@@ -42,6 +48,7 @@ function HomePage() {
     width: "auto",
     transition: "all .1s ",
   };
+
   const pageStyle = {
     display: "flex",
     flexDirection: "column",
@@ -53,7 +60,7 @@ function HomePage() {
     overflowX: "hidden",
   };
 
-  // ✅ Combined Hero Section
+  // ✅ Hero, Cards, and Section styles (unchanged)
   const combinedHero = {
     height: "calc(100vh - 70px)",
     width: "100%",
@@ -155,7 +162,6 @@ function HomePage() {
     transition: "0.3s ease",
   };
 
-  // ✅ Why Teach Programming Section
   const whySection = {
     backgroundColor: "rgba(148, 250, 146, 0.3)",
     textAlign: "center",
@@ -240,142 +246,106 @@ function HomePage() {
 
   const lowerCard = { marginTop: "50px" };
   const higherCard = { marginTop: "0px" };
+
   return (
     <>
-    {showSplash && (
+      {/* ✅ Tutorial modal (only shows if user hasn’t completed onboarding) */}
+      {showTutorial && (
+        <TutorialModal
+          show={showTutorial}
+          onClose={async () => {
+            setShowTutorial(false);
+            if (user?._id) await refreshUser(user._id); // refresh user to update onboarding flag
+          }}
+        />
+      )}
+
+      {/* ✅ Splash screen */}
+      {showSplash && (
         <div style={splashContainer}>
           <img
-            src="https://t4.ftcdn.net/jpg/14/21/34/09/360_F_1421340903_RFotJFnoo0bduRHcev5f4aLHwonagOxC.jpg" // 🐍 Change to your snake image path
+            src="https://t4.ftcdn.net/jpg/14/21/34/09/360_F_1421340903_RFotJFnoo0bduRHcev5f4aLHwonagOxC.jpg"
             alt="Snake"
             style={snakeImage}
           />
         </div>
       )}
-    <div style={pageStyle}>
-      <NavbarComponent />
 
-      {/* ---------- HERO SECTION ---------- */}
-      <div style={combinedHero}>
-  {/* ✅ Add bounce keyframes */}
-  <style>
-    {`
-      @keyframes bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-15px); }
-      }
-      .bounce {
-        animation: bounce 2s infinite ease-in-out;
-      }
-    `}
-  </style>
+      {/* ✅ Main Page */}
+      <div style={pageStyle}>
+        <NavbarComponent />
 
-  {/* ✅ Operator images with random bounce delays */}
-  <img
-    src="/assets/images/add.png"
-    style={{ ...operatorStyle("1%", "-1%", "160px", "10", 0.15), animationDelay: "0s" }}
-    className="bounce"
-  />
-  <img
-    src="/assets/images/subtract.png"
-    style={{ ...operatorStyle("15%", "25%", "180px", "-10", 0.12), animationDelay: "0.3s" }}
-    className="bounce"
-  />
-  <img
-    src="/assets/images/divide.png"
-    style={{ ...operatorStyle("70%", "1%", "160px", "20", 0.1), animationDelay: "0.6s" }}
-    className="bounce"
-  />
-  <img
-    src="/assets/images/multiply.png"
-    style={{ ...operatorStyle("70%", "30%", "150px", "0", 0.15), animationDelay: "0.9s" }}
-    className="bounce"
-  />
-  <img
-    src="/assets/images/greaterthan.png"
-    style={{ ...operatorStyle("15%", "65%", "180px", "-10", 0.15), animationDelay: "1.2s" }}
-    className="bounce"
-  />
-  <img
-    src="/assets/images/lessthan.png"
-    style={{ ...operatorStyle("3%", "87%", "160px", "20", 0.12), animationDelay: "1.5s" }}
-    className="bounce"
-  />
-  <img
-    src="/assets/images/!.png"
-    style={{ ...operatorStyle("55%", "63%", "160px", "-20", 0.1), animationDelay: "1.8s" }}
-    className="bounce"
-  />
-  <img
-    src="/assets/images/diamond.png"
-    style={{ ...operatorStyle("75%", "90%", "150px", "15", 0.12), animationDelay: "2.1s" }}
-    className="bounce"
-  />
+        {/* ---------- HERO SECTION ---------- */}
+        <div style={combinedHero}>
+          <style>
+            {`
+              @keyframes bounce {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-15px); }
+              }
+              .bounce {
+                animation: bounce 2s infinite ease-in-out;
+              }
+            `}
+          </style>
 
-  {/* rest of hero content unchanged */}
-  <div style={contentContainer}>
-    <div style={imageContainer}>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 300" style={blobStyle}>
-        <path
-          d="M100 30 C150 0 250 0 290 60 C320 120 300 200 220 240 C150 280 70 260 10 160 C0 110 40 70 100 30 Z"
-          fill="#F0597E"
-        />
-      </svg>
-      <img src="/assets/images/kid2.jpg" alt="Left kid" style={leftKidStyle} />
-    </div>
+          {/* ✅ Operator images */}
+          <img src="/assets/images/add.png" style={{ ...operatorStyle("1%", "-1%", "160px", "10", 0.15) }} className="bounce" />
+          <img src="/assets/images/subtract.png" style={{ ...operatorStyle("15%", "25%", "180px", "-10", 0.12) }} className="bounce" />
+          <img src="/assets/images/divide.png" style={{ ...operatorStyle("70%", "1%", "160px", "20", 0.1) }} className="bounce" />
+          <img src="/assets/images/multiply.png" style={{ ...operatorStyle("70%", "30%", "150px", "0", 0.15) }} className="bounce" />
 
-    <div style={textContainer}>
-      <h1 style={learningTitleStyle}>Best Online Learning For Your Kids</h1>
-      <p style={learningSubtitleStyle}>
-        Discover various fun learning programs for your 5 to 12-year-old
-        children with our interactive coding lessons and visual activities.
-      </p>
-      <button style={getStartedButton}>Get Started</button>
-    </div>
+          <div style={contentContainer}>
+            <div style={imageContainer}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 300" style={blobStyle}>
+                <path d="M100 30 C150 0 250 0 290 60 C320 120 300 200 220 240 C150 280 70 260 10 160 C0 110 40 70 100 30 Z" fill="#F0597E" />
+              </svg>
+              <img src="/assets/images/kid2.jpg" alt="Left kid" style={leftKidStyle} />
+            </div>
 
-    <div style={imageContainer}>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 300" style={blobStyle}>
-        <path
-          d="M100 30 C150 0 250 0 290 60 C320 120 300 200 220 240 C150 280 60 250 30 190 C0 120 40 70 100 30 Z"
-          fill="#F0597E"
-        />
-      </svg>
-      <img src="/assets/images/kid1.png" alt="Right kid" style={rightKidStyle} />
-    </div>
-  </div>
-</div>
+            <div style={textContainer}>
+              <h1 style={learningTitleStyle}>Best Online Learning For Your Kids</h1>
+              <p style={learningSubtitleStyle}>
+                Discover various fun learning programs for your 5 to 12-year-old children with our interactive coding lessons and visual activities.
+              </p>
+              <button style={getStartedButton}>Get Started</button>
+            </div>
 
-      {/* ---------- WHY TEACH PROGRAMMING SECTION ---------- */}
-      <section style={whySection}>
-        <h2 style={whyTitle}>Why Teach Programming to Children</h2>
-        <p style={whySubtitle}>Empowering young minds through creativity and logic</p>
-        <div style={cardsContainer}>
-          <div style={{ ...cardBlue, ...lowerCard }}>
-            <img src="/assets/images/creativity.png" alt="Creativity" style={cardImage} />
-            <h3 style={cardTitle}>Boosts Creativity</h3>
-            <p style={cardText}>
-              Programming helps children express their imagination by building games and apps.
-            </p>
-          </div>
-
-          <div style={{ ...cardYellow, ...higherCard }}>
-            <img src="/assets/images/crit.png" alt="Problem Solving" style={cardImage} />
-            <h3 style={cardTitle}>Improves Problem-Solving</h3>
-            <p style={cardText}>
-              Kids learn to think logically and solve real-world problems step by step.
-            </p>
-          </div>
-
-          <div style={{ ...cardPurple, ...lowerCard }}>
-            <img src="/assets/images/understanding1.png" alt="Future Skills" style={cardImage} />
-            <h3 style={cardTitle}>Prepares for the Future</h3>
-            <p style={cardText}>
-              Learning to code gives children valuable skills that open doors to future careers.
-            </p>
+            <div style={imageContainer}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 300" style={blobStyle}>
+                <path d="M100 30 C150 0 250 0 290 60 C320 120 300 200 220 240 C150 280 60 250 30 190 C0 120 40 70 100 30 Z" fill="#F0597E" />
+              </svg>
+              <img src="/assets/images/kid1.png" alt="Right kid" style={rightKidStyle} />
+            </div>
           </div>
         </div>
-      </section>
-      <UserFooter />
-    </div>
+
+        {/* ---------- WHY TEACH PROGRAMMING SECTION ---------- */}
+        <section style={whySection}>
+          <h2 style={whyTitle}>Why Teach Programming to Children</h2>
+          <p style={whySubtitle}>Empowering young minds through creativity and logic</p>
+          <div style={cardsContainer}>
+            <div style={{ ...cardBlue, ...lowerCard }}>
+              <img src="/assets/images/creativity.png" alt="Creativity" style={cardImage} />
+              <h3 style={cardTitle}>Boosts Creativity</h3>
+              <p style={cardText}>Programming helps children express their imagination by building games and apps.</p>
+            </div>
+
+            <div style={{ ...cardYellow, ...higherCard }}>
+              <img src="/assets/images/crit.png" alt="Problem Solving" style={cardImage} />
+              <h3 style={cardTitle}>Improves Problem-Solving</h3>
+              <p style={cardText}>Kids learn to think logically and solve real-world problems step by step.</p>
+            </div>
+
+            <div style={{ ...cardPurple, ...lowerCard }}>
+              <img src="/assets/images/understanding1.png" alt="Future Skills" style={cardImage} />
+              <h3 style={cardTitle}>Prepares for the Future</h3>
+              <p style={cardText}>Learning to code gives children valuable skills that open doors to future careers.</p>
+            </div>
+          </div>
+        </section>
+        <UserFooter />
+      </div>
     </>
   );
 }

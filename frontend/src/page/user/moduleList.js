@@ -1,28 +1,28 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Spinner, Button } from "react-bootstrap";
+import { Spinner } from "react-bootstrap";
 import NavbarComponent from "../../component/userNavbar";
 import "./moduleList.css";
 import UserFooter from "../../component/userFooter";
+import TutorialModal from "../../component/TutorialModal";
+import { AuthContext } from "../../context/authContext";
 
 function ModuleList() {
+  const { user, refreshUser, loading: userLoading } = useContext(AuthContext); // ✅ renamed
   const [modules, setModules] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingModules, setLoadingModules] = useState(true);
+  const [showTutorial, setShowTutorial] = useState(false);
   const navigate = useNavigate();
 
-  // ✅ Operator images with fixed positions
-  const operatorPositions = [
-    { src: "/assets/images/add.png", top: "10%", left: "8%", rotate: "-10deg" },
-    { src: "/assets/images/subtract.png", top: "25%", left: "20%", rotate: "5deg" },
-    { src: "/assets/images/divide.png", top: "60%", left: "10%", rotate: "15deg" },
-    { src: "/assets/images/multiply.png", top: "15%", left: "80%", rotate: "-10deg" },
-    { src: "/assets/images/greaterthan.png", top: "60%", left: "85%", rotate: "15deg" },
-    { src: "/assets/images/lessthan.png", top: "30%", left: "65%", rotate: "-5deg" },
-    { src: "/assets/images/!.png", top: "62%", left: "50%", rotate: "8deg" },
-    { src: "/assets/images/diamond.png", top: "40%", left: "35%", rotate: "20deg" },
-  ];
+  // ✅ Show tutorial only if user hasn't completed onboarding
+  useEffect(() => {
+    if (!userLoading && user && user.hasCompletedOnboarding === false) {
+      setShowTutorial(true);
+    }
+  }, [user, userLoading]);
 
+  // ✅ Fetch modules
   useEffect(() => {
     const fetchModules = async () => {
       try {
@@ -34,13 +34,24 @@ function ModuleList() {
       } catch (err) {
         console.error("Error fetching modules:", err);
       } finally {
-        setLoading(false);
+        setLoadingModules(false);
       }
     };
     fetchModules();
   }, []);
 
-  if (loading) {
+  const operatorPositions = [
+    { src: "/assets/images/add.png", top: "10%", left: "8%", rotate: "-10deg" },
+    { src: "/assets/images/subtract.png", top: "25%", left: "20%", rotate: "5deg" },
+    { src: "/assets/images/divide.png", top: "60%", left: "10%", rotate: "15deg" },
+    { src: "/assets/images/multiply.png", top: "15%", left: "80%", rotate: "-10deg" },
+    { src: "/assets/images/greaterthan.png", top: "60%", left: "85%", rotate: "15deg" },
+    { src: "/assets/images/lessthan.png", top: "30%", left: "65%", rotate: "-5deg" },
+    { src: "/assets/images/!.png", top: "62%", left: "50%", rotate: "8deg" },
+    { src: "/assets/images/diamond.png", top: "40%", left: "35%", rotate: "20deg" },
+  ];
+
+  if (loadingModules) {
     return (
       <div className="d-flex justify-content-center align-items-center vh-100">
         <Spinner animation="border" variant="warning" />
@@ -51,6 +62,18 @@ function ModuleList() {
   return (
     <>
       <NavbarComponent />
+
+      {/* ✅ Tutorial modal controlled by MongoDB flag */}
+      {showTutorial && (
+        <TutorialModal
+          show={showTutorial}
+          onClose={async () => {
+            setShowTutorial(false);
+            if (user?._id) await refreshUser(user._id);
+          }}
+        />
+      )}
+
       <div className="modules-container py-4">
         {/* ✅ HEADER */}
         <div className="modules-header position-relative d-flex justify-content-center align-items-center">
@@ -68,7 +91,7 @@ function ModuleList() {
                 transform: `rotate(${op.rotate})`,
                 filter: "drop-shadow(2px 2px 5px rgba(0,0,0,0.2))",
                 zIndex: 1,
-                userSelect: 'none',
+                userSelect: "none",
               }}
             />
           ))}
