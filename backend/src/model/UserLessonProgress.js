@@ -1,3 +1,4 @@
+// models/UserLessonProgress.js
 import mongoose from "mongoose";
 
 const UserLessonProgressSchema = new mongoose.Schema(
@@ -21,6 +22,17 @@ const UserLessonProgressSchema = new mongoose.Schema(
     ],
     completedAssessments: [
       { type: mongoose.Schema.Types.ObjectId, ref: "Assessment" }
+    ],
+
+    // New field: assessment attempts per question
+    assessmentAttempts: [
+      {
+        assessmentId: { type: mongoose.Schema.Types.ObjectId, ref: "Assessment" },
+        questionId: { type: mongoose.Schema.Types.ObjectId },
+        timeSeconds: { type: Number },
+        correct: { type: Boolean },
+        attemptedAt: { type: Date, default: Date.now },
+      },
     ],
 
     isLessonCompleted: { type: Boolean, default: false },

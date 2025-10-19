@@ -81,41 +81,44 @@ function LessonList() {
           activitiesByMaterial[m._id] = activitiesRes.data || [];
         }
 
-        // Merge materials + activities + assessments
-        const mergedItems = [];
-        for (const m of materialsRes.data) {
-          mergedItems.push({
-            ...m,
-            type: "lesson",
-            isCompleted: completedMaterialIds.includes(m._id),
-          });
-
-          (activitiesByMaterial[m._id] || []).forEach((a) => {
-            mergedItems.push({
-              ...a,
-              type: "activity",
-              isCompleted: completedActivityIds.includes(a._id),
+        // Merge materials + activities
+          const lessonAndActivityItems = [];
+          for (const m of materialsRes.data) {
+            lessonAndActivityItems.push({
+              ...m,
+              type: "lesson",
+              isCompleted: completedMaterialIds.includes(m._id),
             });
-          });
-        }
 
-        const assessments = assessmentsRes.data.map((a) => ({
-          ...a,
-          type: "assessment",
-          isCompleted: completedAssessmentIds.includes(a._id),
-        }));
+            (activitiesByMaterial[m._id] || []).forEach((a) => {
+              lessonAndActivityItems.push({
+                ...a,
+                type: "activity",
+                isCompleted: completedActivityIds.includes(a._id),
+              });
+            });
+          }
 
-        mergedItems.push(...assessments);
+          // Sort lessons + activities (optional)
+          lessonAndActivityItems.sort(
+            (a, b) =>
+              (a.order ?? 0) - (b.order ?? 0) ||
+              new Date(a.createdAt) - new Date(b.createdAt)
+          );
 
-        // Optional: sort by order or creation date
-        mergedItems.sort(
-          (a, b) =>
-            (a.order ?? 0) - (b.order ?? 0) ||
-            new Date(a.createdAt) - new Date(b.createdAt)
-        );
+          // Assessments — always at the bottom
+          const assessments = (assessmentsRes.data || []).map((a) => ({
+            ...a,
+            type: "assessment",
+            isCompleted: completedAssessmentIds.includes(a._id),
+          }));
 
-        setItems(mergedItems);
-        console.log("✅ Merged items set:", mergedItems);
+          // Combine: lessons + activities first, assessments last
+          const mergedItems = [...lessonAndActivityItems, ...assessments];
+
+          setItems(mergedItems);
+          console.log("✅ Merged items (assessments last):", mergedItems);
+
       } catch (err) {
         console.error("❌ Error fetching lesson data:", err);
       } finally {

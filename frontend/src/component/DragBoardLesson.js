@@ -20,14 +20,8 @@ import {
 } from "../utils/sfx";
 
 // --- Character images ---
-const lessonImages = [
-  "/assets/images/lesson.png",
-  "/assets/images/lesson1.png",
-];
-const activityImages = [
-  "/assets/images/activity.png",
-  "/assets/images/activity1.png",
-];
+const lessonImages = ["/assets/images/lesson.png", "/assets/images/lesson1.png"];
+const activityImages = ["/assets/images/activity.png", "/assets/images/activity1.png"];
 const congratsImages = [
   "/assets/images/congrats.png",
   "/assets/images/congrats1.png",
@@ -50,8 +44,21 @@ export default function DragBoardLesson() {
   const [activityText, setActivityText] = useState("");
   const [activitySlide, setActivitySlide] = useState(0);
 
+  // --- Assessment-specific state ---
+  const [assessmentAttempts, setAssessmentAttempts] = useState(0);
+  const [showAnswerModal, setShowAnswerModal] = useState(false);
+  const [assessmentAnswer, setAssessmentAnswer] = useState({});
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [questionStartTime, setQuestionStartTime] = useState(Date.now());
+
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+
+  useEffect(() => {
+    if (lesson?.type === "assessment") {
+      setQuestionStartTime(Date.now());
+    }
+  }, [currentQuestionIndex]);
 
   // --- Handle Lesson Sound ---
   useEffect(() => {
@@ -95,7 +102,7 @@ export default function DragBoardLesson() {
                   `http://localhost:5000/api/assessments/lessons/${lessonId}/assessments/${itemId}`,
                   { headers }
                 )
-                .then((r) => ({ ...r.data, type: "assessment" }))
+                .then((r) => ({ ...r.data, _id: r.data.id, type: "assessment" }))
                 .catch(() =>
                   axios
                     .get(
@@ -147,20 +154,15 @@ export default function DragBoardLesson() {
       const onRun = async () => {
         if (!lesson) return;
 
-        if (lesson.type === "activity" || lesson.type === "assessment") {
+        const { codeChecker } = await import("../utils/codeChecker");
+
+        // --- Activity ---
+        if (lesson.type === "activity") {
           const activityMeta = {
             expectedOutput: lesson.expectedOutput || null,
             dataTypesRequired: lesson.dataTypesRequired || [],
           };
-
-          const { codeChecker } = await import("../utils/codeChecker");
-          const result = await codeChecker(
-            whiteboard,
-            codeArea,
-            outputArea,
-            activityMeta
-          );
-
+          const result = await codeChecker(whiteboard, codeArea, outputArea, activityMeta);
           outputArea.textContent = result.stdout || result.stderr || "/* No output */";
 
           if (result.passedAll) {
@@ -180,7 +182,87 @@ export default function DragBoardLesson() {
             notification.style.display = "block";
             setTimeout(() => (notification.style.display = "none"), 5000);
           }
-        } else {
+        }
+
+        // --- Assessment ---
+        if (lesson.type === "assessment") {
+          const question = lesson.questions[currentQuestionIndex];
+          if (!question) return;
+
+          const questionMeta = {
+            expectedOutput: question.expectedOutput || null,
+            dataTypesRequired: question.dataTypesRequired || [],
+          };
+
+          const result = await codeChecker(whiteboard, codeArea, outputArea, questionMeta);
+          outputArea.textContent = result.stdout || result.stderr || "/* No output */";
+
+          const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
+
+          // --- Send attempt to backend ---
+          const token = localStorage.getItem("token");
+          console.log("Submitting attempt:", {
+            assessmentId: lesson._id,
+            questionId: question._id,
+            userId: user._id,
+            timeSeconds: timeTaken,
+            correct: result.passedAll,
+          });
+
+          await axios.post(
+            `http://localhost:5000/api/progress/mark-assessment-attempt`,
+            {
+              assessmentId: lesson._id,
+              lessonId: lessonId,
+              questionId: question._id,
+              userId: user._id,
+              timeSeconds: timeTaken,
+              correct: result.passedAll,
+            },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+
+          if (result.passedAll) {
+            playSuccessSound();
+            if (currentQuestionIndex + 1 < lesson.questions.length) {
+              setCurrentQuestionIndex(currentQuestionIndex + 1);
+              setAssessmentAttempts(0);
+              setQuestionStartTime(Date.now());
+              notification.textContent = "✅ Correct! Proceed to next question.";
+              notification.style.display = "block";
+              setTimeout(() => (notification.style.display = "none"), 3000);
+            } else {
+              stopActivitySound();
+              playSuccessSound();
+              await markCompleted();
+              setCharacterImg(getRandomImage(congratsImages));
+              setShowCongratsModal(true);
+            }
+          } else {
+            playErrorSound();
+            const notifText = [];
+            if (question.expectedOutput && !result.passedOutput)
+              notifText.push("Output does not match expected.");
+            if (!result.passedNodes)
+              notifText.push(`Missing objects: ${result.missingNodes.join(", ")}`);
+            notification.textContent = notifText.join(" ");
+            notification.style.display = "block";
+            setTimeout(() => (notification.style.display = "none"), 5000);
+
+            const attempts = assessmentAttempts + 1;
+            setAssessmentAttempts(attempts);
+            if (attempts >= 3) {
+              setAssessmentAnswer({
+                expectedOutput: question.expectedOutput,
+                dataTypesRequired: question.dataTypesRequired,
+              });
+              setShowAnswerModal(true);
+            }
+          }
+        }
+
+        // --- Lesson ---
+        if (lesson.type === "lesson") {
           await runProgram(codeArea, outputArea);
         }
       };
@@ -205,7 +287,7 @@ export default function DragBoardLesson() {
 
     const cleanup = init();
     return cleanup;
-  }, [lesson]);
+  }, [lesson, assessmentAttempts]);
 
   // --- Mark Completion ---
   const markCompleted = async () => {
@@ -376,32 +458,84 @@ export default function DragBoardLesson() {
 
   return (
     <div className="dragboard-wrapper">
-      {/* === Activity/Assessment Instructions === */}
-      {(lesson.type === "activity" || lesson.type === "assessment") && (
-        <div className="activity-instructions mb-3 p-3" style={{ backgroundColor: "#FFF8F2", borderRadius: "8px" }}>
-          <h5 style={{ color: "#00796B" }}>Instructions</h5>
-          <p dangerouslySetInnerHTML={{ __html: lesson.instructions }} />
-          {lesson.hints?.length > 0 && (
+      {/* === Activity / Assessment Instructions === */}
+{lesson.type === "activity" && (
+  <div
+    className="activity-instructions mb-3 p-3"
+    style={{ backgroundColor: "#FFF8F2", borderRadius: "8px" }}
+  >
+    <h5 style={{ color: "#00796B" }}>Instructions</h5>
+    <p dangerouslySetInnerHTML={{ __html: lesson.instructions }} />
+
+    {lesson.hints?.length > 0 && (
+      <>
+        <h6 style={{ color: "#0288D1" }}>Hints:</h6>
+        <ul>
+          {lesson.hints.map((hint, i) => (
+            <li key={i} dangerouslySetInnerHTML={{ __html: hint }} />
+          ))}
+        </ul>
+      </>
+    )}
+
+    {lesson.expectedOutput && (
+      <>
+        <h6 style={{ color: "#E65100" }}>Expected Output:</h6>
+        <pre
+          style={{
+            backgroundColor: "#f4f4f4",
+            padding: "10px",
+            borderRadius: "8px",
+          }}
+        >
+          {lesson.expectedOutput}
+        </pre>
+      </>
+    )}
+  </div>
+)}
+
+{lesson.type === "assessment" && lesson.questions?.length > 0 && (
+  <div
+    className="assessment-instructions mb-3 p-3"
+    style={{ backgroundColor: "#FFF8F2", borderRadius: "8px" }}
+  >
+    <h5 style={{ color: "#00796B" }}>Assessment: {lesson.title}</h5>
+    {lesson.questions[currentQuestionIndex] && (() => {
+      const q = lesson.questions[currentQuestionIndex];
+      return (
+        <div style={{ marginBottom: "1.5rem" }}>
+          <h6 style={{ color: "#00796B" }}>Question {currentQuestionIndex + 1}</h6>
+          <p dangerouslySetInnerHTML={{ __html: q.instructions }} />
+          {q.hints?.length > 0 && (
             <>
               <h6 style={{ color: "#0288D1" }}>Hints:</h6>
               <ul>
-                {lesson.hints.map((hint, i) => (
+                {q.hints.map((hint, i) => (
                   <li key={i} dangerouslySetInnerHTML={{ __html: hint }} />
                 ))}
               </ul>
             </>
           )}
-          {lesson.expectedOutput && (
+          {q.expectedOutput && (
             <>
               <h6 style={{ color: "#E65100" }}>Expected Output:</h6>
-              <pre style={{ backgroundColor: "#f4f4f4", padding: "10px", borderRadius: "8px" }}>
-                {lesson.expectedOutput}
+              <pre
+                style={{
+                  backgroundColor: "#f4f4f4",
+                  padding: "10px",
+                  borderRadius: "8px",
+                }}
+              >
+                {q.expectedOutput}
               </pre>
             </>
           )}
         </div>
-      )}
-
+      );
+    })()}
+  </div>
+)}
       {/* === Drag & Drop + Workspace === */}
       <div className="main-container">
         <div className="draggable">
@@ -449,112 +583,167 @@ export default function DragBoardLesson() {
 
       <div id="notification" className="notification" style={{ display: "none" }} />
 
-     {isLesson && showLessonModal && (
-  <Modal
-    style={{ position: "fixed", top: "70px" }}
-    show={showLessonModal}
-    backdrop="static"
-    size="lg"
-  >
-    <Modal.Header>
-      <Modal.Title>{lesson.title}</Modal.Title>
-    </Modal.Header>
-    <Modal.Body
-      key={lesson.currentContentIndex} // 🔁 Re-render on next/previous click to restart animation
-      style={{
-        maxHeight: "65vh",
-        overflowY: "auto",
-        padding: "1.5rem",
-        backgroundColor: "#FFF8F2",
-        fontFamily: "'Comic Sans MS', cursive",
-      }}
-    >
-      {/* Typing animation wrapper */}
-      <div className="typing-container">
-        {renderLessonContent()}
-      </div>
-    </Modal.Body>
-    <Modal.Footer className="d-flex justify-content-between">
-      <Button
-        variant="secondary"
-        onClick={handlePreviousContent}
-        disabled={lesson.currentContentIndex === 0}
+      {/* === Lesson Modal === */}
+      {isLesson && showLessonModal && (
+        <Modal
+          style={{ position: "fixed", top: "70px" }}
+          show={showLessonModal}
+          backdrop="static"
+          size="lg"
+        >
+          <Modal.Header>
+            <Modal.Title>{lesson.title}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body
+            key={lesson.currentContentIndex}
+            style={{
+              maxHeight: "65vh",
+              overflowY: "auto",
+              padding: "1.5rem",
+              backgroundColor: "#FFF8F2",
+              fontFamily: "'Comic Sans MS', cursive",
+            }}
+          >
+            <div className="typing-container">
+              {renderLessonContent()}
+            </div>
+          </Modal.Body>
+          <Modal.Footer className="d-flex justify-content-between">
+            <Button
+              variant="secondary"
+              onClick={handlePreviousContent}
+              disabled={lesson.currentContentIndex === 0}
+            >
+              ← Previous
+            </Button>
+            <Button variant="primary" onClick={handleNextContent}>
+              {lesson.currentContentIndex >= lesson.contents.length
+                ? "Finish Lesson"
+                : "Next →"}
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      )}
+
+      {/* === Activity Modal === */}
+      <Modal
+        show={showActivityModal}
+        style={{ position: "fixed", top: "140px" }}
+        backdrop="static"
+        size="lg"
       >
-        ← Previous
-      </Button>
-      <Button variant="primary" onClick={handleNextContent}>
-        {lesson.currentContentIndex >= lesson.contents.length
-          ? "Finish Lesson"
-          : "Next →"}
-      </Button>
-    </Modal.Footer>
-  </Modal>
-)}
+        <Modal.Header>
+          <Modal.Title>Activity</Modal.Title>
+        </Modal.Header>
+        <Modal.Body
+          style={{
+            maxHeight: "65vh",
+            overflowY: "auto",
+            padding: "1.5rem",
+            backgroundColor: "#FFF8F2",
+            fontFamily: "'Comic Sans MS', cursive",
+            textAlign: "center",
+          }}
+        >
+          <p className="typing-line">{activityText}</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="primary" onClick={handleActivityNext}>
+            {activitySlide === 0 ? "Next →" : "Proceed"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
-{/* Activity Modal */}
-<Modal
-  show={showActivityModal}
-  style={{ position: "fixed", top: "140px" }}
-  backdrop="static"
-  size="lg"
->
-  <Modal.Header>
-    <Modal.Title>Activity</Modal.Title>
-  </Modal.Header>
-  <Modal.Body
-    style={{
-      maxHeight: "65vh",
-      overflowY: "auto",
-      padding: "1.5rem",
-      backgroundColor: "#FFF8F2",
-      fontFamily: "'Comic Sans MS', cursive",
-      textAlign: "center",
-    }}
-  >
-    <p className="typing-line">{activityText}</p>
-  </Modal.Body>
-  <Modal.Footer>
-    <Button variant="primary" onClick={handleActivityNext}>
-      {activitySlide === 0 ? "Next →" : "Proceed"}
-    </Button>
-  </Modal.Footer>
-</Modal>
+      {/* === Congrats Modal === */}
+      <Modal
+        style={{ position: "fixed", top: "40px" }}
+        show={showCongratsModal}
+        backdrop="static"
+        size="lg"
+      >
+        <Modal.Header>
+          <Modal.Title>🎉 Congratulations!</Modal.Title>
+        </Modal.Header>
+        <Modal.Body
+          style={{
+            maxHeight: "65vh",
+            overflowY: "auto",
+            padding: "1.5rem",
+            backgroundColor: "#FFF8F2",
+            fontFamily: "'Comic Sans MS', cursive",
+            textAlign: "center",
+          }}
+        >
+          <h3>🎉 Well Done!</h3>
+          <p>You completed this activity successfully!</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setShowCongratsModal(false);
+              navigate(`/lessons/${lessonId}`);
+            }}
+          >
+            Continue
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
-{/* Congrats Modal */}
-<Modal
-  style={{ position: "fixed", top: "40px" }}
-  show={showCongratsModal}
-  backdrop="static"
-  size="lg"
->
-  <Modal.Header>
-    <Modal.Title>🎉 Congratulations!</Modal.Title>
-  </Modal.Header>
-  <Modal.Body
-    style={{
-      maxHeight: "65vh",
-      overflowY: "auto",
-      padding: "1.5rem",
-      backgroundColor: "#FFF8F2",
-      fontFamily: "'Comic Sans MS', cursive",
-      textAlign: "center",
-    }}
-  >
-    <h3>🎉 Well Done!</h3>
-    <p>You completed this activity successfully!</p>
-  </Modal.Body>
-  <Modal.Footer>
-    <Button
-      variant="primary"
-      onClick={() => {
-        setShowCongratsModal(false);
-        navigate(`/lessons/${lessonId}`);
-      }}
-    >
-      Continue
-    </Button>
-  </Modal.Footer>
-</Modal>
+      {/* === Assessment Answer Modal === */}
+      <Modal
+        show={showAnswerModal}
+        backdrop="static"
+        size="lg"
+        style={{ top: "100px" }}
+      >
+        <Modal.Header>
+          <Modal.Title>Correct Answer</Modal.Title>
+        </Modal.Header>
+        <Modal.Body
+          style={{
+            maxHeight: "65vh",
+            overflowY: "auto",
+            padding: "1.5rem",
+            backgroundColor: "#FFF8F2",
+            fontFamily: "'Comic Sans MS', cursive",
+            textAlign: "center",
+          }}
+        >
+          <h5>Required Data Types:</h5>
+          <ul>
+            {assessmentAnswer.dataTypesRequired?.map((dt, i) => (
+              <li key={i}>{dt}</li>
+            ))}
+          </ul>
+
+          {assessmentAnswer.expectedOutput && (
+            <>
+              <h5>Expected Output:</h5>
+              <pre
+                style={{
+                  backgroundColor: "#f4f4f4",
+                  padding: "10px",
+                  borderRadius: "8px",
+                }}
+              >
+                {assessmentAnswer.expectedOutput}
+              </pre>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setShowAnswerModal(false);
+              navigate(`/lessons/${lessonId}`);
+            }}
+          >
+            Continue
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {/* === Character Avatar (Bottom Left) === */}
       {(showLessonModal || showActivityModal || showCongratsModal) && (
@@ -590,41 +779,41 @@ export default function DragBoardLesson() {
           50% { transform: translateY(-8px); }
         }
         /* === Typing animation for lesson === */
-  .typing-container {
-    display: inline-block;
-    overflow: hidden;
-    white-space: normal; /* ✅ allows text to wrap */
-    border-right: 3px solid #333;
-    animation: typingDown 3s steps(40, end), blink 0.8s step-end infinite;
-  }
+        .typing-container {
+          display: inline-block;
+          overflow: hidden;
+          white-space: normal;
+          border-right: 3px solid #333;
+          animation: typingDown 3s steps(40, end), blink 0.8s step-end infinite;
+        }
 
-  @keyframes typingDown {
-    from {
-      clip-path: inset(0 0 100% 0); /* start from top hidden */
-    }
-    to {
-      clip-path: inset(0 0 0 0); /* reveal full content downward */
-    }
-  }
+        @keyframes typingDown {
+          from {
+            clip-path: inset(0 0 100% 0);
+          }
+          to {
+            clip-path: inset(0 0 0 0);
+          }
+        }
 
-  /* === Typing for activity/congrats short text === */
-  .typing-line {
-    display: inline-block;
-    overflow: hidden;
-    white-space: nowrap;
-    border-right: 2px solid #333;
-    animation: typingShort 2.5s steps(35, end), blink 0.8s step-end infinite;
-  }
+        /* === Typing for activity/congrats short text === */
+        .typing-line {
+          display: inline-block;
+          overflow: hidden;
+          white-space: nowrap;
+          border-right: 2px solid #333;
+          animation: typingShort 2.5s steps(35, end), blink 0.8s step-end infinite;
+        }
 
-  @keyframes typingShort {
-    from { width: 0; }
-    to { width: 100%; }
-  }
+        @keyframes typingShort {
+          from { width: 0; }
+          to { width: 100%; }
+        }
 
-  @keyframes blink {
-    0%, 50% { border-color: #333; }
-    51%, 100% { border-color: transparent; }
-  }
+        @keyframes blink {
+          0%, 50% { border-color: #333; }
+          51%, 100% { border-color: transparent; }
+        }
       `}</style>
     </div>
   );
