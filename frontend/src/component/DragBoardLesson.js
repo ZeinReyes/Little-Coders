@@ -153,6 +153,8 @@ export default function DragBoardLesson() {
 
       const onRun = async () => {
         if (!lesson) return;
+        const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
+const attempts = assessmentAttempts + 1; // increment attempts
 
         const { codeChecker } = await import("../utils/codeChecker");
 
@@ -217,6 +219,7 @@ export default function DragBoardLesson() {
               questionId: question._id,
               userId: user._id,
               timeSeconds: timeTaken,
+               totalAttempts: attempts,
               correct: result.passedAll,
             },
             { headers: { Authorization: `Bearer ${token}` } }

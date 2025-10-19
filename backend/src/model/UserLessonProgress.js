@@ -1,4 +1,3 @@
-// models/UserLessonProgress.js
 import mongoose from "mongoose";
 
 const UserLessonProgressSchema = new mongoose.Schema(
@@ -24,13 +23,14 @@ const UserLessonProgressSchema = new mongoose.Schema(
       { type: mongoose.Schema.Types.ObjectId, ref: "Assessment" }
     ],
 
-    // New field: assessment attempts per question
+    // Track only final successful attempt per question
     assessmentAttempts: [
       {
         assessmentId: { type: mongoose.Schema.Types.ObjectId, ref: "Assessment" },
         questionId: { type: mongoose.Schema.Types.ObjectId },
         timeSeconds: { type: Number },
-        correct: { type: Boolean },
+        totalAttempts: { type: Number, default: 1 },
+        correct: { type: Boolean, default: false },
         attemptedAt: { type: Date, default: Date.now },
       },
     ],

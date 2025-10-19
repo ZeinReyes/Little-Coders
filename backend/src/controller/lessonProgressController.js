@@ -88,37 +88,41 @@ export const markAssessmentCompleted = async (req, res) => {
   }
 };
 
-// --- Record a user attempt for a question ---
+// --- Record a single final attempt for a question ---
 export const markAssessmentAttempt = async (req, res) => {
   try {
-    const { userId, lessonId, assessmentId, questionId, timeSeconds, correct } = req.body;
-    if (!userId || !lessonId || !assessmentId || !questionId)
-      return res.status(400).json({ message: "Missing required fields" });
+    const { userId, lessonId, assessmentId, questionId, timeSeconds, totalAttempts, correct } = req.body;
 
-    const progress = await UserLessonProgress.findOneAndUpdate(
-      { userId, lessonId },
-      {
-        $push: {
-          assessmentAttempts: {
-            assessmentId,
-            questionId,
-            timeSeconds,
-            correct,
-            attemptedAt: new Date(),
-          },
-        },
-      },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
+    if (!userId || !lessonId || !assessmentId || !questionId) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const progress = await UserLessonProgress.findOne({ userId, lessonId }) || new UserLessonProgress({ userId, lessonId });
+
+    // Check if this question attempt already exists
+    const existingIndex = progress.assessmentAttempts.findIndex(
+      (a) => a.assessmentId.toString() === assessmentId && a.questionId.toString() === questionId
     );
 
-    res.status(200).json({ message: "Attempt recorded", progress });
+    const attemptData = { assessmentId, questionId, timeSeconds, totalAttempts, correct, attemptedAt: new Date() };
+
+    if (existingIndex >= 0) {
+      // Replace previous attempt with the final successful one
+      progress.assessmentAttempts[existingIndex] = attemptData;
+    } else {
+      progress.assessmentAttempts.push(attemptData);
+    }
+
+    await progress.save();
+
+    res.status(200).json({ message: "Assessment attempt recorded", progress });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error recording assessment attempt", error: err.message });
   }
 };
 
-// --- Get a user’s lesson progress ---
+// --- Get lesson progress ---
 export const getLessonProgress = async (req, res) => {
   try {
     const { userId, lessonId } = req.params;
