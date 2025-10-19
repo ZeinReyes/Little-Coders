@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useContext } from "react";
-import { AuthContext } from "./context/authContext"; 
+import { AuthContext } from "./context/authContext";
 
 // Authentication
 import Login from "./page/authentication/loginPage";
@@ -37,13 +37,12 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
-
-// ✅ Protected Route Component (using AuthContext)
+// ✅ Protected Route Component
 function ProtectedRoute({ element, allowedRoles }) {
   const { user, loading } = useContext(AuthContext);
 
   if (loading) {
-    return <div>Loading...</div>; // optional loading state
+    return <div>Loading...</div>;
   }
 
   if (!user) {
@@ -66,11 +65,10 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-      {/* User */}
-      <Route
-        path="/home"
-        element={<ProtectedRoute element={<HomePage />} allowedRoles={["user", "admin"]} />}
-      />
+      {/* 🟢 Home is now public — accessible by everyone */}
+      <Route path="/home" element={<HomePage />} />
+
+      {/* User-protected routes */}
       <Route
         path="/lesson/:id"
         element={<ProtectedRoute element={<LessonPlayer />} allowedRoles={["user", "admin"]} />}
@@ -92,7 +90,7 @@ function App() {
         element={<ProtectedRoute element={<DragBoard />} allowedRoles={["user", "admin"]} />}
       />
 
-      {/* Admin */}
+      {/* Admin routes */}
       <Route
         path="/admin"
         element={<ProtectedRoute element={<AdminPage />} allowedRoles={["admin"]} />}

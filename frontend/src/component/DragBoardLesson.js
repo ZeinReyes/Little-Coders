@@ -9,7 +9,7 @@ import { AuthContext } from "../context/authContext";
 import { initDragAndDrop } from "../utils/dragAndDrop";
 import { updateCode } from "../utils/codeGen";
 import { updateVariableState } from "../utils/state";
-import { runProgram } from "../utils/runner"; 
+import { runProgram } from "../utils/runner";
 import {
   playLessonSound,
   stopLessonSound,
@@ -36,6 +36,9 @@ const congratsImages = [
   "/assets/images/congrats4.png",
 ];
 
+const getRandomImage = (images) =>
+  images[Math.floor(Math.random() * images.length)];
+
 export default function DragBoardLesson() {
   const { lessonId, itemId } = useParams();
   const [lesson, setLesson] = useState(null);
@@ -50,75 +53,75 @@ export default function DragBoardLesson() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
 
-  
-  // --- Handle Lesson Sound (wait for user interaction before playing) ---
-useEffect(() => {
-  if (showLessonModal && lesson?.type === "lesson") {
-    const startSound = () => {
-      playLessonSound();
-      document.removeEventListener("click", startSound); // only once
-    };
-    document.addEventListener("click", startSound, { once: true });
-  }
-}, [showLessonModal, lesson]);
+  // --- Handle Lesson Sound ---
+  useEffect(() => {
+    if (showLessonModal && lesson?.type === "lesson") {
+      const startSound = () => {
+        playLessonSound();
+        document.removeEventListener("click", startSound);
+      };
+      document.addEventListener("click", startSound, { once: true });
+    }
+  }, [showLessonModal, lesson]);
 
-// --- Handle Activity Sound (wait for user interaction before playing) ---
-useEffect(() => {
-  if (showActivityModal) {
-    const startSound = () => {
-      playActivitySound();
-      document.removeEventListener("click", startSound);
-    };
-    document.addEventListener("click", startSound, { once: true });
-  }
-}, [showActivityModal]);
+  // --- Handle Activity Sound ---
+  useEffect(() => {
+    if (showActivityModal) {
+      const startSound = () => {
+        playActivitySound();
+        document.removeEventListener("click", startSound);
+      };
+      document.addEventListener("click", startSound, { once: true });
+    }
+  }, [showActivityModal]);
 
-
-  // --- Fetch lesson/activity/assessment ---
+  // --- Fetch Lesson / Activity / Assessment ---
   useEffect(() => {
     const fetchLessonOrActivity = async () => {
       try {
         const token = localStorage.getItem("token");
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-        let res = await axios
-          .get(
-            `http://localhost:5000/api/materials/lessons/${lessonId}/materials/${itemId}`,
-            { headers }
-          )
-          .then((r) => ({ ...r.data, type: "lesson" }))
-          .catch(async () =>
-            axios
-              .get(
-                `http://localhost:5000/api/assessments/lessons/${lessonId}/assessments/${itemId}`,
-                { headers }
-              )
-              .then((r) => ({ ...r.data, type: "assessment" }))
-              .catch(() =>
-                axios
-                  .get(
-                    `http://localhost:5000/api/activities/lessons/${lessonId}/activities/${itemId}`,
-                    { headers }
-                  )
-                  .then((r) => ({ ...r.data, type: "activity" }))
-              )
-          );
+        const res =
+          (await axios
+            .get(
+              `http://localhost:5000/api/materials/lessons/${lessonId}/materials/${itemId}`,
+              { headers }
+            )
+            .then((r) => ({ ...r.data, type: "lesson" }))
+            .catch(async () =>
+              axios
+                .get(
+                  `http://localhost:5000/api/assessments/lessons/${lessonId}/assessments/${itemId}`,
+                  { headers }
+                )
+                .then((r) => ({ ...r.data, type: "assessment" }))
+                .catch(() =>
+                  axios
+                    .get(
+                      `http://localhost:5000/api/activities/lessons/${lessonId}/activities/${itemId}`,
+                      { headers }
+                    )
+                    .then((r) => ({ ...r.data, type: "activity" }))
+                )
+            )) || null;
 
-        setLesson({ ...res, currentContentIndex: res.type === "lesson" ? 0 : null });
-        if (res.type === "lesson") {
-          setCharacterImg(lessonImages[Math.floor(Math.random() * lessonImages.length)]);
-        }
+        setLesson({
+          ...res,
+          currentContentIndex: res.type === "lesson" ? 0 : null,
+        });
+
+        if (res.type === "lesson") setCharacterImg(getRandomImage(lessonImages));
       } catch (err) {
-        console.error("❌ Error fetching lesson/activity/assessment:", err);
+        console.error("❌ Error fetching content:", err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchLessonOrActivity();
   }, [itemId, lessonId]);
 
-  // --- Initialize drag and drop & Pyodide runner ---
+  // --- Initialize drag & drop ---
   useEffect(() => {
     const init = () => {
       const whiteboard = document.getElementById("whiteboard");
@@ -131,10 +134,6 @@ useEffect(() => {
       if (!whiteboard || !codeArea || !trashCan || !notification || !runButton) {
         setTimeout(init, 200);
         return;
-      }
-
-      if (lesson?.dataTypesRequired) {
-        console.log("🔹 Required data types:", lesson.dataTypesRequired);
       }
 
       const destroy = initDragAndDrop({
@@ -153,8 +152,14 @@ useEffect(() => {
             expectedOutput: lesson.expectedOutput || null,
             dataTypesRequired: lesson.dataTypesRequired || [],
           };
+
           const { codeChecker } = await import("../utils/codeChecker");
-          const result = await codeChecker(whiteboard, codeArea, outputArea, activityMeta);
+          const result = await codeChecker(
+            whiteboard,
+            codeArea,
+            outputArea,
+            activityMeta
+          );
 
           outputArea.textContent = result.stdout || result.stderr || "/* No output */";
 
@@ -162,7 +167,7 @@ useEffect(() => {
             stopActivitySound();
             playSuccessSound();
             await markCompleted();
-            setCharacterImg(congratsImages[Math.floor(Math.random() * congratsImages.length)]);
+            setCharacterImg(getRandomImage(congratsImages));
             setShowCongratsModal(true);
           } else {
             playErrorSound();
@@ -173,11 +178,8 @@ useEffect(() => {
               notifText.push(`Missing objects: ${result.missingNodes.join(", ")}`);
             notification.textContent = notifText.join(" ");
             notification.style.display = "block";
-            setTimeout(() => {
-              notification.style.display = "none";
-            }, 5000);
+            setTimeout(() => (notification.style.display = "none"), 5000);
           }
-          
         } else {
           await runProgram(codeArea, outputArea);
         }
@@ -189,8 +191,8 @@ useEffect(() => {
         updateVariableState(whiteboard);
         updateCode(whiteboard, codeArea);
       });
-      observer.observe(whiteboard, { childList: true, subtree: true });
 
+      observer.observe(whiteboard, { childList: true, subtree: true });
       updateVariableState(whiteboard);
       updateCode(whiteboard, codeArea);
 
@@ -205,109 +207,99 @@ useEffect(() => {
     return cleanup;
   }, [lesson]);
 
-  // --- Mark item as completed ---
+  // --- Mark Completion ---
   const markCompleted = async () => {
-    if (!user?.id) return;
-
+    if (!user?._id) return;
     try {
       const token = localStorage.getItem("token");
+      const payload = { userId: user._id, lessonId };
       let endpoint = "";
-      const payload = { userId: user.id, lessonId };
 
-      switch (lesson?.type) {
-        case "lesson":
-          endpoint = "complete-material";
-          payload.materialId = itemId;
-          break;
-        case "activity":
-          endpoint = "complete-activity";
-          payload.activityId = itemId;
-          break;
-        case "assessment":
-          endpoint = "complete-assessment";
-          payload.assessmentId = itemId;
-          break;
-        default:
-          return;
+      if (lesson?.type === "lesson") {
+        endpoint = "complete-material";
+        payload.materialId = itemId;
+      } else if (lesson?.type === "activity") {
+        endpoint = "complete-activity";
+        payload.activityId = itemId;
+      } else if (lesson?.type === "assessment") {
+        endpoint = "complete-assessment";
+        payload.assessmentId = itemId;
       }
+
+      if (!endpoint) return;
 
       await axios.post(`http://localhost:5000/api/progress/${endpoint}`, payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
     } catch (err) {
-      console.error("❌ Error marking item as completed:", err);
+      console.error("❌ Error marking item completed:", err);
     }
   };
 
-// --- Lesson navigation ---
-const handleNextContent = async () => {
-  if (lesson?.type === "lesson" && lesson.currentContentIndex < lesson.contents.length) {
-    // Move to next lesson slide
-    setLesson((prev) => ({
-      ...prev,
-      currentContentIndex: prev.currentContentIndex + 1,
-    }));
-    return;
-  }
+  // --- Lesson Navigation ---
+  const handleNextContent = async () => {
+    if (lesson?.type === "lesson" && lesson.currentContentIndex < lesson.contents.length) {
+      setLesson((prev) => ({
+        ...prev,
+        currentContentIndex: prev.currentContentIndex + 1,
+      }));
+      setCharacterImg(getRandomImage(lessonImages));
+      return;
+    }
 
-  // --- Lesson finished ---
-  await markCompleted();
-  stopLessonSound();
+    // ✅ Lesson finished
+    await markCompleted();
+    stopLessonSound();
 
-  try {
-    const token = localStorage.getItem("token");
-    const headers = { Authorization: `Bearer ${token}` };
+    try {
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await axios.get(
+        `http://localhost:5000/api/activities/materials/${itemId}/activities`,
+        { headers }
+      );
 
-    // 🔍 Check if THIS specific material has activities
-    const activitiesRes = await axios.get(
-      `http://localhost:5000/api/activities/materials/${itemId}/activities`,
-      { headers }
-    );
-
-    const activities = Array.isArray(activitiesRes.data) ? activitiesRes.data : [];
-
-    if (activities.length > 0) {
-      // ✅ Material has activities → show the activity modal
-      setShowLessonModal(false);
-      setActivitySlide(0);
-      setCharacterImg("/assets/images/activity.png");
-      setActivityText(randomActivityText(0));
-      setShowActivityModal(true);
-
-      setTimeout(() => {
-        playActivitySound();
-      }, 300);
-    } else {
-      // 🚫 No activities → just go back to lesson list
+      const activities = Array.isArray(res.data) ? res.data : [];
+      if (activities.length > 0) {
+        setShowLessonModal(false);
+        setActivitySlide(0);
+        setCharacterImg("/assets/images/activity.png");
+        setActivityText(randomActivityText(0));
+        setShowActivityModal(true);
+        setTimeout(() => playActivitySound(), 300);
+      } else {
+        setShowLessonModal(false);
+        navigate(`/lessons/${lessonId}`);
+      }
+    } catch (err) {
+      console.error("❌ Error fetching activities:", err);
       setShowLessonModal(false);
       navigate(`/lessons/${lessonId}`);
     }
-  } catch (err) {
-    console.error("Error checking activities for this material:", err);
-    setShowLessonModal(false);
-    navigate(`/lessons/${lessonId}`);
-  }
-};
-
-
+  };
 
   const handlePreviousContent = () => {
     if (lesson?.type === "lesson" && lesson.currentContentIndex > 0) {
-      setLesson((prev) => ({ ...prev, currentContentIndex: prev.currentContentIndex - 1 }));
+      setLesson((prev) => ({
+        ...prev,
+        currentContentIndex: prev.currentContentIndex - 1,
+      }));
     }
   };
 
+  // --- Activity Transition ---
   const randomActivityText = (slide) => {
     const thinkingTexts = [
-      "So this activity will teach you how to do the topic. How do you think we can solve the problem?",
-      "Let's use what we learned! Can you figure out how to solve this activity?",
-      "Think about what we discussed earlier — how can we apply it here?",
+      "Let's see how we can apply what we just learned!",
+      "Can you figure out how to use what we discussed?",
+      "Try to think about how this concept can be used here!",
     ];
     const solvingTexts = [
-      "We can use the object to finish the activities (hint). Good luck!",
-      "Try applying what we learned — I know you can do it!",
-      "Use your skills to complete the challenge. Good luck!",
+      "Now it’s your turn — good luck!",
+      "Use the code blocks to finish the activity.",
+      "Let’s test your skills in this activity!",
     ];
+
     return slide === 0
       ? thinkingTexts[Math.floor(Math.random() * thinkingTexts.length)]
       : solvingTexts[Math.floor(Math.random() * solvingTexts.length)];
@@ -324,81 +316,69 @@ const handleNextContent = async () => {
     }
   };
 
+  // --- Proceed to Activity ---
   const handleProceedToActivity = async () => {
-    if (!user?.id) return;
+    console.log("🚀 Proceeding to activity:", { user, lessonId, itemId });
+    const userId = user?._id || user?.id;
+    if (!userId) {
+      console.warn("⚠️ No user ID found, aborting proceed.");
+      return;
+    }
 
     try {
       const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await axios.get(
+        `http://localhost:5000/api/activities/materials/${itemId}/activities`,
+        { headers }
+      );
 
-      // Fetch materials and activities
-      const [materialsRes] = await Promise.all([
-        axios.get(`http://localhost:5000/api/materials/lessons/${lessonId}/materials`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      ]);
-
-      const activitiesByMaterial = {};
-      for (const m of materialsRes.data) {
-        const activitiesRes = await axios.get(
-          `http://localhost:5000/api/activities/materials/${m._id}/activities`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        activitiesByMaterial[m._id] = activitiesRes.data || [];
-      }
-
-      // Find the first activity of the first material
-      let firstActivityId = null;
-      for (const m of materialsRes.data) {
-        if (activitiesByMaterial[m._id]?.length) {
-          firstActivityId = activitiesByMaterial[m._id][0]._id;
-          break;
-        }
-      }
-
-      if (firstActivityId) {
+      const activities = Array.isArray(res.data) ? res.data : [];
+      if (activities.length > 0) {
+        const firstActivity = activities[0];
         setShowActivityModal(false);
-        navigate(`/lessons/${lessonId}/${firstActivityId}`);
+        navigate(`/lessons/${lessonId}/${firstActivity._id}`);
       } else {
-        console.warn("No activities found for this lesson");
+        console.warn("⚠️ No activities found, returning to lesson list.");
         setShowActivityModal(false);
+        navigate(`/lessons/${lessonId}`);
       }
     } catch (err) {
-      console.error("Error fetching activities:", err);
+      console.error("❌ Error fetching activities:", err);
       setShowActivityModal(false);
+      navigate(`/lessons/${lessonId}`);
     }
   };
 
+  // --- Render Lesson Content ---
   const renderLessonContent = () => {
     if (!lesson || lesson.type !== "lesson") return null;
     if (lesson.currentContentIndex === 0)
       return <div dangerouslySetInnerHTML={{ __html: lesson.overview }} />;
     const index = lesson.currentContentIndex - 1;
-    return <div dangerouslySetInnerHTML={{ __html: lesson.contents[index] || "" }} />;
+    return (
+      <div dangerouslySetInnerHTML={{ __html: lesson.contents[index] || "" }} />
+    );
   };
 
-  if (loading) {
+
+  if (loading)
     return (
       <div className="d-flex justify-content-center align-items-center vh-100">
         <Spinner animation="border" variant="primary" />
       </div>
     );
-  }
 
-  if (!lesson) {
-    return <div className="text-center mt-5">Lesson / Activity / Assessment not found.</div>;
-  }
+  if (!lesson) return <div className="text-center mt-5">Lesson / Activity not found.</div>;
 
   const isLesson = lesson.type === "lesson";
   const actionButtonText = isLesson ? "▶ Run Program" : "Submit";
 
   return (
     <div className="dragboard-wrapper">
-      {/* Instructions for Activity/Assessment */}
+      {/* === Activity/Assessment Instructions === */}
       {(lesson.type === "activity" || lesson.type === "assessment") && (
-        <div
-          className="activity-instructions mb-3 p-3"
-          style={{ backgroundColor: "#FFF8F2", borderRadius: "8px" }}
-        >
+        <div className="activity-instructions mb-3 p-3" style={{ backgroundColor: "#FFF8F2", borderRadius: "8px" }}>
           <h5 style={{ color: "#00796B" }}>Instructions</h5>
           <p dangerouslySetInnerHTML={{ __html: lesson.instructions }} />
           {lesson.hints?.length > 0 && (
@@ -414,13 +394,7 @@ const handleNextContent = async () => {
           {lesson.expectedOutput && (
             <>
               <h6 style={{ color: "#E65100" }}>Expected Output:</h6>
-              <pre
-                style={{
-                  backgroundColor: "#f4f4f4",
-                  padding: "10px",
-                  borderRadius: "8px",
-                }}
-              >
+              <pre style={{ backgroundColor: "#f4f4f4", padding: "10px", borderRadius: "8px" }}>
                 {lesson.expectedOutput}
               </pre>
             </>
@@ -428,7 +402,7 @@ const handleNextContent = async () => {
         </div>
       )}
 
-      {/* Drag & Drop + Workspace */}
+      {/* === Drag & Drop + Workspace === */}
       <div className="main-container">
         <div className="draggable">
           <h3>Elements</h3>
@@ -474,8 +448,8 @@ const handleNextContent = async () => {
       </div>
 
       <div id="notification" className="notification" style={{ display: "none" }} />
-{/* Lesson Modal */}
-{isLesson && showLessonModal && (
+
+     {isLesson && showLessonModal && (
   <Modal
     style={{ position: "fixed", top: "70px" }}
     show={showLessonModal}
@@ -582,43 +556,40 @@ const handleNextContent = async () => {
   </Modal.Footer>
 </Modal>
 
-{/* Character Image */}
-{(showActivityModal || showCongratsModal || showLessonModal) && (
-  <div
-    style={{
-      position: "fixed",
-      bottom: "10px",
-      left: "20px",
-      zIndex: 1055,
-      display: "flex",
-      alignItems: "flex-end",
-      flexDirection: "column",
-    }}
-  >
-    <img
-      src={characterImg}
-      alt="Character"
-      style={{
-        position: "relative",
-        top: "90px",
-        width: "420px",
-        height: "auto",
-        userSelect: "none",
-        pointerEvents: "none",
-        zIndex: "10",
-        animation: "bounce 2s infinite ease-in-out",
-      }}
-    />
-  </div>
-)}
+      {/* === Character Avatar (Bottom Left) === */}
+      {(showLessonModal || showActivityModal || showCongratsModal) && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "10px",
+            left: "20px",
+            zIndex: 1055,
+            display: "flex",
+            alignItems: "flex-end",
+            flexDirection: "column",
+          }}
+        >
+          <img
+            src={characterImg}
+            alt="Character"
+            style={{
+              top: "90px",
+              width: "420px",
+              height: "auto",
+              userSelect: "none",
+              pointerEvents: "none",
+              animation: "bounce 2s infinite ease-in-out",
+            }}
+          />
+        </div>
+      )}
 
-<style>{`
-  @keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-  }
-
-  /* === Typing animation for lesson === */
+      <style>{`
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
+        }
+        /* === Typing animation for lesson === */
   .typing-container {
     display: inline-block;
     overflow: hidden;
@@ -654,8 +625,7 @@ const handleNextContent = async () => {
     0%, 50% { border-color: #333; }
     51%, 100% { border-color: transparent; }
   }
-`}</style>
-
+      `}</style>
     </div>
   );
 }

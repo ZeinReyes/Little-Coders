@@ -10,6 +10,7 @@ function HomePage() {
   const [showSplash, setShowSplash] = useState(true);
   const [animate, setAnimate] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const navigate = useNavigate(); // ✅ Add navigation hook
 
   // ✅ Show tutorial if onboarding is incomplete
   useEffect(() => {
@@ -27,6 +28,15 @@ function HomePage() {
       clearTimeout(hideTimer);
     };
   }, []);
+
+  // ✅ Handle Get Started button click
+  const handleGetStarted = () => {
+    if (user) {
+      navigate("/module-list");
+    } else {
+      navigate("/register");
+    }
+  };
 
   // ✅ Splash Screen Styles
   const splashContainer = {
@@ -255,7 +265,7 @@ function HomePage() {
           show={showTutorial}
           onClose={async () => {
             setShowTutorial(false);
-            if (user?._id) await refreshUser(user._id); // refresh user to update onboarding flag
+            if (user?._id) await refreshUser(user._id);
           }}
         />
       )}
@@ -308,7 +318,11 @@ function HomePage() {
               <p style={learningSubtitleStyle}>
                 Discover various fun learning programs for your 5 to 12-year-old children with our interactive coding lessons and visual activities.
               </p>
-              <button style={getStartedButton}>Get Started</button>
+
+              {/* ✅ Get Started Button (dynamic route) */}
+              <button style={getStartedButton} onClick={handleGetStarted}>
+                Get Started
+              </button>
             </div>
 
             <div style={imageContainer}>

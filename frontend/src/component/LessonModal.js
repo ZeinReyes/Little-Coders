@@ -95,7 +95,7 @@ export default function LessonModal({ lesson, show, onContinueToList }) {
     if (phase === "activity") return "Activity";
     return "🎉 Congratulations!";
   };
-
+  
   const getBody = () => {
     if (phase === "lesson") return renderLessonContent();
     if (phase === "activity")

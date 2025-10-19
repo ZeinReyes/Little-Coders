@@ -9,6 +9,7 @@ import { updateVariableState } from "../utils/state";
 import { runProgram } from "../utils/runner";
 import LoadingScreen from "./LoadingScreen";
 import TutorialModal from "./TutorialModal";
+import NavbarComponent from "./userNavbar";
 
 export default function DragBoard() {
   const [loading, setLoading] = useState(true);
@@ -115,6 +116,7 @@ export default function DragBoard() {
 
   return (
     <div>
+      <NavbarComponent />
       {/* ✅ Tutorial modal */}
       {showTutorial && (
         <TutorialModal
@@ -126,7 +128,7 @@ export default function DragBoard() {
         />
       )}
 
-      <div className="main-container">
+      <div style={{marginTop: "70px", height: "calc(100vh - 70px)"}} className="main-container">
         {/* ELEMENTS PANEL */}
         <div className="draggable">
           <h3>Elements</h3>
