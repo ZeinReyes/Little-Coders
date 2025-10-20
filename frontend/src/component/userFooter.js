@@ -29,11 +29,11 @@ const UserFooter = () => {
             </div>
             <div className="col-md-4 mb-3">
               <h5>Follow Us</h5>
-              <p>
-                <a href="#" className="text-white text-decoration-none me-2">Facebook</a>
-                <a href="#" className="text-white text-decoration-none me-2">Instagram</a>
-                <a href="#" className="text-white text-decoration-none">YouTube</a>
-              </p>
+              <div>
+                <a href="#" className="text-white text-decoration-none d-block mb-1">Facebook</a>
+                <a href="#" className="text-white text-decoration-none d-block mb-1">Instagram</a>
+                <a href="#" className="text-white text-decoration-none d-block">YouTube</a>
+              </div>
             </div>
           </div>
           <hr style={{ borderColor: "rgba(255,255,255,0.3)" }} />

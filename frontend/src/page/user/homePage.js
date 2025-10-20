@@ -299,12 +299,14 @@ function HomePage() {
             `}
           </style>
 
-          {/* ✅ Operator images */}
           <img src="/assets/images/add.png" style={{ ...operatorStyle("1%", "-1%", "160px", "10", 0.15) }} className="bounce" />
           <img src="/assets/images/subtract.png" style={{ ...operatorStyle("15%", "25%", "180px", "-10", 0.12) }} className="bounce" />
           <img src="/assets/images/divide.png" style={{ ...operatorStyle("70%", "1%", "160px", "20", 0.1) }} className="bounce" />
           <img src="/assets/images/multiply.png" style={{ ...operatorStyle("70%", "30%", "150px", "0", 0.15) }} className="bounce" />
-
+          <img src="/assets/images/greaterthan.png" style={{ ...operatorStyle("15%", "65%", "180px", "-10", 0.15), animationDelay: "1.2s" }} className="bounce" />
+          <img src="/assets/images/lessthan.png" style={{ ...operatorStyle("3%", "87%", "160px", "20", 0.12), animationDelay: "1.5s" }} className="bounce" />
+          <img src="/assets/images/!.png" style={{ ...operatorStyle("55%", "63%", "160px", "-20", 0.1), animationDelay: "1.8s" }} className="bounce" />
+          <img src="/assets/images/diamond.png" style={{ ...operatorStyle("75%", "90%", "150px", "15", 0.12), animationDelay: "2.1s" }} className="bounce" />
           <div style={contentContainer}>
             <div style={imageContainer}>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 300" style={blobStyle}>
