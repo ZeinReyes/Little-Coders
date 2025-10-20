@@ -88,7 +88,6 @@ export const markAssessmentCompleted = async (req, res) => {
   }
 };
 
-// --- Record a single final attempt for a question ---
 export const markAssessmentAttempt = async (req, res) => {
   try {
     const { userId, lessonId, assessmentId, questionId, timeSeconds, totalAttempts, correct } = req.body;
@@ -97,30 +96,115 @@ export const markAssessmentAttempt = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const progress = await UserLessonProgress.findOne({ userId, lessonId }) || new UserLessonProgress({ userId, lessonId });
+    // ✅ Find existing progress or create a new one
+    let progress = await UserLessonProgress.findOne({ userId, lessonId });
+    if (!progress) {
+      progress = new UserLessonProgress({ userId, lessonId });
+    }
 
-    // Check if this question attempt already exists
+    // ✅ Check if this question already exists in attempts
     const existingIndex = progress.assessmentAttempts.findIndex(
-      (a) => a.assessmentId.toString() === assessmentId && a.questionId.toString() === questionId
+      (a) =>
+        a.assessmentId.toString() === assessmentId &&
+        a.questionId.toString() === questionId
     );
 
-    const attemptData = { assessmentId, questionId, timeSeconds, totalAttempts, correct, attemptedAt: new Date() };
+    const attemptData = {
+      assessmentId,
+      questionId,
+      timeSeconds: timeSeconds ?? 0,
+      totalAttempts: totalAttempts ?? 1,
+      correct: correct ?? false,
+      attemptedAt: new Date(),
+    };
 
     if (existingIndex >= 0) {
-      // Replace previous attempt with the final successful one
-      progress.assessmentAttempts[existingIndex] = attemptData;
+      // ✅ Update existing attempt instead of replacing
+      const existingAttempt = progress.assessmentAttempts[existingIndex];
+      existingAttempt.totalAttempts += 1; // add to total attempts
+      existingAttempt.timeSeconds += attemptData.timeSeconds; // add time spent
+      existingAttempt.correct = correct ? true : existingAttempt.correct; // stay true if once correct
+      existingAttempt.attemptedAt = new Date(); // update last attempt time
     } else {
+      // 🆕 First attempt on this question
       progress.assessmentAttempts.push(attemptData);
     }
 
     await progress.save();
 
-    res.status(200).json({ message: "Assessment attempt recorded", progress });
+    res.status(200).json({
+      message: "Assessment attempt updated successfully",
+      progress,
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error recording assessment attempt", error: err.message });
+    console.error("❌ Error recording assessment attempt:", err);
+    res.status(500).json({
+      message: "Error recording assessment attempt",
+      error: err.message,
+    });
   }
 };
+
+export const markActivityAttempt = async (req, res) => {
+  try {
+    const { userId, lessonId, activityId, timeSeconds, totalAttempts, correct } = req.body;
+
+    if (!userId || !lessonId || !activityId) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    // ✅ Ensure IDs are treated consistently as strings
+    const userIdStr = userId.toString();
+    const lessonIdStr = lessonId.toString();
+    const activityIdStr = activityId.toString();
+
+    // ✅ Find or create progress for this user + lesson
+    let progress = await UserLessonProgress.findOne({ userId: userIdStr, lessonId: lessonIdStr });
+
+    if (!progress) {
+      progress = new UserLessonProgress({ userId: userIdStr, lessonId: lessonIdStr, activityAttempts: [] });
+    }
+
+    // ✅ Check if this activity already exists
+    const existingIndex = progress.activityAttempts.findIndex(
+      (a) => a.activityId.toString() === activityIdStr
+    );
+
+    const attemptData = {
+      activityId: activityIdStr,
+      timeSeconds: timeSeconds ?? 0,
+      totalAttempts: totalAttempts ?? 1,
+      correct: correct ?? false,
+      attemptedAt: new Date(),
+    };
+
+    if (existingIndex >= 0) {
+      // ✅ Update existing attempt instead of duplicating
+      const existingAttempt = progress.activityAttempts[existingIndex];
+      existingAttempt.totalAttempts += 1; // increment attempts
+      existingAttempt.timeSeconds += attemptData.timeSeconds; // accumulate time
+      existingAttempt.correct = existingAttempt.correct || correct; // once correct, stays correct
+      existingAttempt.attemptedAt = new Date();
+    } else {
+      // 🆕 First time attempting this activity
+      progress.activityAttempts.push(attemptData);
+    }
+
+    await progress.save();
+
+    res.status(200).json({
+      message: "Activity attempt updated successfully",
+      progress,
+    });
+  } catch (err) {
+    console.error("❌ Error recording activity attempt:", err);
+    res.status(500).json({
+      message: "Error recording activity attempt",
+      error: err.message,
+    });
+  }
+};
+
 
 // --- Get lesson progress ---
 export const getLessonProgress = async (req, res) => {

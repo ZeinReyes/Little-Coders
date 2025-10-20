@@ -66,6 +66,18 @@ export default function DragBoardLesson() {
   }
 }, [assessment, questions]);
 
+// --- Activity-specific state ---
+const [activityAttempts, setActivityAttempts] = useState(0);
+const [currentActivityStartTime, setCurrentActivityStartTime] = useState(Date.now());
+// --- Start timer when activity modal opens ---
+useEffect(() => {
+  if (showActivityModal) {
+    setCurrentActivityStartTime(Date.now());
+    setActivityAttempts(0);
+  }
+}, [showActivityModal]);
+
+
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
 
@@ -185,11 +197,14 @@ export default function DragBoardLesson() {
         notification,
       });
 
-      const onRun = async () => {
+// ------------------ HANDLE ASSESSMENT ------------------
+const handleAssessmentRun = async () => {
   if (!lesson) return;
-
   const question = lesson.questions[currentQuestionIndex];
   if (!question) return;
+
+  const token = localStorage.getItem("token");
+  const notification = document.getElementById("notification");
 
   const questionMeta = {
     expectedOutput: question.expectedOutput || null,
@@ -200,8 +215,8 @@ export default function DragBoardLesson() {
   outputArea.textContent = result.stdout || result.stderr || "/* No output */";
 
   const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
-  const token = localStorage.getItem("token");
   const attempts = assessmentAttempts + 1;
+  setAssessmentAttempts(attempts);
 
   if (question.completed) {
     notification.textContent = "✅ Question already completed!";
@@ -210,13 +225,13 @@ export default function DragBoardLesson() {
     return;
   }
 
+  // Save attempt
   try {
-    // Send attempt to backend
     await axios.post(
       `http://localhost:5000/api/progress/mark-assessment-attempt`,
       {
         assessmentId: lesson._id || lesson.id,
-        lessonId: lessonId,
+        lessonId,
         questionId: question._id,
         userId: user._id || user.id,
         timeSeconds: timeTaken,
@@ -226,22 +241,16 @@ export default function DragBoardLesson() {
       { headers: { Authorization: `Bearer ${token}` } }
     );
   } catch (err) {
-    console.error("❌ Failed to submit attempt:", err.response?.data || err.message);
+    console.error("❌ Failed to submit assessment attempt:", err.response?.data || err.message);
   }
 
   if (result.passedAll) {
     playSuccessSound();
-
-    // Mark question as completed locally
     lesson.questions[currentQuestionIndex].completed = true;
-
-    // ✅ Complete the entire assessment immediately
     await markCompleted();
     stopActivitySound();
     setCharacterImg(getRandomImage(congratsImages));
     setShowCongratsModal(true);
-
-    // Reset attempts
     setAssessmentAttempts(0);
   } else {
     playErrorSound();
@@ -254,8 +263,6 @@ export default function DragBoardLesson() {
     notification.style.display = "block";
     setTimeout(() => (notification.style.display = "none"), 5000);
 
-    // Track attempts for hints/modal
-    setAssessmentAttempts(attempts);
     if (attempts >= 3) {
       setAssessmentAnswer({
         expectedOutput: question.expectedOutput,
@@ -265,6 +272,115 @@ export default function DragBoardLesson() {
     }
   }
 };
+
+// ------------------ HANDLE ACTIVITY ------------------
+const handleActivityRun = async () => {
+  if (!lesson) return;
+
+  console.log("🚀 handleActivityRun started");
+
+  const token = localStorage.getItem("token");
+  const notification = document.getElementById("notification");
+
+  const activityMeta = {
+    expectedOutput: lesson.expectedOutput || null,
+    dataTypesRequired: lesson.dataTypesRequired || [],
+  };
+
+  console.log("📌 lesson.expectedOutput:", lesson.expectedOutput);
+  console.log("📌 lesson.dataTypesRequired:", lesson.dataTypesRequired);
+
+  // Run codeChecker
+  console.log("⚡ Running codeChecker...");
+  const result = await codeChecker(whiteboard, codeArea, outputArea, activityMeta);
+  console.log("✅ codeChecker finished", result);
+  outputArea.textContent = result.stdout || result.stderr || "/* No output */";
+
+  const timeTaken = Math.floor((Date.now() - currentActivityStartTime) / 1000);
+
+  // Update attempts using functional state update
+  setActivityAttempts(prev => {
+    const attempts = prev + 1;
+    console.log("🕒 Time taken:", timeTaken + "s", "Attempts:", attempts);
+
+    // Show notification if failed
+    const notifText = [];
+    if (lesson.expectedOutput && !result.passedOutput)
+      notifText.push("Output does not match expected.");
+    if (!result.passedNodes)
+      notifText.push(`Missing objects: ${result.missingNodes?.join(", ")}`);
+    if (notifText.length) {
+      notification.textContent = notifText.join(" ");
+      notification.style.display = "block";
+      setTimeout(() => (notification.style.display = "none"), 5000);
+    }
+
+    // Save attempt if passed OR after 3 attempts
+    if (result.passedAll || attempts >= 3) {
+      // Always record attempt (backend will handle updating)
+console.log("💾 Saving attempt to database...");
+axios.post(
+  `http://localhost:5000/api/progress/mark-activity-attempt`,
+  {
+    activityId: lesson._id || lesson.id,
+    lessonId,
+    userId: user._id || user.id,
+    timeSeconds: timeTaken,
+    totalAttempts: attempts,
+    correct: result.passedAll,
+    attemptTime: Date.now(),
+  },
+  { headers: { Authorization: `Bearer ${token}` } }
+)
+.then(() => console.log("✅ Attempt saved/updated"))
+.catch(err => console.error("❌ Failed to save attempt:", err.response?.data || err.message));
+
+    }
+
+    // Success case
+    if (result.passedAll) {
+      playSuccessSound();
+      markCompleted()
+        .then(() => console.log("✅ Activity marked completed"))
+        .catch(err => console.error(err));
+      stopActivitySound();
+      setCharacterImg(getRandomImage(congratsImages));
+      setShowCongratsModal(true);
+      return 0; // reset attempts on success
+    }
+
+    // Failed case, show modal after 3 failed attempts
+    if (!result.passedAll && attempts >= 3) {
+      console.log("⚠️ Activity failed, showing answer modal");
+      setAssessmentAnswer({
+        expectedOutput: lesson.expectedOutput,
+        dataTypesRequired: lesson.dataTypesRequired,
+      });
+      setShowAnswerModal(true);
+    } else {
+      console.log("⚠️ Activity failed");
+      playErrorSound();
+    }
+
+    return attempts; // keep updated attempts
+  });
+
+  console.log("🚀 handleActivityRun finished");
+};
+
+
+// ------------------ MAIN ONRUN ------------------
+const onRun = async () => {
+  if (!lesson) return;
+
+  if (lesson.type === "assessment") {
+    await handleAssessmentRun();
+  } else if (lesson.type === "activity") {
+    await handleActivityRun();
+  }
+};
+
+
 
       runButton.addEventListener("click", onRun);
 
