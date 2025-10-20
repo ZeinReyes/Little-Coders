@@ -132,9 +132,31 @@ function LessonList() {
     }
   }, [lessonId, user, userLoading]);
 
-  const handleItemClick = (item) => {
-    navigate(`/lessons/${lessonId}/${item._id || item.id}`);
-  };
+ const handleItemClick = async (item) => {
+  const itemId = item._id || item.id;
+  if (!itemId) return;
+
+  if (item.type === "assessment") {
+    const token = localStorage.getItem("token");
+    const res = await axios.get(
+      `http://localhost:5000/api/assessments/${itemId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const assessment = res.data;
+
+    // Shuffle questions ONCE
+    const shuffledQuestions = [...assessment.questions].sort(() => Math.random() - 0.5);
+
+    // Navigate and pass assessment + shuffled questions in state
+    navigate(`/lessons/${lessonId}/${itemId}`, {
+      state: { assessment, questions: shuffledQuestions },
+    });
+  } else {
+    navigate(`/lessons/${lessonId}/${itemId}`);
+  }
+};
+
+
 
   if (userLoading || loadingData) {
     console.log("⏳ Still loading...");

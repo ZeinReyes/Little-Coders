@@ -1,5 +1,6 @@
 // src/pages/DragBoardLesson.js
 import React, { useEffect, useState, useContext } from "react";
+import { useLocation } from "react-router-dom";
 import "./DragBoard.css";
 import axios from "axios";
 import { Modal, Button, Spinner } from "react-bootstrap";
@@ -51,6 +52,16 @@ export default function DragBoardLesson() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
 
+   const location = useLocation();
+  const { assessment, questions } = location.state || {};
+
+  useEffect(() => {
+    if (assessment) {
+      setLesson({ ...assessment, type: "assessment", questions });
+      setCurrentQuestionIndex(0);
+    }
+  }, [assessment, questions]);
+
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
 
@@ -84,49 +95,68 @@ export default function DragBoardLesson() {
 
   // --- Fetch Lesson / Activity / Assessment ---
   useEffect(() => {
-    const fetchLessonOrActivity = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-        const res =
-          (await axios
-            .get(
-              `http://localhost:5000/api/materials/lessons/${lessonId}/materials/${itemId}`,
-              { headers }
-            )
-            .then((r) => ({ ...r.data, type: "lesson" }))
-            .catch(async () =>
-              axios
-                .get(
-                  `http://localhost:5000/api/assessments/lessons/${lessonId}/assessments/${itemId}`,
-                  { headers }
-                )
-                .then((r) => ({ ...r.data, _id: r.data.id, type: "assessment" }))
-                .catch(() =>
-                  axios
-                    .get(
-                      `http://localhost:5000/api/activities/lessons/${lessonId}/activities/${itemId}`,
-                      { headers }
-                    )
-                    .then((r) => ({ ...r.data, type: "activity" }))
-                )
-            )) || null;
-
-        setLesson({
-          ...res,
-          currentContentIndex: res.type === "lesson" ? 0 : null,
-        });
-
-        if (res.type === "lesson") setCharacterImg(getRandomImage(lessonImages));
-      } catch (err) {
-        console.error("❌ Error fetching content:", err);
-      } finally {
+  const fetchLessonOrActivity = async () => {
+    try {
+      // If assessment is already passed from navigation state, skip fetching
+      if (assessment && questions) {
+        setLesson({ ...assessment, type: "assessment", questions });
+        setCurrentQuestionIndex(0);
         setLoading(false);
+        return;
       }
-    };
-    fetchLessonOrActivity();
-  }, [itemId, lessonId]);
+
+      const token = localStorage.getItem("token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const res =
+        (await axios
+          .get(
+            `http://localhost:5000/api/materials/lessons/${lessonId}/materials/${itemId}`,
+            { headers }
+          )
+          .then((r) => ({ ...r.data, type: "lesson" }))
+          .catch(async () =>
+            axios
+              .get(
+                `http://localhost:5000/api/assessments/lessons/${lessonId}/assessments/${itemId}`,
+                { headers }
+              )
+              .then((r) => {
+                const assessment = { ...r.data, _id: r.data.id, type: "assessment" };
+
+                // Shuffle questions only if not already set
+                if (assessment.questions?.length > 0) {
+                  assessment.questions = [...assessment.questions].sort(() => Math.random() - 0.5);
+                }
+
+                return assessment;
+              })
+              .catch(() =>
+                axios
+                  .get(
+                    `http://localhost:5000/api/activities/lessons/${lessonId}/activities/${itemId}`,
+                    { headers }
+                  )
+                  .then((r) => ({ ...r.data, type: "activity" }))
+              )
+          )) || null;
+
+      setLesson({
+        ...res,
+        currentContentIndex: res.type === "lesson" ? 0 : null,
+      });
+
+      if (res.type === "lesson") setCharacterImg(getRandomImage(lessonImages));
+    } catch (err) {
+      console.error("❌ Error fetching content:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchLessonOrActivity();
+}, [itemId, lessonId, assessment, questions]);
+
 
   // --- Initialize drag & drop ---
   useEffect(() => {
