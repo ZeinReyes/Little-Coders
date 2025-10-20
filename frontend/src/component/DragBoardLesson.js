@@ -11,6 +11,7 @@ import { initDragAndDrop } from "../utils/dragAndDrop";
 import { updateCode } from "../utils/codeGen";
 import { updateVariableState } from "../utils/state";
 import { runProgram } from "../utils/runner";
+import {codeChecker} from "../utils/codeChecker"
 import {
   playLessonSound,
   stopLessonSound,
@@ -56,11 +57,14 @@ export default function DragBoardLesson() {
   const { assessment, questions } = location.state || {};
 
   useEffect(() => {
-    if (assessment) {
-      setLesson({ ...assessment, type: "assessment", questions });
-      setCurrentQuestionIndex(0);
-    }
-  }, [assessment, questions]);
+  if (assessment && questions) {
+    // Shuffle questions
+    const shuffled = [...questions].sort(() => Math.random() - 0.5);
+    setLesson({ ...assessment, type: "assessment", questions: shuffled });
+    setCurrentQuestionIndex(0);
+    setAssessmentAttempts(0);
+  }
+}, [assessment, questions]);
 
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
@@ -182,123 +186,85 @@ export default function DragBoardLesson() {
       });
 
       const onRun = async () => {
-        if (!lesson) return;
-        const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
-const attempts = assessmentAttempts + 1; // increment attempts
+  if (!lesson) return;
 
-        const { codeChecker } = await import("../utils/codeChecker");
+  const question = lesson.questions[currentQuestionIndex];
+  if (!question) return;
 
-        // --- Activity ---
-        if (lesson.type === "activity") {
-          const activityMeta = {
-            expectedOutput: lesson.expectedOutput || null,
-            dataTypesRequired: lesson.dataTypesRequired || [],
-          };
-          const result = await codeChecker(whiteboard, codeArea, outputArea, activityMeta);
-          outputArea.textContent = result.stdout || result.stderr || "/* No output */";
+  const questionMeta = {
+    expectedOutput: question.expectedOutput || null,
+    dataTypesRequired: question.dataTypesRequired || [],
+  };
 
-          if (result.passedAll) {
-            stopActivitySound();
-            playSuccessSound();
-            await markCompleted();
-            setCharacterImg(getRandomImage(congratsImages));
-            setShowCongratsModal(true);
-          } else {
-            playErrorSound();
-            const notifText = [];
-            if (lesson.expectedOutput && !result.passedOutput)
-              notifText.push("Output does not match expected.");
-            if (!result.passedNodes)
-              notifText.push(`Missing objects: ${result.missingNodes.join(", ")}`);
-            notification.textContent = notifText.join(" ");
-            notification.style.display = "block";
-            setTimeout(() => (notification.style.display = "none"), 5000);
-          }
-        }
+  const result = await codeChecker(whiteboard, codeArea, outputArea, questionMeta);
+  outputArea.textContent = result.stdout || result.stderr || "/* No output */";
 
-        // --- Assessment ---
-        if (lesson.type === "assessment") {
-          const question = lesson.questions[currentQuestionIndex];
-          if (!question) return;
+  const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
+  const token = localStorage.getItem("token");
+  const attempts = assessmentAttempts + 1;
 
-          const questionMeta = {
-            expectedOutput: question.expectedOutput || null,
-            dataTypesRequired: question.dataTypesRequired || [],
-          };
+  if (question.completed) {
+    notification.textContent = "✅ Question already completed!";
+    notification.style.display = "block";
+    setTimeout(() => (notification.style.display = "none"), 3000);
+    return;
+  }
 
-          const result = await codeChecker(whiteboard, codeArea, outputArea, questionMeta);
-          outputArea.textContent = result.stdout || result.stderr || "/* No output */";
+  try {
+    // Send attempt to backend
+    await axios.post(
+      `http://localhost:5000/api/progress/mark-assessment-attempt`,
+      {
+        assessmentId: lesson._id || lesson.id,
+        lessonId: lessonId,
+        questionId: question._id,
+        userId: user._id || user.id,
+        timeSeconds: timeTaken,
+        totalAttempts: attempts,
+        correct: result.passedAll,
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+  } catch (err) {
+    console.error("❌ Failed to submit attempt:", err.response?.data || err.message);
+  }
 
-          const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
+  if (result.passedAll) {
+    playSuccessSound();
 
-          // --- Send attempt to backend ---
-          const token = localStorage.getItem("token");
-          console.log("Submitting attempt:", {
-            assessmentId: lesson._id,
-            questionId: question._id,
-            userId: user._id,
-            timeSeconds: timeTaken,
-            correct: result.passedAll,
-          });
+    // Mark question as completed locally
+    lesson.questions[currentQuestionIndex].completed = true;
 
-          await axios.post(
-            `http://localhost:5000/api/progress/mark-assessment-attempt`,
-            {
-              assessmentId: lesson._id,
-              lessonId: lessonId,
-              questionId: question._id,
-              userId: user._id,
-              timeSeconds: timeTaken,
-               totalAttempts: attempts,
-              correct: result.passedAll,
-            },
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
+    // ✅ Complete the entire assessment immediately
+    await markCompleted();
+    stopActivitySound();
+    setCharacterImg(getRandomImage(congratsImages));
+    setShowCongratsModal(true);
 
-          if (result.passedAll) {
-            playSuccessSound();
-            if (currentQuestionIndex + 1 < lesson.questions.length) {
-              setCurrentQuestionIndex(currentQuestionIndex + 1);
-              setAssessmentAttempts(0);
-              setQuestionStartTime(Date.now());
-              notification.textContent = "✅ Correct! Proceed to next question.";
-              notification.style.display = "block";
-              setTimeout(() => (notification.style.display = "none"), 3000);
-            } else {
-              stopActivitySound();
-              playSuccessSound();
-              await markCompleted();
-              setCharacterImg(getRandomImage(congratsImages));
-              setShowCongratsModal(true);
-            }
-          } else {
-            playErrorSound();
-            const notifText = [];
-            if (question.expectedOutput && !result.passedOutput)
-              notifText.push("Output does not match expected.");
-            if (!result.passedNodes)
-              notifText.push(`Missing objects: ${result.missingNodes.join(", ")}`);
-            notification.textContent = notifText.join(" ");
-            notification.style.display = "block";
-            setTimeout(() => (notification.style.display = "none"), 5000);
+    // Reset attempts
+    setAssessmentAttempts(0);
+  } else {
+    playErrorSound();
+    const notifText = [];
+    if (question.expectedOutput && !result.passedOutput)
+      notifText.push("Output does not match expected.");
+    if (!result.passedNodes)
+      notifText.push(`Missing objects: ${result.missingNodes.join(", ")}`);
+    notification.textContent = notifText.join(" ");
+    notification.style.display = "block";
+    setTimeout(() => (notification.style.display = "none"), 5000);
 
-            const attempts = assessmentAttempts + 1;
-            setAssessmentAttempts(attempts);
-            if (attempts >= 3) {
-              setAssessmentAnswer({
-                expectedOutput: question.expectedOutput,
-                dataTypesRequired: question.dataTypesRequired,
-              });
-              setShowAnswerModal(true);
-            }
-          }
-        }
-
-        // --- Lesson ---
-        if (lesson.type === "lesson") {
-          await runProgram(codeArea, outputArea);
-        }
-      };
+    // Track attempts for hints/modal
+    setAssessmentAttempts(attempts);
+    if (attempts >= 3) {
+      setAssessmentAnswer({
+        expectedOutput: question.expectedOutput,
+        dataTypesRequired: question.dataTypesRequired,
+      });
+      setShowAnswerModal(true);
+    }
+  }
+};
 
       runButton.addEventListener("click", onRun);
 
