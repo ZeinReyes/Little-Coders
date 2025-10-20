@@ -90,7 +90,16 @@ export const markAssessmentCompleted = async (req, res) => {
 
 export const markAssessmentAttempt = async (req, res) => {
   try {
-    const { userId, lessonId, assessmentId, questionId, timeSeconds, totalAttempts, correct } = req.body;
+    const { 
+      userId, 
+      lessonId, 
+      assessmentId, 
+      questionId, 
+      timeSeconds, 
+      totalAttempts, 
+      correct, 
+      difficulty // ✅ NEW FIELD
+    } = req.body;
 
     if (!userId || !lessonId || !assessmentId || !questionId) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -115,25 +124,27 @@ export const markAssessmentAttempt = async (req, res) => {
       timeSeconds: timeSeconds ?? 0,
       totalAttempts: totalAttempts ?? 1,
       correct: correct ?? false,
+      difficulty: difficulty || "easy", // ✅ Save difficulty
       attemptedAt: new Date(),
     };
 
     if (existingIndex >= 0) {
-      // ✅ Update existing attempt instead of replacing
+      // ✅ Update existing attempt (accumulate attempts + time)
       const existingAttempt = progress.assessmentAttempts[existingIndex];
-      existingAttempt.totalAttempts += 1; // add to total attempts
-      existingAttempt.timeSeconds += attemptData.timeSeconds; // add time spent
-      existingAttempt.correct = correct ? true : existingAttempt.correct; // stay true if once correct
-      existingAttempt.attemptedAt = new Date(); // update last attempt time
+      existingAttempt.totalAttempts += 1;
+      existingAttempt.timeSeconds += attemptData.timeSeconds;
+      existingAttempt.correct = existingAttempt.correct || correct;
+      existingAttempt.difficulty = difficulty || existingAttempt.difficulty; // keep or update difficulty
+      existingAttempt.attemptedAt = new Date();
     } else {
-      // 🆕 First attempt on this question
+      // 🆕 First time attempting this question
       progress.assessmentAttempts.push(attemptData);
     }
 
     await progress.save();
 
     res.status(200).json({
-      message: "Assessment attempt updated successfully",
+      message: "Assessment attempt recorded successfully",
       progress,
     });
   } catch (err) {

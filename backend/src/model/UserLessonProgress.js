@@ -54,18 +54,23 @@ const UserLessonProgressSchema = new mongoose.Schema(
 
     // --- Assessment Attempts ---
     assessmentAttempts: [
-      {
-        assessmentId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Assessment",
-        },
-        questionId: { type: mongoose.Schema.Types.ObjectId },
-        timeSeconds: { type: Number, default: 0 },
-        totalAttempts: { type: Number, default: 1 },
-        correct: { type: Boolean, default: false },
-        attemptedAt: { type: Date, default: Date.now },
+    {
+      assessmentId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Assessment",
       },
-    ],
+      questionId: { type: mongoose.Schema.Types.ObjectId },
+      difficulty: {
+        type: String,
+        enum: ["Easy", "Medium", "Hard"],
+        default: "Easy",
+      },
+      timeSeconds: { type: Number, default: 0 },
+      totalAttempts: { type: Number, default: 1 },
+      correct: { type: Boolean, default: false },
+      attemptedAt: { type: Date, default: Date.now },
+    },
+  ],
 
     // --- Progress ---
     isLessonCompleted: { type: Boolean, default: false },

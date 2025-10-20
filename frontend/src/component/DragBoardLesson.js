@@ -237,6 +237,8 @@ const handleAssessmentRun = async () => {
         timeSeconds: timeTaken,
         totalAttempts: attempts,
         correct: result.passedAll,
+        difficulty:
+        question.difficulty?.charAt(0).toUpperCase() + question.difficulty.slice(1).toLowerCase() || "Easy",
       },
       { headers: { Authorization: `Bearer ${token}` } }
     );
