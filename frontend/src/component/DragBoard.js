@@ -149,6 +149,8 @@ export default function DragBoard() {
             <img src="/assets/images/elif.png" data-type="elif" draggable="true" alt="Elif" />
             <img src="/assets/images/else.png" data-type="else" draggable="true" alt="Else" />
             <img src="/assets/images/while.png" data-type="while" draggable="true" alt="While" />
+            <img src="/assets/images/do_while.png" data-type="do-while" draggable="true" alt="Do While Loop" />
+            <img src="/assets/images/for.png" data-type="for" draggable="true" alt="For Loop" />
           </div>
         </div>
 

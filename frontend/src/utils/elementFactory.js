@@ -29,13 +29,18 @@ export function createElement(type, whiteboard, codeArea, dimOverlay) {
     case 'print':
       return createPrintNode(whiteboard, codeArea, dimOverlay);
 
+    // 🌀 Loops
     case 'while':
       return createLoopNode('while', whiteboard, codeArea, dimOverlay);
 
-    case 'dowhile':
-    case 'doWhile': // support both naming styles
-      return createLoopNode('doWhile', whiteboard, codeArea, dimOverlay);
-    
+    case 'for':
+      return createLoopNode('for', whiteboard, codeArea, dimOverlay);
+
+    case 'do-while':
+    case 'dowhile': // support both naming styles
+    case 'doWhile':
+      return createLoopNode('do-while', whiteboard, codeArea, dimOverlay);
+
     default:
       console.warn(`Unknown element type: ${type}`);
       return null;
