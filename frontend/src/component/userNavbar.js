@@ -146,7 +146,7 @@ const NavbarComponent = () => {
               aria-labelledby="userMenu"
             >
               <li>
-                <Link className="dropdown-item" to="/edit-profile">
+                <Link className="dropdown-item" to={`/edit-profile/${user._id}`}>
                   Edit Profile
                 </Link>
               </li>

@@ -15,6 +15,8 @@ import ModuleList from "./page/user/moduleList";
 import LessonList from "./page/user/lessonList";
 import DragBoard from "./component/DragBoard";
 import DragBoardLesson from "./component/DragBoardLesson";
+import ContactPage from "./page/user/contactPage";
+import EditProfile from "./page/user/editProfile";
 
 // Admin
 import AdminPage from "./page/admin/adminPage";
@@ -66,7 +68,9 @@ function App() {
       <Route path="/reset-password/:token" element={<ResetPassword />} />
 
       {/* 🟢 Home is now public — accessible by everyone */}
+      <Route path="/contact" element={<ContactPage />} />
       <Route path="/home" element={<HomePage />} />
+      <Route path="/edit-profile/:_id" element={<EditProfile />} />
 
       {/* User-protected routes */}
       <Route

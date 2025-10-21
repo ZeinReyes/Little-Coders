@@ -124,18 +124,27 @@ export const addUser = async (req, res) => {
 // ==============================
 export const updateUser = async (req, res) => {
   try {
-    const { name, email, role } = req.body;
+    const { name, email, role, password } = req.body;
 
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: "User not found" });
 
+    // Update name, email, and role if provided
     user.name = name || user.name;
     user.email = email || user.email;
     user.role = role || user.role;
 
+    // ✅ If password is provided, hash and update it
+    if (password && password.trim() !== "") {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(password, salt);
+    }
+
     await user.save();
+
     res.json({ message: "User updated successfully" });
   } catch (err) {
+    console.error("Error updating user:", err);
     res.status(500).json({ error: "Server error" });
   }
 };
