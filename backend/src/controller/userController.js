@@ -129,16 +129,22 @@ export const updateUser = async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    // Update name, email, and role if provided
+    // ✅ Prevent double-hashing: only hash if the new password is not already hashed
+    if (password && password.trim() !== "") {
+      const isAlreadyHashed = password.startsWith("$2b$") || password.startsWith("$2a$");
+
+      if (!isAlreadyHashed) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(password, salt);
+      } else {
+        user.password = password; // already hashed (unlikely, but safe guard)
+      }
+    }
+
+    // Update other fields
     user.name = name || user.name;
     user.email = email || user.email;
     user.role = role || user.role;
-
-    // ✅ If password is provided, hash and update it
-    if (password && password.trim() !== "") {
-      const salt = await bcrypt.genSalt(10);
-      user.password = await bcrypt.hash(password, salt);
-    }
 
     await user.save();
 

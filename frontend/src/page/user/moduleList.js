@@ -7,6 +7,7 @@ import "./moduleList.css";
 import UserFooter from "../../component/userFooter";
 import TutorialModal from "../../component/TutorialModal";
 import { AuthContext } from "../../context/authContext";
+import LoadingScreen from "../../component/LoadingScreen"
 
 function ModuleList() {
   const { user, refreshUser, loading: userLoading } = useContext(AuthContext); // ✅ renamed
@@ -14,6 +15,16 @@ function ModuleList() {
   const [loadingModules, setLoadingModules] = useState(true);
   const [showTutorial, setShowTutorial] = useState(false);
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [fadeOut, setFadeOut] = useState(false);
+
+   useEffect(() => {
+    const timer = setTimeout(() => {
+      setFadeOut(true);
+      setTimeout(() => setLoading(false), 500);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // ✅ Show tutorial only if user hasn't completed onboarding
   useEffect(() => {
@@ -51,14 +62,7 @@ function ModuleList() {
     { src: "/assets/images/diamond.png", top: "40%", left: "35%", rotate: "20deg" },
   ];
 
-  if (loadingModules) {
-    return (
-      <div className="d-flex justify-content-center align-items-center vh-100">
-        <Spinner animation="border" variant="warning" />
-      </div>
-    );
-  }
-
+  if (loading) return <LoadingScreen fadeOut={fadeOut} />;
   return (
     <>
       <NavbarComponent />
