@@ -37,6 +37,11 @@ function Login() {
     <img className='cloud-right' src='/assets/images/cloud.png' />
     <img className='cloud-right1' src='/assets/images/cloud.png' />
 
+    <img className='cloud-left clone' src='/assets/images/cloud.png' />
+    <img className='cloud-right clone' src='/assets/images/cloud.png' />
+    <img className='cloud-right1 clone' src='/assets/images/cloud.png' />
+    <div className="balloon clone"></div>
+
       {/* 🎨 Branding with curve text + logo */}
       <div className="branding">
         <svg viewBox="0 0 500 150" className="curve-text">
