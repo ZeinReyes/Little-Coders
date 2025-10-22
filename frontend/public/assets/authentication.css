@@ -1,132 +1,259 @@
+/* 🌟 BASIC RESET */
 * {
-  padding: 0;
   margin: 0;
+  padding: 0;
   box-sizing: border-box;
 }
 
 body {
-  font-family: "Press Start 2P", cursive;
+  font-family: "Poppins", sans-serif;
+  background-color: #fffef7;
+  overflow-x: hidden;
 }
 
-.loginContainer, .registerContainer {
-  background-color: #FFF7EF;
+/* 🧭 MAIN CONTAINER */
+.loginContainer {
   width: 100%;
   height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-
-  /* ✅ black border */
-  border: 3px solid black;
+  background-color: #fffef7;
+  position: relative;
+  overflow: hidden;
 }
 
-.form_container {
-  width: 45%;
-  padding: 20px;
-
-  --font-color: #323232;
-
-  background: #FFD6A5;
-  border-radius: 16px;
-  font-family: "Press Start 2P", cursive;
-  color: var(--font-color);
-
-  display: flex;
-  flex-direction: column;
-  align-items: center; 
-  text-align: center;
-
-  box-shadow: 7px 7px black;
-}
-
-.logo_container {
-  width: 80px;
-  height: 80px;
-  margin: 20px auto;
-}
-
-.title {
-  font-size: 28px;
-  font-weight: bold;
-  margin: 15px 0;
-}
-
-.input_container {
+/* 🌳 LAND OUTSIDE LOGIN BOX */
+.land {
+  position: fixed;
+  bottom: 0;
+  left: 0;
   width: 100%;
-  margin-bottom: 10px;
-  text-align: left;
+  height: 250px;
+  background: linear-gradient(to top, #9edb8a, #b9e6a2);
+  z-index: 1;
+  border-top-left-radius: 50%;
+  border-top-right-radius: 50%;
 }
 
-.input_container input {
-  height: 40px;
-  box-shadow: 3px 3px black;
-  background: #f8f7f7; 
+/* ☁️ CLOUDS */
+.cloud-left,
+.cloud-right {
+  position: absolute;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  width: 250px;
+  height: 150px;
+  z-index: 3;
+  opacity: 0.95;
+}
+
+/* Left cloud — lower, near left side */
+.cloud-left {
+  left: 50px;
+  top: 120px;
+  background-image: url("/assets/images/cloud-left.png");
+}
+
+/* Right cloud — above the balloon */
+.cloud-right {
+  right: 80px;
+  top: 40px;
+  background-image: url("/assets/images/cloud-right.png");
+  z-index: 4; /* ensure it sits above balloon */
+}
+
+/* 🎈 BALLOON (optional decoration) */
+.balloon {
+  position: absolute;
+  left: 80px;
+  top: 10%;
+  width: 450px;
+  height: 550px;
+  background-image: url("/assets/images/balloon.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  z-index: 2;
+}
+
+/* 🧩 LOGIN FORM */
+.form_container {
+  position: relative;
+  z-index: 10;
+  width: 680px;
+  padding: 70px 40px 40px 40px; /* more top padding for icon space */
+  background: #ffffff;
+  border: 2px solid #000;
+  border-radius: 10px;
+  box-shadow: 4px 4px #00000020;
+  overflow: visible; /* allow logo to overlap */
+  top: 50px;
+  margin: 0 auto;
+}
+
+.form_container-register {
+  position: relative;
+  z-index: 10;
+  width: 680px;
+  padding: 70px 40px 40px 40px; /* more top padding for icon space */
+  background: #ffffff;
+  border: 2px solid #000;
+  border-radius: 10px;
+  box-shadow: 4px 4px #00000020;
+  overflow: visible; /* allow logo to overlap */
+  top: 70px;
+  margin: 0 auto;
+}
+
+.form_container-forgot {
+  position: relative;
+  z-index: 10;
+  width: 680px;
+  padding: 70px 40px 40px 40px; /* more top padding for icon space */
+  background: #ffffff;
+  border: 2px solid #000;
+  border-radius: 10px;
+  box-shadow: 4px 4px #00000020;
+  overflow: visible; /* allow logo to overlap */
+  margin: 0 auto;
+}
+
+/* 🖋️ TITLE */
+.title {
+  text-align: center;
+  font-size: 42px;
+  font-weight: 600;
+  color: #222;
+  margin: 20px auto;
+  top: 120px;
+}
+
+/* 🪄 LOGO ICON (half in, half out) */
+.logo-icon {
+  position: absolute;
+  top: 120px; /* half above the form */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background-image: url("/assets/images/logo.png");
+  background-size: cover;
+  background-position: center;
+  border: 3px solid #000;
+  z-index: 20;
+}
+
+/* 🌀 CURVED TEXT ABOVE FORM */
+@import url('https://fonts.googleapis.com/css2?family=Marykate&display=swap');
+
+.curve-text {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Marykate';
+  font-size: 43px;
+  color: #111;
+  font-weight: 700;
+  z-index: 15;
+  pointer-events: none;
+}
+
+/* Example curve using SVG */
+.curve-text svg {
+  width: 300px;
+  height: 120px;
+}
+
+/* ✏️ INPUT FIELDS */
+.input_container {
+  text-align: left;
+  margin-bottom: 15px;
 }
 
 .input_label {
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 5px;
-  display: block;
+  font-weight: 500;
+  font-size: 22px;
 }
 
 .input_field {
   width: 100%;
-  height: 30px;
-  border: 2px solid #6b4226;
-  padding: 5px;
-  font-family: "Press Start 2P", cursive;
-  font-size: 15px;
-  background-color: #fffbe6be;
-  border-radius: 7px;
+  height: 40px;
+  border: 2px solid #ccc;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 14px;
 }
 
-.input_field::placeholder {
-  font-size: 15px;
+.input_field:focus {
+  outline: none;
+  border-color: #4caf50;
 }
 
+/* 🔘 BUTTON */
 .sign-in_btn {
   width: 100%;
-  height: 40px;
-  margin: 10px 0;
-  background-color: #FF6B6B;
-  border: 2px solid #145214;
-  border-radius: 6px;
-  color: white;
-  font-size: 12px;
-  font-weight: bold;
+  height: 45px;
+  margin: 20px auto;
+  background-color: #ffdd57;
+  border: 2px solid #000;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
-  text-transform: uppercase;
-  box-shadow: 3px 3px black;
+  box-shadow: 3px 3px #000;
+  transition: transform 0.2s ease;
 }
 
 .sign-in_btn:hover {
-  background-color: #f94b4b;
-  color: white;
-  transition: .3s ease;
+  transform: translateY(-3px);
 }
 
-.note,
-.separator,
-.subtitle {
-  font-size: 15px;
-  color: black;
-  margin: 10px 0;
-}
-
-.forgot-password {
-  align-self: flex-end;
+.sign-in_footer {
+  font-size: 13px;
   margin-top: 10px;
-  font-size: 12px;
 }
 
-.loginContainer a,
-.registerContainer a {
-  color: #f73f3f;
-  text-decoration: none;
-}
+  .cloud-left,
+  .cloud-right,
+  .cloud-right1 {
+    position: fixed;
+  }
 
-.loginContainer a:hover, 
-.registerContainer a:hover {
-  text-decoration: underline;
+  .cloud-left {
+    top: 80px;
+    left: 40px;
+    width: 260px;
+    height: 190px;
+    z-index: 1;
+  }
+
+  .cloud-right {
+    top: 30px;
+    right: 20px;
+  }
+
+  .cloud-right1 {
+    top: 130px;
+    right: 20px;
+    z-index: 10;
+    width: 460px;
+    height: 250px;
+  }
+
+/* 📱 RESPONSIVE */
+@media (max-width: 768px) {
+  .form_container {
+    width: 90%;
+  }
+
+  .curve-text {
+    font-size: 36px;
+    top: -90px;
+  }
+
+  .logo-icon {
+    width: 80px;
+    height: 80px;
+    top: -40px;
+  }
 }
