@@ -32,7 +32,7 @@ function Login() {
     <>
       {/* 🌤️ Background elements (outside form) */}
       <div className="balloon"></div>
-      <div className="land"></div>
+    <img className='land' src='/assets/images/land.png' />
     <img className='cloud-left' src='/assets/images/cloud.png' />
     <img className='cloud-right' src='/assets/images/cloud.png' />
     <img className='cloud-right1' src='/assets/images/cloud.png' />

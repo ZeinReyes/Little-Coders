@@ -1,181 +1,285 @@
 import React, { useState, useEffect } from "react";
 import NavbarComponent from "../../component/userNavbar";
 import UserFooter from "../../component/userFooter";
-import LoadingScreen from "../../component/LoadingScreen"
+import LoadingScreen from "../../component/LoadingScreen";
 import axios from "axios";
 import { Send } from "lucide-react";
 
 function ContactPage() {
-  const [form, setForm] = useState({ name: "", email: "", message: "" });
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    message: "",
+  });
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
+  const [hover, setHover] = useState(false);
 
-   useEffect(() => {
-      const timer = setTimeout(() => {
-        setFadeOut(true);
-        setTimeout(() => setLoading(false), 500);
-      }, 500);
-      return () => clearTimeout(timer);
-    }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFadeOut(true);
+      setTimeout(() => setLoading(false), 500);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus("Sending...");
 
+    // Combine firstName + lastName for backend
+    const payload = {
+      name: `${form.firstName.trim()} ${form.lastName.trim()}`,
+      email: form.email,
+      message: form.message,
+    };
+
     try {
-      const res = await axios.post("http://localhost:5000/api/contact", form);
+      const res = await axios.post("http://localhost:5000/api/contact", payload);
       if (res.status === 200) {
         setStatus("✅ Message sent successfully!");
-        setForm({ name: "", email: "", message: "" });
+        setForm({ firstName: "", lastName: "", email: "", message: "" });
         setTimeout(() => setStatus(""), 3000);
       }
-    } catch (error) {
+    } catch {
       setStatus("❌ Failed to send message. Try again later.");
     }
   };
 
-  const container = {
-    marginTop: "120px",
-    padding: "20px 40px",
-    maxWidth: "650px",
-    margin: "100px auto 50px",
-    background: "linear-gradient(135deg, #ffecb3, #ffe4e1, #b3e5fc)",
-    borderRadius: "30px",
-    boxShadow: "0 8px 15px rgba(0,0,0,0.15)",
-    textAlign: "center",
-    border: "4px dashed #ff80ab",
-    fontFamily: "'Comic Sans MS', 'Poppins', cursive",
-  };
-
-  const titleStyle = {
-    fontSize: "2rem",
-    color: "#ff6f61",
-    fontWeight: "bold",
-    marginBottom: "10px",
-    textShadow: "1px 1px #fff",
-  };
-
-  const subtitleStyle = {
-    color: "#555",
-    marginBottom: "25px",
-    fontSize: "1.1rem",
-  };
-
-  const inputStyle = {
-    width: "100%",
-    padding: "12px 15px",
-    margin: "10px 0",
-    borderRadius: "20px",
-    border: "2px solid #ffc1cc",
-    fontSize: "16px",
-    transition: "0.3s",
-    outline: "none",
-  };
-
-  const buttonStyle = {
-    backgroundColor: "#ff80ab",
-    color: "white",
-    border: "none",
-    padding: "12px 25px",
-    borderRadius: "25px",
-    cursor: "pointer",
-    fontSize: "18px",
-    fontWeight: "bold",
-    marginTop: "10px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    width: "100%",
-    transition: "0.3s",
-  };
-
-  const buttonHover = {
-    transform: "scale(1.05)",
-    backgroundColor: "#ff4081",
-  };
-
-  const [hover, setHover] = useState(false);
   if (loading) return <LoadingScreen fadeOut={fadeOut} />;
+
   return (
     <>
       <NavbarComponent />
-      <div style={container}>
-        <h2 style={titleStyle}>💌 Contact Us</h2>
-        <p style={subtitleStyle}>
-          Hey there, Little Coder! 💻✨  
-          Got questions, ideas, or just want to say hi? We’d love to hear from you!
-        </p>
 
-        <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            name="name"
-            placeholder="👦 Your Name"
-            value={form.name}
-            onChange={handleChange}
+      {/* Top Banner Section */}
+      <section
+        style={{
+          backgroundImage:
+            "linear-gradient( rgba(255,192,103,0.15),rgba(255,192,103,0.55)), url('https://img.freepik.com/free-photo/medium-shot-little-kids-studying-bible_23-2149613739.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          padding: "140px 20px",
+          textAlign: "center",
+          color: "#fff",
+          height: "100vh",
+        }}
+      >
+        <h1
+          style={{
+            fontFamily: "'Comic Neue', 'Poppins', cursive",
+            fontSize: "4rem",
+            fontWeight: "700",
+            marginBottom: "10px",
+          }}
+        >
+          Contact
+        </h1>
+        <p
+          style={{
+            fontSize: "1.2rem",
+            maxWidth: "700px",
+            margin: "0 auto",
+            color: "#fffbea",
+          }}
+        >
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut elit tellus,
+          luctus nec ullamcorper mattis, pulvinar dapibus leo.
+        </p>
+      </section>
+
+      {/* Wave Transition */}
+      <svg
+        className="position-absolute"
+        style={{ top: "530px", height: "390px", zIndex: "0" }}
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 1440 320"
+      >
+        <path
+          fill="#ffc067"
+          fillOpacity="1"
+          d="M0,32L34.3,53.3C68.6,75,137,117,206,112C274.3,107,343,53,411,32C480,11,549,21,617,69.3C685.7,117,754,203,823,213.3C891.4,224,960,160,1029,149.3C1097.1,139,1166,181,1234,186.7C1302.9,192,1371,160,1406,144L1440,128V320H0Z"
+        ></path>
+      </svg>
+
+      {/* Contact Section */}
+      <section
+        style={{
+          background: "#ffc067",
+          padding: "80px 20px",
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          alignItems: "flex-start",
+          gap: "60px",
+          zIndex: "1000",
+        }}
+      >
+        {/* Left: Info */}
+        <div
+          style={{
+            flex: "1",
+            minWidth: "300px",
+            maxWidth: "400px",
+            color: "#333",
+            textAlign: "left",
+            padding: "20px",
+            zIndex: "10"
+          }}
+        >
+          <h2
             style={{
-              ...inputStyle,
-              borderColor: form.name ? "#80deea" : "#ffc1cc",
+              fontFamily: "'Comic Neue', 'Poppins', cursive",
+              fontSize: "2.2rem",
+              color: "#fff",
+              marginBottom: "20px",
             }}
-            required
-          />
+          >
+            Get In Touch
+          </h2>
+          <p
+            style={{
+              color: "#fff8e1",
+              fontSize: "1.1rem",
+              marginBottom: "25px",
+            }}
+          >
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
+            eiusmod tempor.
+          </p>
+          <p>📍 123 Fifth Avenue, New York, NY 10160, USA</p>
+          <p>📞 929-242-6868</p>
+          <p>📧 contact@info.com</p>
+        </div>
+
+        {/* Right: Form */}
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            flex: "1.2",
+            minWidth: "420px",
+            maxWidth: "700px",
+            background: "#fff",
+            borderRadius: "25px",
+            boxShadow: "0 10px 20px rgba(0,0,0,0.1)",
+            padding: "40px 30px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "20px",
+            zIndex: "10"
+          }}
+        >
+          <div style={{ display: "flex", gap: "10px" }}>
+            <input
+              type="text"
+              name="firstName"
+              placeholder="First"
+              value={form.firstName}
+              onChange={handleChange}
+              required
+              style={{
+                flex: 1,
+                padding: "14px",
+                borderRadius: "20px",
+                border: "2px solid #ffc067",
+                fontSize: "16px",
+                outline: "none",
+              }}
+            />
+            <input
+              type="text"
+              name="lastName"
+              placeholder="Last"
+              value={form.lastName}
+              onChange={handleChange}
+              required
+              style={{
+                flex: 1,
+                padding: "14px",
+                borderRadius: "20px",
+                border: "2px solid #ffc067",
+                fontSize: "16px",
+                outline: "none",
+              }}
+            />
+          </div>
 
           <input
             type="email"
             name="email"
-            placeholder="📧 Your Email"
+            placeholder="Email"
             value={form.email}
             onChange={handleChange}
-            style={{
-              ...inputStyle,
-              borderColor: form.email ? "#ffcc80" : "#ffc1cc",
-            }}
             required
+            style={{
+              padding: "14px",
+              borderRadius: "20px",
+              border: "2px solid #ffc067",
+              fontSize: "16px",
+              outline: "none",
+            }}
           />
 
           <textarea
             name="message"
-            placeholder="📝 Write your message here..."
-            rows="3"
+            placeholder="Message"
             value={form.message}
             onChange={handleChange}
-            style={{
-              ...inputStyle,
-              borderColor: form.message ? "#ce93d8" : "#ffc1cc",
-              resize: "none",
-            }}
             required
+            style={{
+              padding: "14px",
+              borderRadius: "20px",
+              border: "2px solid #ffc067",
+              fontSize: "16px",
+              height: "120px",
+              resize: "none",
+              outline: "none",
+            }}
           />
 
           <button
             type="submit"
-            style={hover ? { ...buttonStyle, ...buttonHover } : buttonStyle}
             onMouseEnter={() => setHover(true)}
             onMouseLeave={() => setHover(false)}
-          >
-            <Send size={20} /> Send Message
-          </button>
-        </form>
-
-        {status && (
-          <p
             style={{
-              marginTop: "20px",
-              color: status.includes("✅") ? "green" : "red",
+              backgroundColor: hover ? "#ffb347" : "#ffc067",
+              color: "#fff",
+              border: "none",
+              padding: "14px",
+              borderRadius: "25px",
+              fontSize: "18px",
               fontWeight: "bold",
-              fontSize: "1.1rem",
+              cursor: "pointer",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: "8px",
+              transition: "0.3s",
             }}
           >
-            {status}
-          </p>
-        )}
-      </div>
+            <Send size={20} /> Send
+          </button>
+
+          {status && (
+            <p
+              style={{
+                color: status.includes("✅") ? "green" : "red",
+                fontWeight: "bold",
+                textAlign: "center",
+                marginTop: "10px",
+              }}
+            >
+              {status}
+            </p>
+          )}
+        </form>
+      </section>
+
       <UserFooter />
     </>
   );

@@ -125,7 +125,7 @@ const NavbarComponent = () => {
             <Link to="/login" style={signInButton}>
               Sign in
             </Link>
-            <Link to="/signup" style={signUpButton}>
+            <Link to="/register" style={signUpButton}>
               Sign up
             </Link>
           </>

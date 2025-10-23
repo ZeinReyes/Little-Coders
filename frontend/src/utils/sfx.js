@@ -1,4 +1,9 @@
 // --- Activity sound ---
+const onBoardingSound = new Audio('/assets/sounds/activity.mp3');
+onBoardingSound.volume = 0.3;
+onBoardingSound.preload = 'auto';
+onBoardingSound.loop = true;
+// --- Activity sound ---
 const activitySound = new Audio('/assets/sounds/activity.mp3');
 activitySound.volume = 0.3;
 activitySound.preload = 'auto';
@@ -107,4 +112,12 @@ export function playSuccessSound() {
 
 export function playVariableSound() {
   playSound(variableSound);
+}
+
+export function playonBoardingSound() {
+  playSound(onBoardingSound);
+}
+
+export function stoponBoardingSound() {
+  stopSound(onBoardingSound);
 }

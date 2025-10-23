@@ -116,21 +116,26 @@ export default function DragBoard() {
 
   return (
     <div>
-      <NavbarComponent />
       {/* ✅ Tutorial modal */}
       {showTutorial && (
         <TutorialModal
           show={showTutorial}
-          onClose={() => {
-            setShowTutorial(false); // close modal
-            // mark onboarding complete is handled inside TutorialModal after last slide
-          }}
+          onClose={handleTutorialClose} // close tutorial and mark onboarding complete
         />
       )}
 
-      <div style={{marginTop: "70px", height: "calc(100vh - 70px)"}} className="main-container">
+      {/* Conditionally render Navbar only if onboarding is completed */}
+      {!showTutorial && <NavbarComponent />}
+
+      <div
+        style={{
+          marginTop: !showTutorial ? "70px" : "0", // adjust margin dynamically
+          height: !showTutorial ? "calc(100vh - 70px)" : "100vh",
+        }}
+        className="main-container"
+      >
         {/* ELEMENTS PANEL */}
-        <div className="draggable">
+        <div className="draggable" id="draggable">
           <h3>Elements</h3>
           <div className="elements">
             <img src="/assets/images/print1.png" data-type="print" draggable="true" alt="Print" />
@@ -165,7 +170,7 @@ export default function DragBoard() {
         </div>
 
         {/* CODE + OUTPUT */}
-        <div className="right-panel">
+        <div className="right-panel" id="right-panel">
           <div className="code-panel">
             <button id="runButton" className="run-button">▶ Run Program</button>
             <div>Source Code (preview)</div>

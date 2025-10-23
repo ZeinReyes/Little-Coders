@@ -9,7 +9,7 @@ import {
   InputGroup,
 } from "react-bootstrap";
 import { useNavigate, useParams } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react"; // 👁️ eye icons
+import { Eye, EyeOff, Settings, User } from "lucide-react";
 
 function EditProfile() {
   const { _id } = useParams();
@@ -20,9 +20,8 @@ function EditProfile() {
   const [activeTab, setActiveTab] = useState("edit");
   const navigate = useNavigate();
 
-  const [isEditing, setIsEditing] = useState(false); // ✏️ for toggling edit mode
+  const [isEditing, setIsEditing] = useState(false);
 
-  // password management
   const [showPasswordFields, setShowPasswordFields] = useState(false);
   const [passwords, setPasswords] = useState({
     password: "",
@@ -33,12 +32,15 @@ function EditProfile() {
     confirmPassword: false,
   });
 
-  // Fetch user details
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const res = await axios.get(`http://localhost:5000/api/users/${_id}`);
-        setUser({ name: res.data.name, email: res.data.email, password: res.data.password });
+        setUser({
+          name: res.data.name,
+          email: res.data.email,
+          password: res.data.password,
+        });
       } catch (err) {
         console.error("Error fetching user:", err);
       } finally {
@@ -48,17 +50,9 @@ function EditProfile() {
     fetchUser();
   }, [_id]);
 
-  // Handle input
-  const handleChange = (e) => {
-    setUser({ ...user, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) => setUser({ ...user, [e.target.name]: e.target.value });
+  const handlePasswordChange = (e) => setPasswords({ ...passwords, [e.target.name]: e.target.value });
 
-  // Handle password input
-  const handlePasswordChange = (e) => {
-    setPasswords({ ...passwords, [e.target.name]: e.target.value });
-  };
-
-  // Handle submit
   const handleSubmit = async () => {
     setUpdating(true);
     setMessage("");
@@ -78,14 +72,11 @@ function EditProfile() {
       setMessage("✅ Profile updated successfully!");
       setShowPasswordFields(false);
       setPasswords({ password: "", confirmPassword: "" });
-      setIsEditing(false); // back to view mode
-      setTimeout(() => {
-        window.location.reload();
-      }, 1200);
-    }catch (err) {
+      setIsEditing(false);
+      setTimeout(() => window.location.reload(), 1200);
+    } catch (err) {
       console.error("Error updating user:", err);
-
-      if (err.response && err.response.data && err.response.data.error) {
+      if (err.response?.data?.error) {
         setMessage(`❌ ${err.response.data.error}: Email already exists`);
       } else {
         setMessage("❌ Failed to update profile. Try again.");
@@ -97,11 +88,8 @@ function EditProfile() {
 
   if (loading) {
     return (
-      <div
-        className="d-flex justify-content-center align-items-center"
-        style={{ height: "100vh" }}
-      >
-        <Spinner animation="border" variant="primary" />
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>
+        <Spinner animation="border" variant="warning" />
       </div>
     );
   }
@@ -109,64 +97,88 @@ function EditProfile() {
   return (
     <>
       <Button
-        variant="primary"
+        variant="outline-warning"
         className="m-3"
-        style={{ width: "15%" }}
+        style={{
+          width: "15%",
+          fontWeight: "bold",
+          borderRadius: "8px",
+        }}
         onClick={() => navigate(-1)}
       >
-        Back
+        ← Back
       </Button>
 
       <Container
         fluid
-        className="d-flex justify-content-center align-items-center mt-3 mb-3"
+        className="d-flex justify-content-center align-items-center mt-3 mb-4"
       >
         <div
-          className="d-flex shadow rounded"
+          className="d-flex shadow-lg rounded-4"
           style={{
-            background: "#fff",
-            maxWidth: "900px",
+            background: "#fffaf3",
+            maxWidth: "950px",
             width: "100%",
-            borderRadius: "15px",
+            borderRadius: "18px",
             overflow: "hidden",
           }}
         >
           {/* Sidebar */}
           <div
             style={{
-              width: "220px",
-              background: "linear-gradient(180deg, #ffb6c1, #87cefa)",
-              borderRight: "4px dashed #ff6f61",
-              padding: "1rem",
+              width: "230px",
+              background: "linear-gradient(180deg, #ff914d, #ffb347)",
+              padding: "1.5rem",
               display: "flex",
               flexDirection: "column",
               alignItems: "stretch",
+              color: "#fff",
             }}
           >
-            <Button
-              variant={activeTab === "edit" ? "warning" : "light"}
-              className="mb-3"
+            <h5
               style={{
-                fontFamily: "Comic Sans MS, cursive",
-                fontSize: "1.1rem",
+                fontFamily: "Poppins, sans-serif",
+                fontWeight: "600",
+                marginBottom: "1.5rem",
+                textAlign: "center",
+                letterSpacing: "1px",
+              }}
+            >
+              My Profile
+            </h5>
+
+            <Button
+              variant={activeTab === "edit" ? "light" : "outline-light"}
+              className="mb-3 d-flex align-items-center gap-2"
+              style={{
+                fontFamily: "Poppins, sans-serif",
+                fontWeight: "500",
                 borderRadius: "10px",
+                background: activeTab === "edit" ? "#fff" : "transparent",
+                color: activeTab === "edit" ? "#ff914d" : "#fff",
                 border: "none",
+                transition: "0.3s",
               }}
               onClick={() => setActiveTab("edit")}
             >
-              ✏️ Edit Profile
+              <User size={18} /> Edit Profile
             </Button>
+
             <Button
-              variant={activeTab === "settings" ? "info" : "light"}
+              variant={activeTab === "settings" ? "light" : "outline-light"}
+              className="d-flex align-items-center gap-2"
               style={{
-                fontFamily: "Comic Sans MS, cursive",
-                fontSize: "1.1rem",
+                fontFamily: "Poppins, sans-serif",
+                fontWeight: "500",
                 borderRadius: "10px",
+                background: activeTab === "settings" ? "#fff" : "transparent",
+                color: activeTab === "settings" ? "#ff914d" : "#fff",
                 border: "none",
+                transition: "0.3s",
               }}
               onClick={() => setActiveTab("settings")}
             >
-              ⚙️ Settings
+              <Settings size={18} /> Settings
             </Button>
           </div>
 
@@ -174,29 +186,34 @@ function EditProfile() {
           <div
             style={{
               flexGrow: 1,
-              background: "linear-gradient(145deg, #fff, #ffe4e1)",
-              padding: "2rem",
-              border: "1px dashed #ff6f61",
-              borderLeft: "none",
+              background: "#fffdf8",
+              padding: "2.5rem",
             }}
           >
             {activeTab === "edit" ? (
               <Card
-                style={{ width: "100%", maxWidth: "500px", margin: "0 auto" }}
-                className="shadow-sm p-4"
+                style={{
+                  width: "100%",
+                  maxWidth: "520px",
+                  margin: "0 auto",
+                  borderRadius: "15px",
+                  border: "1px solid #ffe0b2",
+                  boxShadow: "0 6px 12px rgba(0,0,0,0.05)",
+                }}
+                className="p-4"
               >
                 <h3
                   className="text-center mb-4"
                   style={{
-                    fontFamily: "Comic Sans MS, cursive",
-                    color: "#ff6f61",
+                    fontFamily: "Poppins, sans-serif",
+                    color: "#ff914d",
+                    fontWeight: "600",
                   }}
                 >
                   Edit Profile
                 </h3>
 
                 <Form>
-                  {/* Name */}
                   <Form.Group className="mb-3" controlId="formName">
                     <Form.Label>Full Name</Form.Label>
                     <Form.Control
@@ -207,11 +224,14 @@ function EditProfile() {
                       onChange={handleChange}
                       readOnly={!isEditing}
                       required
-                      style={{ borderRadius: "10px", padding: "10px" }}
+                      style={{
+                        borderRadius: "10px",
+                        padding: "10px",
+                        border: "1px solid #ffd8a8",
+                      }}
                     />
                   </Form.Group>
 
-                  {/* Email */}
                   <Form.Group className="mb-3" controlId="formEmail">
                     <Form.Label>Email Address</Form.Label>
                     <Form.Control
@@ -222,11 +242,14 @@ function EditProfile() {
                       onChange={handleChange}
                       readOnly={!isEditing}
                       required
-                      style={{ borderRadius: "10px", padding: "10px" }}
+                      style={{
+                        borderRadius: "10px",
+                        padding: "10px",
+                        border: "1px solid #ffd8a8",
+                      }}
                     />
                   </Form.Group>
 
-                  {/* Password Section */}
                   {!showPasswordFields ? (
                     <div className="mb-3">
                       <Form.Label>Password</Form.Label>
@@ -235,10 +258,14 @@ function EditProfile() {
                           type="password"
                           value="********"
                           disabled
-                          style={{ width: "80%", borderRadius: "10px" }}
+                          style={{
+                            width: "80%",
+                            borderRadius: "10px",
+                            border: "1px solid #ffd8a8",
+                          }}
                         />
                         <Button
-                          variant="outline-secondary"
+                          variant="outline-warning"
                           size="sm"
                           disabled={!isEditing}
                           onClick={() => setShowPasswordFields(true)}
@@ -249,7 +276,6 @@ function EditProfile() {
                     </div>
                   ) : (
                     <>
-                      {/* New Password with eye toggle */}
                       <Form.Group className="mb-3" controlId="formPassword">
                         <Form.Label>New Password</Form.Label>
                         <InputGroup>
@@ -260,7 +286,11 @@ function EditProfile() {
                             value={passwords.password}
                             onChange={handlePasswordChange}
                             required
-                            style={{ borderRadius: "10px", padding: "10px" }}
+                            style={{
+                              borderRadius: "10px",
+                              padding: "10px",
+                              border: "1px solid #ffd8a8",
+                            }}
                           />
                           <Button
                             variant="outline-secondary"
@@ -276,7 +306,6 @@ function EditProfile() {
                         </InputGroup>
                       </Form.Group>
 
-                      {/* Confirm Password with eye toggle */}
                       <Form.Group className="mb-3" controlId="formConfirmPassword">
                         <Form.Label>Confirm Password</Form.Label>
                         <InputGroup>
@@ -287,7 +316,11 @@ function EditProfile() {
                             value={passwords.confirmPassword}
                             onChange={handlePasswordChange}
                             required
-                            style={{ borderRadius: "10px", padding: "10px" }}
+                            style={{
+                              borderRadius: "10px",
+                              padding: "10px",
+                              border: "1px solid #ffd8a8",
+                            }}
                           />
                           <Button
                             variant="outline-secondary"
@@ -309,10 +342,7 @@ function EditProfile() {
                           size="sm"
                           onClick={() => {
                             setShowPasswordFields(false);
-                            setPasswords({
-                              password: "",
-                              confirmPassword: "",
-                            });
+                            setPasswords({ password: "", confirmPassword: "" });
                           }}
                         >
                           Cancel
@@ -321,7 +351,6 @@ function EditProfile() {
                     </>
                   )}
 
-                  {/* Buttons */}
                   {!isEditing ? (
                     <Button
                       variant="warning"
@@ -341,6 +370,8 @@ function EditProfile() {
                       className="w-100 mt-3"
                       disabled={updating}
                       style={{
+                        backgroundColor: "#ff914d",
+                        border: "none",
                         borderRadius: "10px",
                         fontWeight: "bold",
                         padding: "10px",
@@ -366,11 +397,11 @@ function EditProfile() {
               <div
                 className="text-center p-5"
                 style={{
-                  fontFamily: "Comic Sans MS, cursive",
+                  fontFamily: "Poppins, sans-serif",
                   color: "#555",
                 }}
               >
-                <h3 style={{ color: "#ff6f61" }}>⚙️ Settings</h3>
+                <h3 style={{ color: "#ff914d" }}>⚙️ Settings</h3>
                 <p>Settings section coming soon...</p>
               </div>
             )}
