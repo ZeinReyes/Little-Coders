@@ -15,7 +15,7 @@ const dragboardImages = [
   "/assets/images/excited.png",
   "/assets/images/focus.png",
   "/assets/images/activity1.png",
-  "/assets/images/dragboard3.png",
+  "/assets/images/focus.png",
 ];
 
 function TutorialModal({ show, onClose }) {
@@ -249,21 +249,37 @@ function TutorialModal({ show, onClose }) {
       {show && (() => {
   // Decide which element is highlighted this slide
   let charZIndex = zIndexConfig.modal; // default on top of modal
+  let charWidth = 10; // default width
+  let charLeft = 10; // default width
+  let charTop = 10; // default width
+
   switch(slideIndex) {
     case 0: // Intro
       charZIndex = zIndexConfig.modal;
+      charWidth = 900;
+      charLeft = -200;
+      charTop = 90;
       break;
     case 1: // Toolbox
       charZIndex = zIndexConfig.elementsPanel + 20;
+      charWidth = 950;
+      charLeft = -200;
+      charTop = 90;
       break;
     case 2: // Whiteboard
-      charZIndex = zIndexConfig.whiteboard;
+      charZIndex = zIndexConfig.whiteboard + 20;
+      charWidth = 320;
+      charLeft = 20;
       break;
     case 3: // Code area
       charZIndex = zIndexConfig.codeArea;
+      charWidth = 920;
+      charLeft = -150;
+      charTop = 90;
       break;
     default:
       charZIndex = zIndexConfig.modal;
+      charWidth = 420;
       break;
   }
 
@@ -283,8 +299,10 @@ function TutorialModal({ show, onClose }) {
         src={currentImage}
         alt="Character"
         style={{
-          top: "90px",
-          width: "420px",
+          position: "relative",
+          top: `${charTop}px`,
+          left:  `${charLeft}px`,
+          width: `${charWidth}px`,
           height: "auto",
           userSelect: "none",
           pointerEvents: "none",
@@ -294,6 +312,7 @@ function TutorialModal({ show, onClose }) {
     </div>
   );
 })()}
+
 
       {/* === Styling + Animation === */}
       <style>{`
