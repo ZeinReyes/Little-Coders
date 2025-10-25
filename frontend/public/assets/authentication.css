@@ -130,12 +130,14 @@ body {
   width: 130px;
   height: 130px;
   border-radius: 50%;
-  background-image: url("/assets/images/logo.png");
-  background-size: cover;
   background-position: center;
+  background-image: url('/assets/images/icon.png');
+  background-size: contain;
+  background-repeat: no-repeat;
   border: 3px solid #000;
   z-index: 20;
 }
+
 
 /* 🌀 CURVED TEXT */
 @import url("https://fonts.googleapis.com/css2?family=Marykate&display=swap");
