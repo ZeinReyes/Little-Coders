@@ -25,6 +25,7 @@ function ForgotPasswordPage() {
   return (
     <>
       {/* 🌤️ Background elements */}
+      <img className='land' src='/assets/images/land.png' />
       <div className="balloon"></div>
       <div className="land"></div>
       <img className="cloud-left" src="/assets/images/cloud.png" alt="Cloud Left" />
@@ -37,27 +38,46 @@ function ForgotPasswordPage() {
       <div className="balloon clone"></div>
 
 
-      {/* 🎨 Branding with curve text + logo */}
-      <div className="branding">
-        <svg viewBox="0 0 500 150" className="curve-text">
-          <path
-            id="curve"
-            d="M 50 100 Q 250 -35 450 100"
-            fill="transparent"
-          />
-          <text width="500" textAnchor="middle">
-            <textPath href="#curve" startOffset="50%" className="little-coders">
-              Little Coders
-            </textPath>
-          </text>
-        </svg>
+           {/* 🎨 Branding with curve text + logo */}
+<div className="branding">
+  <svg viewBox="0 0 500 150" className="curve-text">
+    <path
+      id="curve"
+      d="M 50 100 Q 250 -35 450 100"
+      fill="transparent"
+    />
+    <text
+      width="500"
+      textAnchor="middle"
+      fontSize="36"
+      fontWeight="bold"
+      stroke="#111"           // outline color
+      strokeWidth="2"         // outline thickness
+      paintOrder="stroke"     // ensures stroke is drawn below fill
+      style={{ textShadow: "1px 1px 2px rgba(0,0,0,0.2)" }}
+    >
+      <textPath href="#curve" startOffset="50%" className="little-coders">
+        <tspan fill="#e53935">L</tspan>
+        <tspan fill="#43a047">i</tspan>
+        <tspan fill="#1e88e5">t</tspan>
+        <tspan fill="#fb8c00">t</tspan>
+        <tspan fill="#8e24aa">l</tspan>
+        <tspan fill="#fdd835">e</tspan>
+        <tspan>&nbsp;</tspan>
+        <tspan fill="#3949ab">C</tspan>
+        <tspan fill="#43a047">o</tspan>
+        <tspan fill="#f4511e">d</tspan>
+        <tspan fill="#1e88e5">e</tspan>
+        <tspan fill="#8e24aa">r</tspan>
+        <tspan fill="#f4b400">s</tspan>
+      </textPath>
+    </text>
+  </svg>
 
-        <img
-          src=""
-          alt="Little Coders Logo"
-          className="logo-icon"
-        />
-      </div>
+  <div className="logo-icon">  
+
+  </div>
+</div>
 
       {/* 🧩 Forgot Password container */}
       <div className="loginContainer d-flex justify-content-center align-items-center w-100 min-vh-100">

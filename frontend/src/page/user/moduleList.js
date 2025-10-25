@@ -1,24 +1,23 @@
 import React, { useEffect, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Spinner } from "react-bootstrap";
 import NavbarComponent from "../../component/userNavbar";
 import "./moduleList.css";
 import UserFooter from "../../component/userFooter";
 import TutorialModal from "../../component/TutorialModal";
 import { AuthContext } from "../../context/authContext";
-import LoadingScreen from "../../component/LoadingScreen"
+import LoadingScreen from "../../component/LoadingScreen";
 
 function ModuleList() {
-  const { user, refreshUser, loading: userLoading } = useContext(AuthContext); // ✅ renamed
+  const { user, refreshUser, loading: userLoading } = useContext(AuthContext);
   const [modules, setModules] = useState([]);
   const [loadingModules, setLoadingModules] = useState(true);
   const [showTutorial, setShowTutorial] = useState(false);
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
+  const navigate = useNavigate();
 
-   useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => {
       setFadeOut(true);
       setTimeout(() => setLoading(false), 500);
@@ -26,14 +25,12 @@ function ModuleList() {
     return () => clearTimeout(timer);
   }, []);
 
-  // ✅ Show tutorial only if user hasn't completed onboarding
   useEffect(() => {
     if (!userLoading && user && user.hasCompletedOnboarding === false) {
       setShowTutorial(true);
     }
   }, [user, userLoading]);
 
-  // ✅ Fetch modules
   useEffect(() => {
     const fetchModules = async () => {
       try {
@@ -51,23 +48,16 @@ function ModuleList() {
     fetchModules();
   }, []);
 
-  const operatorPositions = [
-    { src: "/assets/images/add.png", top: "10%", left: "8%", rotate: "-10deg" },
-    { src: "/assets/images/subtract.png", top: "25%", left: "20%", rotate: "5deg" },
-    { src: "/assets/images/divide.png", top: "60%", left: "10%", rotate: "15deg" },
-    { src: "/assets/images/multiply.png", top: "15%", left: "80%", rotate: "-10deg" },
-    { src: "/assets/images/greaterthan.png", top: "60%", left: "85%", rotate: "15deg" },
-    { src: "/assets/images/lessthan.png", top: "30%", left: "65%", rotate: "-5deg" },
-    { src: "/assets/images/!.png", top: "62%", left: "50%", rotate: "8deg" },
-    { src: "/assets/images/diamond.png", top: "40%", left: "35%", rotate: "20deg" },
-  ];
+  const handleClick = (module) => {
+    navigate(`/lessons/${module._id}`);
+  };
 
   if (loading) return <LoadingScreen fadeOut={fadeOut} />;
+
   return (
     <>
       <NavbarComponent />
 
-      {/* ✅ Tutorial modal controlled by MongoDB flag */}
       {showTutorial && (
         <TutorialModal
           show={showTutorial}
@@ -78,54 +68,54 @@ function ModuleList() {
         />
       )}
 
-      <div className="modules-container py-4">
-        {/* ✅ HEADER */}
-        <div className="modules-header position-relative d-flex justify-content-center align-items-center">
-          {operatorPositions.map((op, index) => (
-            <img
-              key={index}
-              src={op.src}
-              alt="operator"
-              style={{
-                position: "absolute",
-                top: op.top,
-                left: op.left,
-                width: "45px",
-                opacity: 0.3,
-                transform: `rotate(${op.rotate})`,
-                filter: "drop-shadow(2px 2px 5px rgba(0,0,0,0.2))",
-                zIndex: 1,
-                userSelect: "none",
-              }}
-            />
-          ))}
-          <h1
-            className="position-relative"
-            style={{
-              zIndex: 5,
-              fontFamily: "'Poppins', sans-serif",
-              color: "white",
-              fontWeight: "300",
-              fontSize: "80px",
-            }}
-          >
-            Fun Learning For You
-          </h1>
+      <div className="module-page">
+        {/* 🎮 Floating Operators */}
+        <div className="floating-operators">
+          <img src="/assets/images/add.png" alt="Add" />
+          <img src="/assets/images/subtract.png" alt="Subtract" />
+          <img src="/assets/images/multiply.png" alt="Multiply" />
+          <img src="/assets/images/divide.png" alt="Divide" />
+          <img src="/assets/images/greaterthan.png" alt="Greater Than" />
+          <img src="/assets/images/lessthan.png" alt="Less Than" />
         </div>
 
-        <div className="modules-list">
+        {/* 📘 Module Cards */}
+        <div className="modules-list-game">
           {modules.map((module, index) => (
             <div
               key={module._id}
-              className={`module-card ${index % 2 === 0 ? "down" : "up"}`}
-              onClick={() => navigate(`/lessons/${module._id}`)}
+              className="module-card-game"
+              onClick={() => handleClick(module)}
             >
-              <h3 className="module-header">{module.title}</h3>
-              <button className="explore-btn">Explore</button>
+              <div className="card-img-wrapper">
+                <img
+                  src={
+                    index === 0
+                      ? "/desert1.jpg"
+                      : index === 1
+                      ? "/volcanic1.jpg"
+                      : index === 2
+                      ? "/forest1.jpg"
+                      : index === 3
+                      ? "/icy1.jpg"
+                      : "/ocean3.jpg"
+                  }
+                  alt={module.title}
+                />
+              </div>
+              <div className="card-content">
+                <h3>{module.title}</h3>
+                <p>
+                  {module.description ||
+                    "Embark on a new coding adventure and unlock your skills!"}
+                </p>
+              </div>
+              <button className="start-btn">START</button>
             </div>
           ))}
         </div>
       </div>
+
       <UserFooter />
     </>
   );

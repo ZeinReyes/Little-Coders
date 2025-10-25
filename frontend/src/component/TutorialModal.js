@@ -13,9 +13,9 @@ const moduleImages = ["/assets/images/curios.png"];
 const lessonImages = ["/assets/images/teaching.png"];
 const dragboardImages = [
   "/assets/images/excited.png",
-  "/assets/images/focus.png",
-  "/assets/images/activity1.png",
-  "/assets/images/focus.png",
+  "/assets/images/toolbox.png",
+  "/assets/images/blackboard.png",
+  "/assets/images/run.png",
 ];
 
 function TutorialModal({ show, onClose }) {
@@ -200,88 +200,242 @@ function TutorialModal({ show, onClose }) {
   return (
     <div>
       {/* === Tutorial Modal === */}
-      <Modal
-        style={{ position: "fixed", top: "80px" }}
-        show={show}
-        backdrop="static"
-        size="lg"
-      >
-        <Modal.Header>
-          <Modal.Title>{slides[slideIndex].title}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body
-          key={slideIndex}
-          style={{
-            maxHeight: "65vh",
-            overflowY: "auto",
-            padding: "1.5rem",
-            backgroundColor: "#FFF8F2",
-            fontFamily: "'Comic Sans MS', cursive",
-          }}
-        >
-          <div className="typing-container">
-            <p>{slides[slideIndex].text}</p>
-          </div>
-          <div
-            style={{
-              fontStyle: "italic",
-              opacity: 0.7,
-              marginTop: "1rem",
-              textAlign: "right",
-            }}
-          >
-          </div>
-        </Modal.Body>
-        <Modal.Footer className="d-flex justify-content-between">
-          <Button
-            variant="secondary"
-            onClick={handlePrev}
-            disabled={slideIndex === 0}
-          >
-            ← Back
-          </Button>
-          <Button variant="primary" onClick={handleNext}>
-            {isLastSlide ? "Start your journey →" : "Next →"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+     {/* === Tutorial Modal === */}
+<Modal
+  style={{ position: "fixed", top: "80px" }}
+  show={show}
+  backdrop="static"
+  size="lg"
+  className="fun-modal"
+>
+  <Modal.Header className="fun-header">
+    <Modal.Title className="fun-title">
+      {slides[slideIndex].title}
+    </Modal.Title>
+  </Modal.Header>
+
+  <Modal.Body
+    key={slideIndex}
+    className="fun-body"
+  >
+    <div className="typing-container">
+      <p>{slides[slideIndex].text}</p>
+    </div>
+  </Modal.Body>
+
+  <Modal.Footer className="fun-footer">
+    <Button
+      className="fun-btn fun-btn-back"
+      onClick={handlePrev}
+      disabled={slideIndex === 0}
+    >
+      ← Back
+    </Button>
+    <Button
+      className="fun-btn fun-btn-next"
+      onClick={handleNext}
+    >
+      {isLastSlide ? "Start your journey →" : "Next →"}
+    </Button>
+  </Modal.Footer>
+</Modal>
+
+{/* === Styling + Animation === */}
+<style>{`
+  /* 🎨 Fun modal theme */
+  .fun-modal .modal-content {
+    border-radius: 25px;
+    border: 4px solid #FFD580;
+    background: linear-gradient(180deg, #FFF7E5 0%, #FFF0D5 100%);
+    box-shadow: 0 8px 25px rgba(255, 193, 7, 0.3);
+    font-family: 'Comic Sans MS', cursive;
+    transition: all 0.3s ease-in-out;
+    overflow: hidden;
+  }
+
+  .fun-header {
+    background: linear-gradient(90deg, #FFB6C1, #FFD580);
+    border-bottom: none;
+    border-radius: 25px 25px 0 0;
+    padding: 1rem 1.5rem;
+  }
+
+  .fun-title {
+    font-size: 1.6rem;
+    color: #4A2E05;
+    text-shadow: 1px 1px 0px #FFF;
+  }
+
+  .fun-body {
+    background-color: #FFF8F2;
+    color: #5A3D1E;
+    font-size: 1.1rem;
+    padding: 2rem;
+    border-top: 3px dashed #FFD580;
+    border-bottom: 3px dashed #FFD580;
+    animation: fadeIn 0.8s ease-in;
+  }
+
+  .fun-footer {
+    background: #FFF3CD;
+    border-top: 3px solid #FFD580;
+    border-radius: 0 0 25px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+  }
+
+  /* 🎈 Buttons */
+  .fun-btn {
+    border: none;
+    font-size: 1.1rem;
+    font-weight: bold;
+    padding: 0.7rem 1.5rem;
+    border-radius: 50px;
+    transition: transform 0.2s, background-color 0.3s;
+  }
+
+ .fun-btn-back {
+  background-color: #FFD580 !important; /* yellow-brown base */
+  color: #5A3D1E !important;
+  border: none !important;
+  box-shadow: none !important;
+  transition: transform 0.2s, background-color 0.3s !important;
+}
+
+.fun-btn-back:hover {
+  background-color:#ffab02 !important; /* light blue on hover */
+  color: #fff !important;
+  transform: scale(1.08);
+}
+
+.fun-btn-back:focus,
+.fun-btn-back:active {
+  background-color: #FFD580 !important; /* keep yellow-brown when focused or active */
+  color: #5A3D1E !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+  .fun-btn-next {
+    background-color: #FFB6C1;
+    color: #4A2E05;
+  }
+
+  .fun-btn:hover {
+    transform: scale(1.08);
+    filter: brightness(1.05);
+    background-color:rgb(248, 42, 128);
+  }
+
+  /* ✨ Animations */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  /* Typing effect stays */
+  .typing-container {
+    display: inline-block;
+    overflow: hidden;
+    white-space: normal;
+    border-right: 3px solid #333;
+    animation: typingDown 3s steps(40, end), blink 0.8s step-end infinite;
+  }
+
+  @keyframes typingDown {
+    from { clip-path: inset(0 0 100% 0); }
+    to { clip-path: inset(0 0 0 0); }
+  }
+
+  @keyframes blink {
+    0%, 50% { border-color: #333; }
+    51%, 100% { border-color: transparent; }
+  }
+`}</style>
+
 
       {show && (() => {
-  // Decide which element is highlighted this slide
-  let charZIndex = zIndexConfig.modal; // default on top of modal
-  let charWidth = 10; // default width
-  let charLeft = 10; // default width
-  let charTop = 10; // default width
+  // Default values
+  let charZIndex = zIndexConfig.modal;
+  let charWidth = 420;
+  let charLeft = 20;
+  let charTop = 0;
 
-  switch(slideIndex) {
-    case 0: // Intro
-      charZIndex = zIndexConfig.modal;
-      charWidth = 900;
-      charLeft = -200;
-      charTop = 90;
-      break;
-    case 1: // Toolbox
-      charZIndex = zIndexConfig.elementsPanel + 20;
-      charWidth = 950;
-      charLeft = -200;
-      charTop = 90;
-      break;
-    case 2: // Whiteboard
-      charZIndex = zIndexConfig.whiteboard + 20;
-      charWidth = 320;
-      charLeft = 20;
-      break;
-    case 3: // Code area
-      charZIndex = zIndexConfig.codeArea;
-      charWidth = 920;
-      charLeft = -150;
-      charTop = 90;
-      break;
-    default:
-      charZIndex = zIndexConfig.modal;
-      charWidth = 420;
-      break;
+  // 🧩 Group-based full control
+  if (homeImages.includes(currentImage)) {
+    // 🏠 Home images (2 images)
+    charZIndex = zIndexConfig.modal;
+
+    if (currentImage === "/assets/images/cheerful.png") {
+      // cheerful.png
+      charWidth = 400;
+      charLeft = 5;
+      charTop = 50;
+    } else if (currentImage === "/assets/images/confident.png") {
+      // confident.png
+      charWidth = 600;
+      charLeft = -20;
+      charTop = 200;
+    }
+
+  } else if (lessonImages.includes(currentImage)) {
+    // 📘 Lesson images
+    charZIndex = zIndexConfig.modal;
+    charWidth = 900;
+    charLeft = -300;
+    charTop = 50;
+
+  } else if (moduleImages.includes(currentImage)) {
+    // 📦 Module images
+    charZIndex = zIndexConfig.modal;
+    charWidth = 900;
+    charLeft = -320;
+    charTop = 60;
+
+ 
+  } else {
+    // 🎨 Other slides (Whiteboard, Code area, etc.)
+    switch (slideIndex) {
+      case 0: // Intro
+        charZIndex = zIndexConfig.modal;
+        charWidth = 900;
+        charLeft = -200;
+        charTop = 90;
+        break;
+      case 1: // Toolbox
+        charZIndex = zIndexConfig.elementsPanel + 20;
+        charWidth = 300;
+        charLeft = 70;
+        charTop = -7;
+        break;
+      case 2: // Whiteboard
+        charZIndex = zIndexConfig.whiteboard + 20;
+        charWidth = 400;
+        charLeft = 20;
+        charTop = 50;
+        break;
+      case 3: // Code area
+        charZIndex = zIndexConfig.codeArea;
+        charWidth = 390;
+        charLeft = -50;
+        charTop = 90;
+        break;
+      default:
+        charZIndex = zIndexConfig.modal;
+        charWidth = 420;
+        charLeft = 20;
+        charTop = 0;
+        break;
+    }
   }
+
 
   return (
     <div
@@ -301,17 +455,17 @@ function TutorialModal({ show, onClose }) {
         style={{
           position: "relative",
           top: `${charTop}px`,
-          left:  `${charLeft}px`,
+          left: `${charLeft}px`,
           width: `${charWidth}px`,
           height: "auto",
           userSelect: "none",
           pointerEvents: "none",
-          animation: "bounce 2s infinite ease-in-out",
         }}
       />
     </div>
   );
 })()}
+
 
 
       {/* === Styling + Animation === */}

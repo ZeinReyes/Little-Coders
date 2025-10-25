@@ -1,128 +1,242 @@
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
+
 * {
-  padding: 0;
   margin: 0;
+  padding: 0;
   box-sizing: border-box;
 }
 
-.modules-container {
-  width: 100%;
-  margin-top: 70px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 80px 0;
-  height: calc(100vh - 70px);
+body {
+  background: linear-gradient(180deg, #fffbf3 0%, #fdf5ff 100%);
+  font-family: "Press Start 2P", cursive;
+  overflow-x: hidden;
 }
 
-.modules-header {
-  width: 90%;
-  border-radius: 15px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+/* 🌈 Page Container */
+.module-page {
   position: relative;
-  padding: 40px 20px; 
-  background-color: #ff7974;
-  border: 2px dashed red;
-  color: white;
-}
-
-/* Modules list */
-.modules-list {
-  margin-top: 60px;
   display: flex;
   justify-content: center;
-  gap: 30px;
-  flex-wrap: wrap; 
-  width: 98%;
-  padding: auto 0 80px;
+  align-items: flex-start;
+  padding-top: 120px;
+  padding-bottom: 80px;
+  min-height: calc(100vh - 150px);
+  background: linear-gradient(180deg, #ffeef1 0%, #e8f7ff 50%, #fff3d9 100%);
+  overflow-x: auto; /* ✅ horizontal scroll if needed */
+  overflow-y: hidden;
+  white-space: nowrap;
+  scroll-behavior: smooth;
 }
 
-.module-card {
-  border-radius: 15px;
-  flex: 1;
-  height: 220px;
-  font-family: 'Poppins', sans-serif;
-  cursor: pointer;
-  transition: transform 0.3s ease, box-shadow 0.3s;
-  box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+
+.module-page::before {
+  top: 20%;
+  left: 10%;
+  animation-delay: 1s;
+}
+
+.module-page::after {
+  bottom: 15%;
+  right: 15%;
+  animation-delay: 3s;
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.3) rotate(15deg);
+  }
+}
+
+/* 🧱 Modules Row */
+.modules-list-game {
   display: flex;
-  flex-direction: column;
+  flex-wrap: nowrap; /* ✅ Keep in single row */
+  justify-content: center;
   align-items: center;
-  justify-content: space-evenly;
-  text-align: center;
+  gap: 40px;
+  padding: 0 40px;
+  width: max-content;
+}
+
+/* 🃏 Module Card */
+.module-card-game {
+  background: #fff;
+  width: 230px;
+  height: 420px;
+  border: 3px solid #000;
+  border-radius: 20px;
+  box-shadow: 6px 6px 0 #000;
+  display: inline-flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+  position: relative;
+  overflow: hidden;
+  animation: floaty 3.5s ease-in-out infinite;
+}
+
+@keyframes floaty {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* 🎨 Colorful borders */
+.module-card-game:nth-child(1) { border-color: #f4b400; box-shadow: 6px 6px 0 #f4b40080; }
+.module-card-game:nth-child(2) { border-color: #ea4335; box-shadow: 6px 6px 0 #ea433580; }
+.module-card-game:nth-child(3) { border-color: #34a853; box-shadow: 6px 6px 0 #34a85380; }
+.module-card-game:nth-child(4) { border-color: #4285f4; box-shadow: 6px 6px 0 #4285f480; }
+.module-card-game:nth-child(5) { border-color: #ab47bc; box-shadow: 6px 6px 0 #ab47bc80; }
+
+/* 🪄 Full card hover */
+.module-card-game:hover {
+  transform: scale(1.1);
+  box-shadow: 10px 10px 0 #000;
+  z-index: 10;
+}
+
+/* 🖼 Image */
+.card-img-wrapper {
+  height: 160px;
+  border-bottom: 3px solid #000;
+  overflow: hidden;
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+}
+
+.card-img-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.module-card-game:hover .card-img-wrapper img {
+  transform: scale(1.15);
+}
+
+/* 📜 Content */
+.card-content {
+  flex: 1;
   padding: 15px;
+  text-align: center;
 }
 
-/* Pastel alternating background colors with darker borders */
-.module-card:nth-child(1n) { 
-  background-color: #ff7974; 
-  border: 2px dashed red; /* darker shade */
-}
-.module-card:nth-child(2n) { 
-  background-color: #ffe0b2; 
-  border: 2px dashed #cc9a6a; 
-}
-.module-card:nth-child(3n) { 
-  background-color: #c8e6c9; 
-  border: 2px dashed #7cbf8d; 
-}
-.module-card:nth-child(4n) { 
-  background-color: #b3e5fc; 
-  border: 2px dashed #4ba3c7; 
-}
-.module-card:nth-child(5n) { 
-  background-color: #d1c4e9; 
-  border: 2px dashed #946fc0; 
-}
-
-/* Module headers inside cards */
-.module-header {
-  font-weight: 700;
-  margin-bottom: 8px;
+.card-content h3 {
+  font-family: "Comic Neue", "Poppins", sans-serif; /* friendlier font */
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-transform: uppercase;
   color: #222;
-  font-size: 1.1rem;
-  background-color: white;
-  padding: 15px 40px;
-  border-radius: 10px;
-  width: 100%;
-}
-
-/* Module descriptions */
-.module-description {
-  font-size: 13px;
-  color: #333;
-  margin: 10px auto 15px auto;
   line-height: 1.4;
+  word-wrap: break-word;
+  white-space: normal;
+  overflow: hidden;
+  text-align: center;
+  padding: 0 10px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
-/* Explore button */
-.explore-btn {
-  font-size: 13px;
-  font-weight: 600;
-  border-radius: 10px;
-  padding: 6px 0;
+
+.card-content p {
+  font-size: 10px;            /* slightly larger for readability */
+  color: #222;                /* deeper, easier-to-read color */
+  line-height: 1.6;           /* better spacing between lines */
+  margin-bottom: 15px;        /* more space before button */
+  padding: 0 6px;             /* adds breathing room on the sides */
+  text-align: center;         /* centers sentences nicely */
+  word-wrap: break-word;      /* prevents overflow */
+  white-space: normal;        /* allows wrapping properly */
+}
+
+/* ▶️ Start Button */
+.start-btn {
   width: 100%;
-  background-color: #FFC107;
+  padding: 12px;
+  font-size: 10px;
   border: none;
-  color: #111;
-  transition: background-color 0.3s;
-  box-shadow: 1px 1px rgb(0, 0, 0, 0.7);
+  border-top: 3px solid #000;
+  background: #00ff04; /* 🟡 Default bright yellow */
+  color: #000;
+  font-family: "Press Start 2P", cursive;
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 18px;
+  transition: background 0.3s ease, color 0.3s ease, transform 0.2s ease;
 }
 
-.explore-btn:hover {
-  background-color: #ffc107;
+.start-btn:hover {
+  background: #00cc03; /* 🌕 Dark yellow on hover */
+  color: #000;
+  transform: translateY(-2px);
 }
 
-/* Wavy layout */
-.module-card.up {
-  transform: translateY(-22px);
+/* 💻 Responsive */
+@media (max-width: 992px) {
+  .module-card-game {
+    width: 190px;
+    height: 370px;
+  }
 }
 
-.module-card.down {
-  transform: translateY(22px);
+@media (max-width: 768px) {
+  .module-card-game {
+    width: 160px;
+    height: 340px;
+  }
 }
 
-.module-card:hover {
-  transform: scale(1.05);
+/* ⚙️ Floating Operators (visible & scattered nicely) */
+.floating-operators {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
 }
+
+.floating-operators img {
+  position: absolute;
+  opacity: 0.35; /* 🌟 more visible */
+  filter: drop-shadow(3px 3px 6px rgba(0, 0, 0, 0.25));
+  animation: floatyOps 8s infinite ease-in-out alternate;
+  transform-origin: center;
+}
+
+/* 🎯 Wider scattered positions */
+.floating-operators img:nth-child(1) { top: 13%; left: 3%; width: 150px; animation-delay: 0s; }
+.floating-operators img:nth-child(2) { top: 20%; left: 38%; width: 150px; animation-delay: 1s; }
+.floating-operators img:nth-child(3) { top: 80%; left: 10%; width: 150px; animation-delay: 2s; }
+.floating-operators img:nth-child(4) { top: 13%; right: 15%; width: 150px; animation-delay: 1.5s; }
+.floating-operators img:nth-child(5) { bottom: -5%; right: 45%; width: 150px; animation-delay: 2.5s; }
+.floating-operators img:nth-child(6) { bottom: 15%; left: 75%; width: 150px; animation-delay: 3s; }
+
+
+/* 💫 More dynamic floating motion */
+@keyframes floatyOps {
+  0% {
+    transform: translateY(0) rotate(0deg) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-30px) rotate(15deg) scale(1.1);
+    opacity: 0.45;
+  }
+  100% {
+    transform: translateY(0) rotate(-15deg) scale(1);
+    opacity: 0.3;
+  }
+}
+
