@@ -316,9 +316,9 @@ function HomePage() {
             </div>
 
             <div style={textContainer}>
-              <h1 style={learningTitleStyle}>Best Online Learning For Your Kids</h1>
+              <h1 style={learningTitleStyle}>Learn to Code the Fun Way with Little Coders!</h1>
               <p style={learningSubtitleStyle}>
-                Discover various fun learning programs for your 5 to 12-year-old children with our interactive coding lessons and visual activities.
+              At Little Coders, kids explore the world of programming through colorful images, interactive illustrations, and playful activities that make learning code exciting and easy to understand.
               </p>
 
               {/* ✅ Get Started Button (dynamic route) */}

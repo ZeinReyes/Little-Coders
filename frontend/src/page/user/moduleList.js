@@ -87,22 +87,23 @@ function ModuleList() {
               className="module-card-game"
               onClick={() => handleClick(module)}
             >
-              <div className="card-img-wrapper">
-                <img
-                  src={
-                    index === 0
-                      ? "/desert1.jpg"
-                      : index === 1
-                      ? "/volcanic1.jpg"
-                      : index === 2
-                      ? "/forest1.jpg"
-                      : index === 3
-                      ? "/icy1.jpg"
-                      : "/ocean3.jpg"
-                  }
-                  alt={module.title}
-                />
-              </div>
+             <div className="card-img-wrapper">
+                  <img
+                    src={
+                      index === 0
+                        ? "/assets/images/img.png"
+                        : index === 1
+                        ? "/assets/images/module1.png"
+                        : index === 2
+                        ? "/assets/images/module2.png"
+                        : index === 3
+                        ? "/assets/images/module3.png"
+                        : "/assets/images/module4.png"
+                    }
+                    alt={module.title}
+                  />
+                </div>
+
               <div className="card-content">
                 <h3>{module.title}</h3>
                 <p>
