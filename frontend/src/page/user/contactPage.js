@@ -88,9 +88,8 @@ function ContactPage() {
             color: "#fffbea",
           }}
         >
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut elit tellus,
-          luctus nec ullamcorper mattis, pulvinar dapibus leo.
-        </p>
+  This project was created by the students of the Technological Institute of the Philippines, Casal Campus, dedicated to promoting quality education and technological innovation for future innovators and leaders. Contact us to learn more or collaborate with our team of aspiring technologists.
+  </p>
       </section>
 
       {/* Wave Transition */}
@@ -149,12 +148,11 @@ function ContactPage() {
               marginBottom: "25px",
             }}
           >
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-            eiusmod tempor.
+           Little Coders
           </p>
-          <p>📍 123 Fifth Avenue, New York, NY 10160, USA</p>
+          <p>📍 363 P. Casal St., Quiapo, Manila, Philippines</p>
           <p>📞 929-242-6868</p>
-          <p>📧 contact@info.com</p>
+          <p>📧 LittleCoders@gmail.com</p>
         </div>
 
         {/* Right: Form */}
