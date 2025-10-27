@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/authContext";
 import NavbarComponent from "../../component/userNavbar";
 import UserFooter from "../../component/userFooter";
@@ -10,16 +10,12 @@ function HomePage() {
   const [showSplash, setShowSplash] = useState(true);
   const [animate, setAnimate] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
-  const navigate = useNavigate(); // ✅ Add navigation hook
+  const navigate = useNavigate();
 
-  // ✅ Show tutorial if onboarding is incomplete
   useEffect(() => {
-    if (!loading && isOnboardingIncomplete) {
-      setShowTutorial(true);
-    }
+    if (!loading && isOnboardingIncomplete) setShowTutorial(true);
   }, [loading, isOnboardingIncomplete]);
 
-  // ✅ Splash animation timing
   useEffect(() => {
     const startTimer = setTimeout(() => setAnimate(true), 200);
     const hideTimer = setTimeout(() => setShowSplash(false), 800);
@@ -29,58 +25,34 @@ function HomePage() {
     };
   }, []);
 
-  // ✅ Handle Get Started button click
   const handleGetStarted = () => {
-    if (user) {
-      navigate("/module-list");
-    } else {
-      navigate("/register");
-    }
+    navigate(user ? "/module-list" : "/register");
   };
 
-  // ✅ Splash Screen Styles
+  // ---------- Styles ----------
   const splashContainer = {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100vw",
-    height: "100vh",
-    backgroundColor: "#fff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 9999,
-    overflow: "hidden",
+    position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
+    display: "flex", justifyContent: "center", alignItems: "center",
+    backgroundColor: "#fff", zIndex: 9999, overflow: "hidden",
   };
 
   const snakeImage = {
     height: animate ? "100vh" : "30vh",
     width: "auto",
-    transition: "all .1s ",
+    transition: "all .1s",
   };
 
   const pageStyle = {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    minHeight: "100vh",
-    backgroundColor: "#f4f9fa",
-    fontFamily: "Arial, sans-serif",
+    display: "flex", flexDirection: "column", alignItems: "center",
+    justifyContent: "flex-start", minHeight: "100vh", width: "100%",
     overflowX: "hidden",
   };
 
-  // ✅ Hero, Cards, and Section styles (unchanged)
   const combinedHero = {
-    height: "calc(100vh - 70px)",
-    width: "100%",
-    marginTop: "70px",
-    position: "relative",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#fff7ef",
-    overflow: "hidden",
+    width: "100%", minHeight: "100vh", marginTop: "70px",
+    position: "relative", display: "flex", justifyContent: "center",
+    alignItems: "center", flexWrap: "wrap", padding: "50px 20px",
+    backgroundColor: "#fff7ef", overflow: "hidden",
   };
 
   const operatorStyle = (top, left, size, rotate, opacity) => ({
@@ -95,171 +67,78 @@ function HomePage() {
   });
 
   const contentContainer = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "80px",
-    zIndex: 5,
-    position: "relative",
+    display: "flex", flexDirection: "row", flexWrap: "wrap",
+    justifyContent: "center", alignItems: "center", gap: "30px",
+    position: "relative", zIndex: 5, width: "100%",
   };
 
   const imageContainer = {
-    marginTop: "100px",
-    position: "relative",
-    width: "360px",
-    height: "360px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
+    position: "relative", width: "300px", maxWidth: "40vw",
+    display: "flex", justifyContent: "center", alignItems: "center",
   };
 
   const blobStyle = {
-    position: "absolute",
-    width: "360px",
-    height: "360px",
-    zIndex: 1,
+    position: "absolute", width: "120%", height: "120%", zIndex: 1,
   };
 
   const leftKidStyle = {
-    height: "110%",
-    width: "360px",
-    position: "relative",
-    top: "-75px",
-    left: "-7px",
-    zIndex: 2,
-    borderBottomLeftRadius: "50%",
-    borderBottomRightRadius: "50%",
+    position: "relative", width: "105%", height: "auto", borderRadius: "65%", zIndex: 2, top: "-40px",
   };
 
   const rightKidStyle = {
-    width: "350px",
-    height: "115%",
-    position: "relative",
-    top: "-70px",
-    left: "-10px",
-    zIndex: 2,
+    width: "105%", height: "auto", borderRadius: "20%", zIndex: 2,
   };
 
   const textContainer = {
-    textAlign: "center",
-    maxWidth: "600px",
+    textAlign: "center", maxWidth: "500px", flex: "1 1 300px",
   };
 
   const learningTitleStyle = {
-    fontSize: "36px",
-    fontWeight: "bold",
-    color: "#222",
-    marginBottom: "20px",
-    fontFamily: "'Poppins', sans-serif",
+    fontSize: "2rem", fontWeight: "bold", color: "#222", marginBottom: "20px",
   };
 
   const learningSubtitleStyle = {
-    fontSize: "18px",
-    color: "#444",
-    marginBottom: "30px",
-    lineHeight: "1.6",
-    fontFamily: "'Poppins', sans-serif",
+    fontSize: "1rem", color: "#444", marginBottom: "30px", lineHeight: 1.6,
   };
 
   const getStartedButton = {
-    backgroundColor: "#222",
-    color: "#fff",
-    border: "none",
-    padding: "15px 30px",
-    borderRadius: "25px",
-    cursor: "pointer",
-    fontSize: "16px",
-    transition: "0.3s ease",
+    backgroundColor: "#222", color: "#fff", border: "none",
+    padding: "15px 30px", borderRadius: "25px", cursor: "pointer", fontSize: "1rem",
   };
 
   const whySection = {
-    backgroundColor: "rgba(148, 250, 146, 0.3)",
-    textAlign: "center",
-    padding: "25px 20px",
-    width: "100%",
-    height: "calc(100vh - 70px)",
+    backgroundColor: "rgba(148, 250, 146, 0.3)", textAlign: "center",
+    padding: "50px 20px", width: "100%", display: "flex", flexDirection: "column",
+    alignItems: "center",
   };
 
-  const whyTitle = {
-    fontSize: "2rem",
-    color: "#222",
-    marginBottom: "10px",
-    fontWeight: "700",
-  };
-
-  const whySubtitle = {
-    color: "#444",
-    fontSize: "1rem",
-    marginBottom: "50px",
-  };
+  const whyTitle = { fontSize: "2rem", color: "#222", marginBottom: "20px", fontWeight: "700" };
+  const whySubtitle = { color: "#444", fontSize: "1rem", marginBottom: "50px" };
 
   const cardsContainer = {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "flex-start",
-    gap: "60px",
-    flexWrap: "wrap",
+    display: "flex", justifyContent: "center", alignItems: "flex-start",
+    gap: "30px", flexWrap: "wrap",
   };
 
   const baseCard = {
-    borderRadius: "7px",
-    boxShadow: "5px 5px black",
-    width: "350px",
-    padding: "20px",
-    textAlign: "center",
+    borderRadius: "10px", boxShadow: "5px 5px black",
+    width: "280px", maxWidth: "90vw", padding: "20px", textAlign: "center",
     transition: "transform 0.3s ease, box-shadow 0.3s ease",
-    color: "#222",
-  };
-
-  const cardBlue = {
-    ...baseCard,
-    backgroundColor: "#b3e5fc",
-    borderTop: "3px dashed #0288d1",
-    borderLeft: "3px dashed #0288d1",
-  };
-
-  const cardYellow = {
-    ...baseCard,
-    backgroundColor: "#fff9c4",
-    borderTop: "3px dashed #fbc02d",
-    borderLeft: "3px dashed #fbc02d",
-  };
-
-  const cardPurple = {
-    ...baseCard,
-    backgroundColor: "#e1bee7",
-    borderTop: "3px dashed #7b1fa2",
-    borderLeft: "3px dashed #7b1fa2",
   };
 
   const cardImage = {
-    width: "100%",
-    height: "180px",
-    objectFit: "contain",
-    borderRadius: "15px",
-    marginBottom: "15px",
-    backgroundColor: "white",
-    padding: "10px",
+    width: "100%", height: "150px", objectFit: "contain",
+    borderRadius: "15px", marginBottom: "15px", backgroundColor: "white", padding: "10px",
   };
 
-  const cardTitle = {
-    fontSize: "1.2rem",
-    color: "#222",
-    marginBottom: "8px",
-  };
+  const cardTitle = { fontSize: "1.2rem", color: "#222", marginBottom: "8px" };
+  const cardText = { fontSize: "1rem", color: "#333", lineHeight: 1.4 };
 
-  const cardText = {
-    fontSize: "0.95rem",
-    color: "#333",
-    lineHeight: "1.4",
-  };
-
-  const lowerCard = { marginTop: "50px" };
+  const lowerCard = { marginTop: "20px" };
   const higherCard = { marginTop: "0px" };
 
   return (
     <>
-      {/* ✅ Tutorial modal (only shows if user hasn’t completed onboarding) */}
       {showTutorial && (
         <TutorialModal
           show={showTutorial}
@@ -270,7 +149,6 @@ function HomePage() {
         />
       )}
 
-      {/* ✅ Splash screen */}
       {showSplash && (
         <div style={splashContainer}>
           <img
@@ -281,7 +159,6 @@ function HomePage() {
         </div>
       )}
 
-      {/* ✅ Main Page */}
       <div style={pageStyle}>
         <NavbarComponent />
 
@@ -293,24 +170,25 @@ function HomePage() {
                 0%, 100% { transform: translateY(0); }
                 50% { transform: translateY(-15px); }
               }
-              .bounce {
-                animation: bounce 2s infinite ease-in-out;
-              }
+              .bounce { animation: bounce 2s infinite ease-in-out; }
             `}
           </style>
 
-          <img src="/assets/images/add.png" style={{ ...operatorStyle("1%", "-1%", "160px", "10", 0.15) }} className="bounce" />
-          <img src="/assets/images/subtract.png" style={{ ...operatorStyle("15%", "25%", "180px", "-10", 0.12) }} className="bounce" />
-          <img src="/assets/images/divide.png" style={{ ...operatorStyle("70%", "1%", "160px", "20", 0.1) }} className="bounce" />
-          <img src="/assets/images/multiply.png" style={{ ...operatorStyle("70%", "30%", "150px", "0", 0.15) }} className="bounce" />
-          <img src="/assets/images/greaterthan.png" style={{ ...operatorStyle("15%", "65%", "180px", "-10", 0.15), animationDelay: "1.2s" }} className="bounce" />
-          <img src="/assets/images/lessthan.png" style={{ ...operatorStyle("3%", "87%", "160px", "20", 0.12), animationDelay: "1.5s" }} className="bounce" />
-          <img src="/assets/images/!.png" style={{ ...operatorStyle("55%", "63%", "160px", "-20", 0.1), animationDelay: "1.8s" }} className="bounce" />
-          <img src="/assets/images/diamond.png" style={{ ...operatorStyle("75%", "90%", "150px", "15", 0.12), animationDelay: "2.1s" }} className="bounce" />
+          {/* Operators */}
+          <img src="/assets/images/add.png" style={operatorStyle("1%", "5%", "12%", 10, 0.15)} className="bounce" />
+          <img src="/assets/images/subtract.png" style={operatorStyle("15%", "25%", "14%", -10, 0.12)} className="bounce" />
+          <img src="/assets/images/divide.png" style={operatorStyle("70%", "1%", "12%", 20, 0.1)} className="bounce" />
+          <img src="/assets/images/multiply.png" style={operatorStyle("70%", "30%", "11%", 0, 0.15)} className="bounce" />
+          <img src="/assets/images/greaterthan.png" style={operatorStyle("15%", "65%", "14%", -10, 0.15)} className="bounce" />
+          <img src="/assets/images/lessthan.png" style={operatorStyle("3%", "87%", "12%", 20, 0.12)} className="bounce" />
+          <img src="/assets/images/!.png" style={operatorStyle("55%", "63%", "12%", -20, 0.1)} className="bounce" />
+          <img src="/assets/images/diamond.png" style={operatorStyle("75%", "90%", "11%", 15, 0.12)} className="bounce" />
+
+          {/* Hero content */}
           <div style={contentContainer}>
             <div style={imageContainer}>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 300" style={blobStyle}>
-                <path d="M100 30 C150 0 250 0 290 60 C320 120 300 200 220 240 C150 280 70 260 10 160 C0 110 40 70 100 30 Z" fill="#F0597E" />
+                <path d="M100 30 C150 0 250 0 290 60 C320 100 300 200 220 240 C150 250 70 240 10 160 C0 110 40 70 100 30 Z" fill="#F0597E" />
               </svg>
               <img src="/assets/images/kid2.jpg" alt="Left kid" style={leftKidStyle} />
             </div>
@@ -318,13 +196,9 @@ function HomePage() {
             <div style={textContainer}>
               <h1 style={learningTitleStyle}>Learn to Code the Fun Way with Little Coders!</h1>
               <p style={learningSubtitleStyle}>
-              At Little Coders, kids explore the world of programming through colorful images, interactive illustrations, and playful activities that make learning code exciting and easy to understand.
+                At Little Coders, kids explore programming through colorful images, interactive illustrations, and playful activities.
               </p>
-
-              {/* ✅ Get Started Button (dynamic route) */}
-              <button style={getStartedButton} onClick={handleGetStarted}>
-                Get Started
-              </button>
+              <button style={getStartedButton} onClick={handleGetStarted}>Get Started</button>
             </div>
 
             <div style={imageContainer}>
@@ -336,30 +210,31 @@ function HomePage() {
           </div>
         </div>
 
-        {/* ---------- WHY TEACH PROGRAMMING SECTION ---------- */}
+        {/* ---------- WHY SECTION ---------- */}
         <section style={whySection}>
           <h2 style={whyTitle}>Why Teach Programming to Children</h2>
           <p style={whySubtitle}>Empowering young minds through creativity and logic</p>
           <div style={cardsContainer}>
-            <div style={{ ...cardBlue, ...lowerCard }}>
-              <img src="/assets/images/creativity.png" alt="Creativity" style={cardImage} />
-              <h3 style={cardTitle}>Boosts Creativity</h3>
-              <p style={cardText}>Programming helps children express their imagination by building games and apps.</p>
-            </div>
-
-            <div style={{ ...cardYellow, ...higherCard }}>
-              <img src="/assets/images/crit.png" alt="Problem Solving" style={cardImage} />
-              <h3 style={cardTitle}>Improves Problem-Solving</h3>
-              <p style={cardText}>Kids learn to think logically and solve real-world problems step by step.</p>
-            </div>
-
-            <div style={{ ...cardPurple, ...lowerCard }}>
-              <img src="/assets/images/understanding1.png" alt="Future Skills" style={cardImage} />
-              <h3 style={cardTitle}>Prepares for the Future</h3>
-              <p style={cardText}>Learning to code gives children valuable skills that open doors to future careers.</p>
-            </div>
+            {[
+              { img: "creativity.png", title: "Boosts Creativity", text: "Programming helps children express their imagination by building games and apps.", bg: "#b3e5fc", border: "#0288d1" },
+              { img: "crit.png", title: "Improves Problem-Solving", text: "Kids learn to think logically and solve real-world problems step by step.", bg: "#fff9c4", border: "#fbc02d" },
+              { img: "understanding1.png", title: "Prepares for the Future", text: "Learning to code gives children valuable skills that open doors to future careers.", bg: "#e1bee7", border: "#7b1fa2" }
+            ].map((card, idx) => (
+              <div key={idx} style={{
+                ...baseCard,
+                backgroundColor: card.bg,
+                borderTop: `3px dashed ${card.border}`,
+                borderLeft: `3px dashed ${card.border}`,
+                marginTop: idx % 2 === 0 ? lowerCard.marginTop : higherCard.marginTop
+              }}>
+                <img src={`/assets/images/${card.img}`} alt={card.title} style={cardImage} />
+                <h3 style={cardTitle}>{card.title}</h3>
+                <p style={cardText}>{card.text}</p>
+              </div>
+            ))}
           </div>
         </section>
+
         <UserFooter />
       </div>
     </>
