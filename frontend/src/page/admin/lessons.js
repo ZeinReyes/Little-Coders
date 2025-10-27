@@ -5,6 +5,65 @@ import { Button, Spinner } from "react-bootstrap";
 import DeleteConfirmModal from "../../component/deleteConfirmModal";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
+const adminStyles = `
+.admin-container {
+  font-family: "Arial", "Helvetica", sans-serif;
+}
+
+.admin-search-box input {
+  border-radius: 8px !important;
+}
+
+.lesson-card {
+  border: none;
+  border-left: 5px solid #007bff;
+  background: #ffffff;
+  padding: 14px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transition: 0.2s ease-in-out;
+  cursor: pointer;
+  margin-bottom: 15px;
+}
+
+.lesson-card:hover {
+  transform: translateY(-3px);
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: 10px;
+  color: #0056b3;
+  text-transform: uppercase;
+}
+
+.list-group-item {
+  border: none !important;
+  padding: 12px 10px;
+  border-radius: 6px;
+  margin-top: 6px;
+  background: #f7f9fc;
+}
+
+.list-group-item:hover {
+  background: #e9f1ff;
+}
+
+.admin-menu {
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px;
+  border: 1px solid #ccc;
+}
+
+.admin-add-btn {
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 14px;
+}
+`;
+
 function LessonsList() {
   const [lessons, setLessons] = useState([]);
   const [expandedLesson, setExpandedLesson] = useState(null);
@@ -45,13 +104,11 @@ function LessonsList() {
       try {
         const token = localStorage.getItem("token");
 
-        // Fetch materials
         const materialsRes = await axios.get(
           `${API_BASE}/materials/lessons/${lessonId}/materials`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        // Fetch activities per material
         const activitiesByMaterial = {};
         await Promise.all(
           materialsRes.data.map(async (material) => {
@@ -67,7 +124,6 @@ function LessonsList() {
           })
         );
 
-        // Fetch assessments
         const assessmentsRes = await axios.get(
           `${API_BASE}/assessments/lessons/${lessonId}/assessments`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -81,7 +137,6 @@ function LessonsList() {
             assessments: assessmentsRes.data,
           },
         }));
-        console.log("Assessments for lesson", lessonId, assessmentsRes.data);
       } catch (err) {
         console.error("Error fetching lesson contents:", err);
       } finally {
@@ -185,7 +240,7 @@ function LessonsList() {
             else if (type === "activity")
               navigate(`/admin/lessons/${lessonId}/activities/${id}`);
             else if (type === "assessment")
-               navigate(`/admin/edit-assessment/${id}`);   
+              navigate(`/admin/edit-assessment/${id}`);
           }}
         >
           <i className="bi bi-pencil me-2"></i>Edit
@@ -205,8 +260,10 @@ function LessonsList() {
   );
 
   return (
-    <div className="p-3">
-      <div className="d-flex justify-content-between mb-3">
+    <div className="p-3 admin-container">
+      <style>{adminStyles}</style>
+
+      <div className="d-flex justify-content-between mb-3 admin-search-box">
         <div className="input-group w-75">
           <span className="input-group-text">
             <i className="bi bi-search"></i>
@@ -219,28 +276,29 @@ function LessonsList() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Link to="/admin/lessons/add" className="btn btn-success w-25 ms-3">
+
+        <Link to="/admin/lessons/add" className="btn btn-primary w-25 ms-3">
           <i className="bi bi-plus-lg me-1"></i>Add
         </Link>
       </div>
 
       {filteredLessons.map((lesson) => (
-        <div key={lesson._id} className="mb-3 border rounded shadow-sm">
+        <div key={lesson._id} className="lesson-card">
           <div
-            className="d-flex justify-content-between align-items-center bg-light p-3 cursor-pointer"
+            className="d-flex justify-content-between align-items-center"
             onClick={() => toggleExpand(lesson._id)}
           >
             <strong>{lesson.title}</strong>
             <div className="d-flex align-items-center position-relative gap-2">
               <Button
-                size="sm"
-                variant="success"
+                variant="primary"
+                className="admin-add-btn"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleAddMaterial(lesson._id);
                 }}
               >
-                <i className="bi bi-plus-lg me-1"></i>Add Material
+                <i className="bi bi-plus-lg"></i> Add Material
               </Button>
 
               <i
@@ -256,28 +314,32 @@ function LessonsList() {
           </div>
 
           {expandedLesson === lesson._id && (
-            <div className="p-3 bg-white">
+            <div className="p-3">
               {loadingLessons[lesson._id] ? (
                 <div className="text-center my-3">
                   <Spinner animation="border" size="sm" /> Loading contents...
                 </div>
               ) : (
                 <>
-                  {/* Materials */}
-                  <h6 className="fw-bold mt-2 text-primary">📘 Materials</h6>
+                  <h6 className="section-title">
+                    <i className="bi bi-journal-text me-2"></i> Lessons
+                  </h6>
                   {lessonContents[lesson._id]?.materials?.length ? (
                     <ul className="list-group mb-3">
                       {lessonContents[lesson._id].materials.map((m) => (
                         <li key={m._id} className="list-group-item">
                           <div className="d-flex justify-content-between align-items-center position-relative">
-                            <span>{m.title}</span>
+                            <span>
+                              <i className="bi bi-book me-2"></i>
+                              {m.title}
+                            </span>
                             <div className="d-flex align-items-center gap-2">
                               <Button
-                                size="sm"
                                 variant="primary"
+                                className="admin-add-btn"
                                 onClick={() => handleAddActivity(lesson._id, m._id)}
                               >
-                                <i className="bi bi-plus-lg me-1"></i>Add Activity
+                                <i className="bi bi-plus-lg"></i> Add Activity
                               </Button>
                               <i
                                 className="bi bi-three-dots-vertical fs-5 text-secondary"
@@ -302,7 +364,10 @@ function LessonsList() {
                                   key={a._id}
                                   className="list-group-item d-flex justify-content-between align-items-center position-relative"
                                 >
-                                  <span>{a.name}</span>
+                                  <span>
+                                    <i className="bi bi-lightbulb me-2"></i>
+                                    {a.name}
+                                  </span>
                                   <div className="d-flex align-items-center gap-2">
                                     <span
                                       className={`badge ${
@@ -339,45 +404,47 @@ function LessonsList() {
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-muted">No materials found.</p>
+                    <p className="text-muted">No lessons found.</p>
                   )}
 
-                  {/* Assessments */}
-                  {/* Assessments */}
-<h6 className="fw-bold mt-3 text-primary">🧠 Assessment</h6>
-{lessonContents[lesson._id]?.assessments?.length ? (
-  <ul className="list-group mb-3">
-    {lessonContents[lesson._id].assessments.map((asmt) => {
-      const assessmentId = asmt._id || asmt.id; // ✅ ensure consistent ID
-      return (
-        <li
-          key={assessmentId}
-          className="list-group-item d-flex justify-content-between align-items-center position-relative"
-        >
-          <span>{asmt.title}</span>
-          <div className="d-flex align-items-center gap-2">
-            <i
-              className="bi bi-three-dots-vertical fs-5 text-secondary"
-              style={{ cursor: "pointer" }}
-              onClick={() =>
-                setOpenMenu(openMenu === assessmentId ? null : assessmentId)
-              }
-            ></i>
-            <ActionMenu
-              type="assessment"
-              id={assessmentId}
-              title={asmt.title}
-              lessonId={lesson._id}
-            />
-          </div>
-        </li>
-      );
-    })}
-  </ul>
-) : (
-  <p className="text-muted">No assessment found.</p>
-)}
-
+                  <h6 className="section-title">
+                    <i className="bi bi-clipboard-check me-2"></i> Assessment
+                  </h6>
+                  {lessonContents[lesson._id]?.assessments?.length ? (
+                    <ul className="list-group mb-3">
+                      {lessonContents[lesson._id].assessments.map((asmt) => {
+                        const assessmentId = asmt._id || asmt.id;
+                        return (
+                          <li
+                            key={assessmentId}
+                            className="list-group-item d-flex justify-content-between align-items-center position-relative"
+                          >
+                            <span>
+                              <i className="bi bi-pencil-square me-2"></i>
+                              {asmt.title}
+                            </span>
+                            <div className="d-flex align-items-center gap-2">
+                              <i
+                                className="bi bi-three-dots-vertical fs-5 text-secondary"
+                                style={{ cursor: "pointer" }}
+                                onClick={() =>
+                                  setOpenMenu(openMenu === assessmentId ? null : assessmentId)
+                                }
+                              ></i>
+                              <ActionMenu
+                                type="assessment"
+                                id={assessmentId}
+                                title={asmt.title}
+                                lessonId={lesson._id}
+                              />
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="text-muted">No assessment found.</p>
+                  )}
                 </>
               )}
             </div>

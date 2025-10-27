@@ -71,13 +71,13 @@ const ManageAssessment = () => {
           }}
         />
         <Button
-          variant="success"
+          variant="primary" // <-- changed from "success" to "primary"
           onClick={() => navigate("/admin/add-assessment")}
           className="px-4 py-2"
           style={{ fontWeight: "500", fontSize: "16px" }}
-        >
+>
           + Add Assessment
-        </Button>
+          </Button>
       </div>
 
       {loading ? (
@@ -98,8 +98,10 @@ const ManageAssessment = () => {
               }
               aria-controls={`collapse-${index}`}
               aria-expanded={expandedLesson === index}
-              className="d-flex justify-content-between align-items-center bg-primary text-white py-3 px-4"
-              style={{ cursor: "pointer" }}
+              className="d-flex justify-content-between align-items-center bg-white border py-3 px-4"
+style={{ cursor: "pointer", color: "#333", fontWeight: "600" }}
+
+             
             >
               <strong>{lesson.title}</strong>
             </Card.Header>

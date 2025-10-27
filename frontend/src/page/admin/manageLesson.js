@@ -247,15 +247,18 @@ function ManageLesson() {
   return (
   <div className="p-3">
     {/* HEADER */}
-    <div className="bg-primary text-white p-4 rounded d-flex justify-content-between align-items-center">
-      <h3 className="mb-0">Manage Lesson</h3>
+    <div className="bg-white border p-4 rounded d-flex justify-content-between align-items-center">
+  <h3 className="mb-0 text-dark">Manage Lesson</h3>
+
       <div className="d-flex gap-2">
         <Button
-          variant="light"
-          onClick={() => navigate(`/admin/lessons/${id}/add-material`)}
-        >
-          + Add Material
-        </Button>
+  variant="primary"
+  className="admin-add-btn"
+  onClick={() => navigate("/admin/lessons/add")}
+>
+  <i className="bi bi-plus-lg me-2"></i> 
+  
+</Button>
         <Button
           variant="success"
           onClick={() => navigate(`/admin/lessons/${id}/add-activity`)}
