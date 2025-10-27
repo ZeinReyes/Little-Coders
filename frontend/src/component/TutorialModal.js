@@ -381,7 +381,7 @@ function TutorialModal({ show, onClose }) {
     } else if (currentImage === "/assets/images/confident.png") {
       // confident.png
       charWidth = 600;
-      charLeft = -20;
+      charLeft = -60;
       charTop = 200;
     }
 
@@ -406,7 +406,7 @@ function TutorialModal({ show, onClose }) {
       case 0: // Intro
         charZIndex = zIndexConfig.modal;
         charWidth = 900;
-        charLeft = -200;
+        charLeft = -275;
         charTop = 90;
         break;
       case 1: // Toolbox
@@ -425,7 +425,7 @@ function TutorialModal({ show, onClose }) {
         charZIndex = zIndexConfig.codeArea;
         charWidth = 390;
         charLeft = -50;
-        charTop = 90;
+        charTop = 60;
         break;
       default:
         charZIndex = zIndexConfig.modal;

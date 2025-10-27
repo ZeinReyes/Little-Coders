@@ -56,17 +56,39 @@ export default function DragBoardLesson() {
    const location = useLocation();
   const { assessment, questions } = location.state || {};
 
-  useEffect(() => {
+  // === CHANGED: Initialize assessment with one random question at a time,
+  // and ensure only 5 questions are used in total ===
+useEffect(() => {
   if (assessment && questions) {
-    // Shuffle questions
-    const shuffled = [...questions].sort(() => Math.random() - 0.5);
-    setLesson({ ...assessment, type: "assessment", questions: shuffled });
-    setCurrentQuestionIndex(0);
+    // ensure we only work with up to 5 questions (if LessonList already sent 5, this is a no-op)
+    const shuffledAll = [...questions].sort(() => Math.random() - 0.5);
+    const selectedFive = shuffledAll.slice(0, 5); // CHANGED: limit to 5
+
+    // pick a random first question from the selected pool
+    const pool = [...selectedFive];
+    const randomIndex = Math.floor(Math.random() * pool.length);
+    const firstQuestion = pool.splice(randomIndex, 1)[0]; // remove chosen from pool
+
+    setLesson({
+      ...assessment,
+      type: "assessment",
+      // questionsPool holds the remaining questions (0..4)
+      questionsPool: pool,
+      // currentQuestion is the one shown on the board
+      currentQuestion: firstQuestion,
+      answered: [],
+    });
+
+    // reset attempts and timers for a fresh assessment start
     setAssessmentAttempts(0);
+    setQuestionStartTime(Date.now());
+    setLoading(false);
   }
 }, [assessment, questions]);
+// === END CHANGED ===
 
-// --- Activity-specific state ---
+
+ // --- Activity-specific state ---
 const [activityAttempts, setActivityAttempts] = useState(0);
 const [currentActivityStartTime, setCurrentActivityStartTime] = useState(Date.now());
 // --- Start timer when activity modal opens ---
@@ -85,7 +107,7 @@ useEffect(() => {
     if (lesson?.type === "assessment") {
       setQuestionStartTime(Date.now());
     }
-  }, [currentQuestionIndex]);
+  }, [currentQuestionIndex, lesson?.currentQuestion]);
 
   // --- Handle Lesson Sound ---
   useEffect(() => {
@@ -115,7 +137,7 @@ useEffect(() => {
     try {
       // If assessment is already passed from navigation state, skip fetching
       if (assessment && questions) {
-        setLesson({ ...assessment, type: "assessment", questions });
+        // NOTE: we already handle initialization above when assessment & questions are provided via location.state
         setCurrentQuestionIndex(0);
         setLoading(false);
         return;
@@ -138,14 +160,16 @@ useEffect(() => {
                 { headers }
               )
               .then((r) => {
-                const assessment = { ...r.data, _id: r.data.id, type: "assessment" };
+                const assessmentFetched = { ...r.data, _id: r.data.id, type: "assessment" };
 
-                // Shuffle questions only if not already set
-                if (assessment.questions?.length > 0) {
-                  assessment.questions = [...assessment.questions].sort(() => Math.random() - 0.5);
+                // CHANGED: If assessment fetched from API (not passed in state), limit questions to 5
+                if (assessmentFetched.questions?.length > 0) {
+                  assessmentFetched.questions = [...assessmentFetched.questions]
+                    .sort(() => Math.random() - 0.5)
+                    .slice(0, 5); // CHANGED
                 }
 
-                return assessment;
+                return assessmentFetched;
               })
               .catch(() =>
                 axios
@@ -199,8 +223,9 @@ useEffect(() => {
 
 // ------------------ HANDLE ASSESSMENT ------------------
 const handleAssessmentRun = async () => {
-  if (!lesson) return;
-  const question = lesson.questions[currentQuestionIndex];
+  // CHANGED: use lesson.currentQuestion instead of lesson.questions[currentQuestionIndex]
+  if (!lesson || lesson.type !== "assessment" || !lesson.currentQuestion) return;
+  const question = lesson.currentQuestion;
   if (!question) return;
 
   const token = localStorage.getItem("token");
@@ -218,14 +243,7 @@ const handleAssessmentRun = async () => {
   const attempts = assessmentAttempts + 1;
   setAssessmentAttempts(attempts);
 
-  if (question.completed) {
-    notification.textContent = "✅ Question already completed!";
-    notification.style.display = "block";
-    setTimeout(() => (notification.style.display = "none"), 3000);
-    return;
-  }
-
-  // Save attempt
+  // Save attempt to backend (same as before)
   try {
     await axios.post(
       `http://localhost:5000/api/progress/mark-assessment-attempt`,
@@ -248,19 +266,50 @@ const handleAssessmentRun = async () => {
 
   if (result.passedAll) {
     playSuccessSound();
-    lesson.questions[currentQuestionIndex].completed = true;
-    await markCompleted();
-    stopActivitySound();
-    setCharacterImg(getRandomImage(congratsImages));
-    setShowCongratsModal(true);
-    setAssessmentAttempts(0);
+
+    // CHANGED: on success, pick next random question from questionsPool (if any)
+    const pool = Array.isArray(lesson.questionsPool) ? [...lesson.questionsPool] : [];
+    if (pool.length > 0) {
+      // pick random next question
+      const nextIndex = Math.floor(Math.random() * pool.length);
+      const nextQuestion = pool.splice(nextIndex, 1)[0];
+
+      // update lesson with nextQuestion and remaining pool
+      setLesson((prev) => ({
+        ...prev,
+        currentQuestion: nextQuestion,
+        questionsPool: pool,
+        // optionally track answered
+        answered: [...(prev.answered || []), question],
+      }));
+
+      // reset attempts and start timer for next question
+      setAssessmentAttempts(0);
+      setQuestionStartTime(Date.now());
+
+      // show small congrats (optional). you had congrats modal after finishing; we'll show small feedback:
+      setCharacterImg(getRandomImage(congratsImages));
+      setShowCongratsModal(true);
+      // keep congrats modal behavior: user clicks continue to proceed; we do not auto-mark finished here
+    } else {
+      // no more questions remaining — finish whole assessment
+      try {
+        await markCompleted();
+      } catch (err) {
+        console.error("❌ Error marking completed after assessment:", err);
+      }
+      stopActivitySound();
+      setCharacterImg(getRandomImage(congratsImages));
+      setShowCongratsModal(true);
+      setAssessmentAttempts(0);
+    }
   } else {
     playErrorSound();
     const notifText = [];
     if (question.expectedOutput && !result.passedOutput)
       notifText.push("Output does not match expected.");
     if (!result.passedNodes)
-      notifText.push(`Missing objects: ${result.missingNodes.join(", ")}`);
+      notifText.push(`Missing objects: ${result.missingNodes?.join(", ")}`);
     notification.textContent = notifText.join(" ");
     notification.style.display = "block";
     setTimeout(() => (notification.style.display = "none"), 5000);
@@ -274,6 +323,7 @@ const handleAssessmentRun = async () => {
     }
   }
 };
+// ------------------ END CHANGED handleAssessmentRun ------------------
 
 // ------------------ HANDLE ACTIVITY ------------------
 const handleActivityRun = async () => {
@@ -381,8 +431,6 @@ const onRun = async () => {
     await handleActivityRun();
   }
 };
-
-
 
       runButton.addEventListener("click", onRun);
 
@@ -612,17 +660,20 @@ const onRun = async () => {
   </div>
 )}
 
-{lesson.type === "assessment" && lesson.questions?.length > 0 && (
+{/* === CHANGED: Assessment display uses lesson.currentQuestion (one at a time) === */}
+{lesson.type === "assessment" && lesson.currentQuestion && (
   <div
     className="assessment-instructions mb-3 p-3"
     style={{ backgroundColor: "#FFF8F2", borderRadius: "8px" }}
   >
     <h5 style={{ color: "#00796B" }}>Assessment: {lesson.title}</h5>
-    {lesson.questions[currentQuestionIndex] && (() => {
-      const q = lesson.questions[currentQuestionIndex];
+    {(() => {
+      const q = lesson.currentQuestion;
       return (
         <div style={{ marginBottom: "1.5rem" }}>
-          <h6 style={{ color: "#00796B" }}>Question {currentQuestionIndex + 1}</h6>
+          <h6 style={{ color: "#00796B" }}>
+            Question { (lesson.answered?.length || 0) + 1 } of { ( (lesson.questionsPool?.length || 0) + (lesson.answered?.length || 0) + (lesson.currentQuestion ? 1 : 0) ) }
+          </h6>
           <p dangerouslySetInnerHTML={{ __html: q.instructions }} />
           {q.hints?.length > 0 && (
             <>
@@ -653,6 +704,8 @@ const onRun = async () => {
     })()}
   </div>
 )}
+{/* === END CHANGED === */}
+
       {/* === Drag & Drop + Workspace === */}
       <div className="main-container">
         <div className="draggable">
@@ -799,7 +852,10 @@ const onRun = async () => {
             variant="primary"
             onClick={() => {
               setShowCongratsModal(false);
-              navigate(`/lessons/${lessonId}`);
+              // If assessment: if no more questions, go back to lesson list
+              if (lesson?.type === "assessment" && (!lesson.questionsPool || lesson.questionsPool.length === 0)) {
+                navigate(`/lessons/${lessonId}`);
+              }
             }}
           >
             Continue
@@ -862,33 +918,35 @@ const onRun = async () => {
         </Modal.Footer>
       </Modal>
 
-      {/* === Character Avatar (Bottom Left) === */}
-      {(showLessonModal || showActivityModal || showCongratsModal) && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "10px",
-            left: "20px",
-            zIndex: 1055,
-            display: "flex",
-            alignItems: "flex-end",
-            flexDirection: "column",
-          }}
-        >
-          <img
-            src={characterImg}
-            alt="Character"
-            style={{
-              top: "90px",
-              width: "420px",
-              height: "auto",
-              userSelect: "none",
-              pointerEvents: "none",
-              animation: "bounce 2s infinite ease-in-out",
-            }}
-          />
-        </div>
-      )}
+     {/* === Character Avatar (Always Above Modal) === */}
+{(showLessonModal || showActivityModal || showCongratsModal) && (
+  <div
+    style={{
+      position: "fixed",
+      bottom: "-50px",
+      left: "20px",
+      zIndex: 2000, // ⬅️ higher than modal (Bootstrap modals are 1055)
+      display: "flex",
+      alignItems: "flex-end",
+      flexDirection: "column",
+      pointerEvents: "none", // allows clicking through
+    }}
+  >
+    <img
+      src={characterImg}
+      alt="Character"
+      style={{
+        width: "420px",
+        height: "auto",
+        userSelect: "none",
+        pointerEvents: "none",
+        animation: "bounce 2s infinite ease-in-out",
+        filter: "drop-shadow(3px 3px 8px rgba(0, 0, 0, 0.3))",
+      }}
+    />
+  </div>
+)}
+
 
       <style>{`
         @keyframes bounce {

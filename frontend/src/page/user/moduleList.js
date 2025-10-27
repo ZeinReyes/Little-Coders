@@ -79,6 +79,8 @@ function ModuleList() {
           <img src="/assets/images/lessthan.png" alt="Less Than" />
         </div>
 
+        <h1 className="modules-header">Modules</h1>
+
         {/* 📘 Module Cards */}
         <div className="modules-list-game">
           {modules.map((module, index) => (

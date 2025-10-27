@@ -42,15 +42,41 @@ const NavbarComponent = () => {
         <div></div>
       </div>
 
-      {/* Center Links */}
+      {/* Nav Links */}
       <div className={`nav-links ${menuOpen ? "active" : ""}`}>
         <Link to="/">Home</Link>
         <Link to="/module-list">Lessons</Link>
         <Link to="/contact">Contact Us</Link>
         <Link to="/dragboard">Program Now</Link>
+
+        {/* Mobile Profile Links */}
+        {user && (
+          <div className="mobile-profile">
+            <Link
+              className="profile-link"
+              to={`/edit-profile/${user._id}`}
+              onClick={() => setMenuOpen(false)}
+            >
+              {user.name}
+            </Link>
+            <button className="logout-btn" onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
+        )}
+        {!user && (
+          <div className="mobile-profile">
+            <Link className="sign-in" to="/login" onClick={() => setMenuOpen(false)}>
+              Sign in
+            </Link>
+            <Link className="sign-up" to="/register" onClick={() => setMenuOpen(false)}>
+              Sign up
+            </Link>
+          </div>
+        )}
       </div>
 
-      {/* Right Side Buttons / Profile */}
+      {/* Desktop Right Profile */}
       <div className="nav-right">
         {!user ? (
           <>
@@ -64,7 +90,7 @@ const NavbarComponent = () => {
         ) : (
           <div className="dropdown">
             <button
-              style={{ backgroundColor: "#2157b4", color: "#ffffff" }}
+              style={{ backgroundColor: "#ffdd57", color: "#111" }}
               className="btn dropdown-toggle"
               type="button"
               id="userMenu"
@@ -91,125 +117,143 @@ const NavbarComponent = () => {
 
       {/* CSS */}
       <style>{`
-        .navbar {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 70px;
-          background-color: #fff;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 40px;
-          color: #222;
-          z-index: 20;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
+  .navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 70px;
+    background-color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 40px;
+    color: #222;
+    z-index: 20;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    font-weight: 800;
+    font-size: 22px;
+    font-family: 'Poppins', sans-serif;
+  }
+  .nav-links {
+    display: flex;
+    gap: 30px;
+  }
+  .nav-links a {
+    color: #222;
+    text-decoration: none;
+    font-size: 16px;
+    transition: 0.3s;
+  }
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  .sign-in {
+    background-color: #ffdd57;
+    color: #111;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-size: 15px;
+    text-decoration: none;
+    transition: 0.3s;
+  }
+  .sign-up {
+    background-color: transparent;
+    color: #222;
+    border: 2px solid #ffdd57;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-size: 15px;
+    text-decoration: none;
+    transition: 0.3s;
+  }
+  .hamburger {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    cursor: pointer;
+  }
+  .hamburger div {
+    width: 25px;
+    height: 3px;
+    background-color: #222;
+  }
+  /* Mobile profile inside menu */
+.mobile-profile {
+  display: none;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  width: 90%;
+  padding: 10px 20px;
+  margin-top: 10px;
+  background-color: #ffdd57; /* full yellow background */
+  border-radius: 8px;
+}
 
-        .logo {
-          display: flex;
-          align-items: center;
-          font-weight: 800;
-          font-size: 22px;
-          font-family: 'Poppins', sans-serif;
-        }
+.mobile-profile .profile-link {
+  font-weight: bold;
+  text-decoration: none;
+  color: #111; /* dark text for contrast */
+  font-size: 16px;
+}
 
-        .nav-links {
-          display: flex;
-          gap: 30px;
-        }
+.mobile-profile .logout-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  color: #111; /* icon color */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-        .nav-links a {
-          color: #222;
-          text-decoration: none;
-          font-size: 16px;
-          transition: 0.3s;
-        }
-
-        .nav-right {
-          display: flex;
-          align-items: center;
-          gap: 15px;
-        }
-
-        .sign-in {
-          background-color: #222;
-          color: #fff;
-          border: 2px solid #222;
-          border-radius: 6px;
-          padding: 8px 18px;
-          font-size: 15px;
-          text-decoration: none;
-          transition: 0.3s;
-        }
-
-        .sign-up {
-          background-color: transparent;
-          color: #222;
-          border: 2px solid #222;
-          border-radius: 6px;
-          padding: 8px 18px;
-          font-size: 15px;
-          text-decoration: none;
-          transition: 0.3s;
-        }
-
-        .hamburger {
-          display: none;
-          flex-direction: column;
-          gap: 4px;
-          cursor: pointer;
-        }
-
-        .hamburger div {
-          width: 25px;
-          height: 3px;
-          background-color: #222;
-        }
-
-        /* Responsive */
-        @media (max-width: 992px) {
-          .nav-links {
-            position: absolute;
-            top: 70px;
-            left: 0;
-            right: 0;
-            background-color: #fff;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-            padding: 15px 0;
-            display: none;
-          }
-
-          .nav-links.active {
-            display: flex;
-          }
-
-          /* Hide only Sign in / Sign up, keep profile button */
-          .nav-right > .sign-in,
-          .nav-right > .sign-up {
-            display: none;
-          }
-
-          .hamburger {
-            display: flex;
-          }
-        }
-
-        @media (max-width: 576px) {
-          .navbar {
-            padding: 0 20px;
-          }
-          .logo {
-            font-size: 18px;
-          }
-          .nav-links a {
-            font-size: 14px;
-          }
-        }
-      `}</style>
+  /* Responsive */
+  @media (max-width: 992px) {
+    .nav-links {
+      position: absolute;
+      top: 70px;
+      left: 0;
+      right: 0;
+      background-color: #fff;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      padding: 15px 0;
+      display: none;
+    }
+    .nav-links.active {
+      display: flex;
+    }
+    .hamburger {
+      display: flex;
+    }
+    .nav-right {
+      display: none;
+    }
+    .mobile-profile {
+      display: flex;
+    }
+  }
+  @media (max-width: 576px) {
+    .navbar {
+      padding: 0 20px;
+    }
+    .logo {
+      font-size: 18px;
+    }
+    .nav-links a {
+      font-size: 14px;
+    }
+  }
+`}</style>
     </nav>
   );
 };

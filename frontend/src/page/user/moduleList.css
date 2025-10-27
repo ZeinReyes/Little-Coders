@@ -6,9 +6,10 @@
   box-sizing: border-box;
 }
 
+/* 👇 Body uses Comic Neue but won't override navbar fonts if they are separately styled */
 body {
   background: linear-gradient(180deg, #fffbf3 0%, #fdf5ff 100%);
-  font-family: "Press Start 2P", cursive;
+  font-family: "Comic Neue", "Comic Sans MS", Arial, sans-serif;
   overflow-x: hidden;
 }
 
@@ -18,15 +19,34 @@ body {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding-top: 200px; 
-  padding-bottom: 150px; 
-  min-height: 100vh; 
+  flex-direction: column;
+  min-height: 93.5vh; 
   width: 100%;
+  margin-top: 70px;
   background: linear-gradient(180deg, #ffeef1 0%, #e8f7ff 50%, #fff3d9 100%);
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
   white-space: nowrap;
   scroll-behavior: smooth;
+}
+
+/* 🏷️ Header Title */
+.modules-header {
+  font-family: "Comic Neue", "Comic Sans MS", Arial, sans-serif;
+  font-weight: 700;
+  font-size: 36px;
+  color: #222;
+  text-align: center;
+  margin: 10px auto -10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  background: #4B8DF8;
+  color:white;
+  width: 97%;
+  padding: 10px 30px;
+  border-radius: 15px;
+  border: 2px solid #2d7dff;
+  box-shadow: 5px 5px 0 #99c0ff;
 }
 
 /* 🧱 Modules Row */
@@ -35,9 +55,10 @@ body {
   flex-wrap: nowrap; 
   justify-content: center;
   align-items: flex-start;
-  gap: 50px;
+  gap: 30px;
   padding: 0 60px;
   width: max-content;
+  margin: 50px auto;
 }
 
 /* 🃏 Module Card */
@@ -54,6 +75,8 @@ body {
   transition: transform 0.4s ease, box-shadow 0.4s ease;
   position: relative;
   overflow: hidden;
+  z-index: 5;
+  opacity: 0.9;
 }
 
 /* 🎨 Colorful borders */
@@ -138,16 +161,15 @@ body {
   font-size: 11px;
   border: none;
   border-top: 3px solid #000;
-  background: #00ff04;
+  background: #ffdd57;
   color: #000;
-  font-family: "Press Start 2P", cursive;
   border-bottom-left-radius: 18px;
   border-bottom-right-radius: 18px;
   transition: background 0.3s ease, color 0.3s ease, transform 0.2s ease;
 }
 
 .start-btn:hover {
-  background: #00cc03;
+  background: #dfbb29;
   transform: translateY(-2px);
 }
 
@@ -169,6 +191,7 @@ body {
   filter: drop-shadow(3px 3px 6px rgba(0, 0, 0, 0.25));
   animation: floatyOps 8s infinite ease-in-out alternate;
   transform-origin: center;
+  z-index: 1;
 }
 
 /* 🎯 Responsive Floating Positions */

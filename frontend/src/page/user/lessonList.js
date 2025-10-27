@@ -111,10 +111,14 @@ function LessonList() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const assessment = res.data;
+     // Randomly select only 5 questions for the assessment
       const shuffled = [...assessment.questions].sort(() => Math.random() - 0.5);
+      const selected = shuffled.slice(0, 5);
+
       navigate(`/lessons/${lessonId}/${itemId}`, {
-        state: { assessment, questions: shuffled },
+        state: { assessment, questions: selected },
       });
+
     } else {
       navigate(`/lessons/${lessonId}/${itemId}`);
     }
@@ -171,9 +175,11 @@ function LessonList() {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "100%",
         background: "linear-gradient(180deg, #E0F7FA 0%, #FFF9F0 100%)",
         fontFamily: "'Comic Neue', 'Comic Sans MS', cursive",
+        marginBottom: "-30px",
+        paddingBottom: "10px"
       }}
     >
       {showTutorial && (
@@ -226,16 +232,16 @@ function LessonList() {
 
       {/* PROGRESS BAR */}
       <div className="text-center mt-3">
-        <span style={{ fontWeight: "bold", color: "#FF7043" }}>Progress</span>
+        <span className="fs-4" style={{ fontWeight: "bold", color: "#FF7043" }}>Progress</span>
         <ProgressBar
           now={progressPercent}
           label={`${progressPercent}%`}
           className="mx-auto"
           style={{
-            width: "60%",
-            height: "1rem",
+            width: "55%",
+            height: "1.3rem",
             borderRadius: "10px",
-            backgroundColor: "#FFF3E0",
+            backgroundColor: "#FFD55C",
           }}
           variant="success"
         />
@@ -264,19 +270,7 @@ function LessonList() {
     gap: "0", // no extra spacing
   }}
 >
-  {/* MERGED MODULE + LESSON TITLE */}
-  <div
-    style={{
-      background: "#f1f3f5",
-      padding: "0.8rem 1rem",
-      fontWeight: "bold",
-      fontSize: "1.05rem",
-      borderRadius: "16px",
-      boxShadow: "0 3px 6px rgba(0,0,0,0.08)",
-    }}
-  >
-    Lessons — {module?.title || "Module 0: Python Basics & The Print Statement"}
-  </div>
+  <h3 className="my-3">Lessons</h3>
 
   {/* LESSONS + ACTIVITIES */}
   {lessonsAndActivities
@@ -294,7 +288,7 @@ function LessonList() {
             borderRadius: "16px",
             overflow: "hidden",
             background: "#ffffff",
-            boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
+                  marginBottom: "10px",
             transition: "transform 0.2s ease, box-shadow 0.2s ease",
           }}
         >
@@ -395,19 +389,7 @@ function LessonList() {
 
   {/* ASSESSMENT SECTION TITLE */}
   {assessments.length > 0 && (
-    <div
-      style={{
-        background: "#f1f3f5",
-        padding: "0.8rem 1rem",
-        fontWeight: "bold",
-        fontSize: "1.05rem",
-        borderRadius: "16px",
-        boxShadow: "0 3px 6px rgba(0,0,0,0.08)",
-        marginTop: "0", // no extra spacing
-      }}
-    >
-      Assessment Tasks
-    </div>
+    <h3 className="my-3">Assessment Tasks</h3>
   )}
 
   {/* ASSESSMENTS */}
