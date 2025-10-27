@@ -1,11 +1,12 @@
 // src/components/NavbarComponent.jsx
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/authContext";
 
 const NavbarComponent = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -13,80 +14,12 @@ const NavbarComponent = () => {
     navigate("/login");
   };
 
-  const navBarStyle = {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "70px",
-    backgroundColor: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "0 40px",
-    color: "#222",
-    zIndex: 20,
-    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
-  };
-
-  const navCenterStyle = {
-    display: "flex",
-    gap: "30px",
-    position: "absolute",
-    left: "50%",
-    transform: "translateX(-50%)",
-  };
-
-  const navLinkStyle = {
-    color: "#222",
-    textDecoration: "none",
-    fontSize: "16px",
-    transition: "0.3s",
-  };
-
-  const navRightStyle = {
-    display: "flex",
-    alignItems: "center",
-    gap: "15px",
-  };
-
-  const signInButton = {
-    backgroundColor: "#222",
-    color: "#fff",
-    border: "2px solid #222",
-    borderRadius: "6px",
-    padding: "8px 18px",
-    fontSize: "15px",
-    cursor: "pointer",
-    transition: "0.3s",
-    textDecoration: "none",
-  };
-
-  const signUpButton = {
-    backgroundColor: "transparent",
-    color: "#222",
-    border: "2px solid #222",
-    borderRadius: "6px",
-    padding: "8px 18px",
-    fontSize: "15px",
-    cursor: "pointer",
-    transition: "0.3s",
-    textDecoration: "none",
-  };
+  const toggleMenu = () => setMenuOpen(!menuOpen);
 
   return (
-    <nav style={navBarStyle}>
+    <nav className="navbar">
       {/* Logo */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "2px",
-          fontWeight: "800",
-          fontSize: "22px",
-          fontFamily: "'Poppins', sans-serif",
-        }}
-      >
+      <div className="logo">
         <span style={{ color: "#e53935" }}>L</span>
         <span style={{ color: "#43a047" }}>i</span>
         <span style={{ color: "#1e88e5" }}>t</span>
@@ -102,49 +35,45 @@ const NavbarComponent = () => {
         <span style={{ color: "#f4b400" }}>s</span>
       </div>
 
-      {/* Center Links */}
-      <div style={navCenterStyle}>
-        <Link to="/" style={navLinkStyle}>
-          Home
-        </Link>
-        <Link to="/module-list" style={navLinkStyle}>
-          Lessons
-        </Link>
-        <Link to="/contact" style={navLinkStyle}>
-          Contact Us
-        </Link>
-        <Link to="/dragboard" style={navLinkStyle}>
-          Program Now
-        </Link>
+      {/* Hamburger Menu */}
+      <div className="hamburger" onClick={toggleMenu}>
+        <div></div>
+        <div></div>
+        <div></div>
       </div>
 
-      {/* Right Side Buttons */}
-      <div style={navRightStyle}>
+      {/* Center Links */}
+      <div className={`nav-links ${menuOpen ? "active" : ""}`}>
+        <Link to="/">Home</Link>
+        <Link to="/module-list">Lessons</Link>
+        <Link to="/contact">Contact Us</Link>
+        <Link to="/dragboard">Program Now</Link>
+      </div>
+
+      {/* Right Side Buttons / Profile */}
+      <div className="nav-right">
         {!user ? (
           <>
-            <Link to="/login" style={signInButton}>
+            <Link className="sign-in" to="/login">
               Sign in
             </Link>
-            <Link to="/register" style={signUpButton}>
+            <Link className="sign-up" to="/register">
               Sign up
             </Link>
           </>
         ) : (
           <div className="dropdown">
-           <button
+            <button
               style={{ backgroundColor: "#2157b4", color: "#ffffff" }}
               className="btn dropdown-toggle"
               type="button"
               id="userMenu"
               data-bs-toggle="dropdown"
               aria-expanded="false"
->
+            >
               {user?.name || "Profile"}
             </button>
-            <ul
-              className="dropdown-menu dropdown-menu-end"
-              aria-labelledby="userMenu"
-            >
+            <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
               <li>
                 <Link className="dropdown-item" to={`/edit-profile/${user._id}`}>
                   Edit Profile
@@ -159,6 +88,128 @@ const NavbarComponent = () => {
           </div>
         )}
       </div>
+
+      {/* CSS */}
+      <style>{`
+        .navbar {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 70px;
+          background-color: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 40px;
+          color: #222;
+          z-index: 20;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .logo {
+          display: flex;
+          align-items: center;
+          font-weight: 800;
+          font-size: 22px;
+          font-family: 'Poppins', sans-serif;
+        }
+
+        .nav-links {
+          display: flex;
+          gap: 30px;
+        }
+
+        .nav-links a {
+          color: #222;
+          text-decoration: none;
+          font-size: 16px;
+          transition: 0.3s;
+        }
+
+        .nav-right {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+        }
+
+        .sign-in {
+          background-color: #222;
+          color: #fff;
+          border: 2px solid #222;
+          border-radius: 6px;
+          padding: 8px 18px;
+          font-size: 15px;
+          text-decoration: none;
+          transition: 0.3s;
+        }
+
+        .sign-up {
+          background-color: transparent;
+          color: #222;
+          border: 2px solid #222;
+          border-radius: 6px;
+          padding: 8px 18px;
+          font-size: 15px;
+          text-decoration: none;
+          transition: 0.3s;
+        }
+
+        .hamburger {
+          display: none;
+          flex-direction: column;
+          gap: 4px;
+          cursor: pointer;
+        }
+
+        .hamburger div {
+          width: 25px;
+          height: 3px;
+          background-color: #222;
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+          .nav-links {
+            position: absolute;
+            top: 70px;
+            left: 0;
+            right: 0;
+            background-color: #fff;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 0;
+            display: none;
+          }
+
+          .nav-links.active {
+            display: flex;
+          }
+
+          /* Hide only Sign in / Sign up, keep profile button */
+          .nav-right > .sign-in,
+          .nav-right > .sign-up {
+            display: none;
+          }
+
+          .hamburger {
+            display: flex;
+          }
+        }
+
+        @media (max-width: 576px) {
+          .navbar {
+            padding: 0 20px;
+          }
+          .logo {
+            font-size: 18px;
+          }
+          .nav-links a {
+            font-size: 14px;
+          }
+        }
+      `}</style>
     </nav>
   );
 };

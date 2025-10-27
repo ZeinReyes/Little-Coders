@@ -3,8 +3,12 @@
 let pyodideInstance = null;
 
 async function initPyodide() {
+  if (!window.loadPyodide) {
+    throw new Error("Pyodide script not loaded. Make sure to include pyodide.js in your HTML.");
+  }
+
   if (!pyodideInstance) {
-    pyodideInstance = await loadPyodide({
+    pyodideInstance = await window.loadPyodide({
       stdout: (msg) => console.log(msg),
       stderr: (err) => console.error(err)
     });
@@ -26,7 +30,6 @@ export async function runProgram(codeArea, outputArea) {
 
     const pyodide = await initPyodide();
 
-    // Create a clean Python environment that buffers output
     const captureCode = `
 import sys, io
 _stdout = io.StringIO()

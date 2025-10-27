@@ -89,10 +89,7 @@ function App() {
         path="/lessons/:lessonId/:itemId"
         element={<ProtectedRoute element={<DragBoardLesson />} allowedRoles={["user", "admin"]} />}
       />
-      <Route
-        path="/dragboard"
-        element={<ProtectedRoute element={<DragBoard />} allowedRoles={["user", "admin"]} />}
-      />
+      <Route path="/dragboard" element={<DragBoard />} />
 
       {/* Admin routes */}
       <Route
