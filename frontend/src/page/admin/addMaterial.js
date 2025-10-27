@@ -65,18 +65,18 @@ export default function AddMaterial() {
   return (
     <div className="p-3">
       <div className="bg-primary p-4 rounded">
-        <h3 className="text-white mb-3">Add Material</h3>
+        <h3 className="text-white mb-3">Add Lesson</h3>
 
         <form onSubmit={handleSubmit} className="bg-white p-4 rounded shadow-sm">
           {error && <p className="text-danger">{error}</p>}
 
           {/* Title */}
           <div className="mb-3">
-            <label className="form-label fw-bold">Material Title</label>
+            <label className="form-label fw-bold">Lesson Title</label>
             <input
               type="text"
               className="form-control"
-              placeholder="Enter material title"
+              placeholder="Enter lesson title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
@@ -152,7 +152,7 @@ export default function AddMaterial() {
               Cancel
             </Button>
             <Button type="submit" variant="primary" disabled={isInvalid}>
-              Save Material
+              Save Lesson
             </Button>
           </div>
         </form>

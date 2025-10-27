@@ -8,28 +8,33 @@ function Navbar() {
 
   const handleLogout = () => {
     logout();
-    localStorage.removeItem('token');
-    navigate('/login');
+    localStorage.removeItem("token");
+    navigate("/login");
   };
 
   return (
-    <nav className="navbar adminNavbar m-3">
-      <div className="container-fluid d-flex justify-content-between">
-        <a className="navbar-brand mx-3 text-white" href="#">
-          Little Coders
-        </a>
-
-        <div className="dropdown mx-3">
+    <nav
+      className="navbar bg-white px-4 py-3 border-bottom"
+      style={{
+        height: "65px",
+        boxShadow: "none",
+      }}
+    >
+      <div className="container-fluid d-flex justify-content-end align-items-center">
+        <div className="dropdown">
           <button
-            className="btn btn-primary dropdown-toggle"
-            type="button"
-            id="userMenu"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
+  className="btn btn-primary dropdown-toggle"
+  type="button"
+  id="userMenu"
+  data-bs-toggle="dropdown"
+  aria-expanded="false"
+>
+  {user?.name || "Admin"}
+</button>
+          <ul
+            className="dropdown-menu dropdown-menu-end"
+            aria-labelledby="userMenu"
           >
-            {user?.name}
-          </button>
-          <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
             <li>
               <Link className="dropdown-item" to="/admin/edit-profile">
                 Edit Profile
