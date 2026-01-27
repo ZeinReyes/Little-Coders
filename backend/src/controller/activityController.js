@@ -2,7 +2,7 @@ import LessonActivity from "../model/LessonActivity.js";
 
 export const createActivity = async (req, res) => {
   try {
-    const { materialId } = req.params; // now materialId refers to LessonMaterial
+    const { materialId } = req.params;
     let { name, instructions, hints, expectedOutput, difficulty, dataTypesRequired } = req.body;
 
     if (!Array.isArray(hints)) hints = hints ? [hints] : [];
@@ -16,6 +16,7 @@ export const createActivity = async (req, res) => {
       return res.status(400).json({ message: "Invalid data type selected." });
     }
 
+    // Insert activity (order ignored)
     const activity = new LessonActivity({
       materialId,
       name,
@@ -24,12 +25,29 @@ export const createActivity = async (req, res) => {
       expectedOutput: expectedOutput || "",
       difficulty: difficulty || "easy",
       dataTypesRequired: dataTypesRequired || [],
+      order: 0 // temporary
     });
 
     await activity.save();
+
+    // ⭐ REAL AUTO-REINDEX HERE ⭐
+    const all = await LessonActivity
+      .find({ materialId })
+      .sort({ createdAt: 1 });
+
+    let updates = all.map((a, index) =>
+      LessonActivity.findByIdAndUpdate(a._id, { order: index })
+    );
+
+    await Promise.all(updates);
+
     res.status(201).json(activity);
+
   } catch (err) {
-    res.status(500).json({ message: "Error creating activity", error: err.message });
+    res.status(500).json({
+      message: "Error creating activity",
+      error: err.message,
+    });
   }
 };
 
@@ -108,8 +126,19 @@ export const updateActivity = async (req, res) => {
 export const deleteActivity = async (req, res) => {
   try {
     const { id } = req.params;
+
     const deleted = await LessonActivity.findByIdAndDelete(id);
     if (!deleted) return res.status(404).json({ message: "Activity not found" });
+
+    // ⭐ REINDEX AFTER DELETE
+    const all = await LessonActivity.find({ materialId: deleted.materialId }).sort({ order: 1, createdAt: 1 });
+    for (let i = 0; i < all.length; i++) {
+      if (all[i].order !== i + 1) {
+        all[i].order = i + 1;
+        await all[i].save();
+      }
+    }
+
     res.status(200).json({ message: "Activity deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err });

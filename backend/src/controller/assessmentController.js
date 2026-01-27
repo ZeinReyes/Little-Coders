@@ -1,6 +1,6 @@
 import Assessment from "../model/Assessment.js";
 
-// ✅ Create Assessment (with multiple embedded questions)
+// ✅ Create Assessment (with multiple embedded questions + order)
 export const createAssessment = async (req, res) => {
   try {
     const { title, lessonId, questions } = req.body;
@@ -43,10 +43,15 @@ export const createAssessment = async (req, res) => {
       }
     }
 
+    // 🔥 Determine next order (always integer, sequential)
+    const assessments = await Assessment.find({ lessonId }).sort({ order: 1 });
+    const nextOrder = assessments.length;
+
     const newAssessment = new Assessment({
       title,
       lessonId,
       questions,
+      order: nextOrder,
     });
 
     await newAssessment.save();
@@ -68,7 +73,7 @@ export const createAssessment = async (req, res) => {
 // ✅ Get All Assessments
 export const getAllAssessments = async (req, res) => {
   try {
-    const assessments = await Assessment.find().populate("lessonId", "title");
+    const assessments = await Assessment.find().populate("lessonId", "title").sort({ order: 1 });
 
     res.status(200).json({
       success: true,
@@ -104,7 +109,7 @@ export const getAssessmentById = async (req, res) => {
 export const getAssessmentsByLesson = async (req, res) => {
   try {
     const { lessonId } = req.params;
-    const assessments = await Assessment.find({ lessonId }).sort({ createdAt: 1 });
+    const assessments = await Assessment.find({ lessonId }).sort({ order: 1 });
 
     res.status(200).json(assessments);
   } catch (err) {
@@ -199,7 +204,7 @@ export const updateAssessment = async (req, res) => {
   }
 };
 
-// ✅ Delete Assessment
+// ✅ Delete Assessment (with robust reindexing)
 export const deleteAssessment = async (req, res) => {
   try {
     const deletedAssessment = await Assessment.findByIdAndDelete(req.params.id);
@@ -211,9 +216,20 @@ export const deleteAssessment = async (req, res) => {
       });
     }
 
+    // 🔥 Reindex all remaining assessments in lesson to sequential integers
+    const assessments = await Assessment.find({ lessonId: deletedAssessment.lessonId })
+      .sort({ order: 1 });
+
+    for (let i = 0; i < assessments.length; i++) {
+      if (assessments[i].order !== i) {
+        assessments[i].order = i;
+        await assessments[i].save();
+      }
+    }
+
     res.status(200).json({
       success: true,
-      message: "Assessment deleted successfully!",
+      message: "Assessment deleted successfully and order reindexed!",
     });
   } catch (error) {
     console.error("Error deleting assessment:", error);
@@ -221,5 +237,23 @@ export const deleteAssessment = async (req, res) => {
       success: false,
       message: "Server error while deleting assessment.",
     });
+  }
+};
+
+// ✅ Optional: Reorder assessments manually
+export const reorderAssessments = async (req, res) => {
+  try {
+    const { assessments } = req.body; // array [{ id, order }]
+    if (!Array.isArray(assessments)) {
+      return res.status(400).json({ message: "Invalid assessments array" });
+    }
+
+    await Promise.all(
+      assessments.map(a => Assessment.findByIdAndUpdate(a.id, { order: a.order }))
+    );
+
+    res.status(200).json({ message: "Assessments reordered successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Error reordering assessments", error: err.message });
   }
 };

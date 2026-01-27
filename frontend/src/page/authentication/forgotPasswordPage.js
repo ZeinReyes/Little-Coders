@@ -2,22 +2,23 @@ import { useState } from 'react';
 import { forgotPassword } from '../../service/auth';
 
 function ForgotPasswordPage() {
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage('');
-    setError('');
+    setMessage("");
+    setError("");
     try {
       const res = await forgotPassword({ email });
       setMessage(res.data.message);
+      setEmail("");
     } catch (err) {
       const msg =
         err.response?.data?.error ||
         err.response?.data?.message ||
-        'Something went wrong. Try again.';
+        "Something went wrong. Try again.";
       setError(msg);
     }
   };

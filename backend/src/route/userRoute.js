@@ -8,17 +8,31 @@ import {
   getOnboardingStatus,
   completeOnboarding,
   resetOnboarding,
+  forgotPassword,
+  resetPassword,
 } from '../controller/userController.js';
 
 const router = express.Router();
 
+/* ==============================
+   AUTH / PASSWORD ROUTES (FIRST)
+============================== */
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password/:token", resetPassword);
+
+/* ==============================
+   USER ROUTES
+============================== */
 router.get('/', getUsers);
-router.get('/:id', getUserById);
 router.post('/', addUser);
-router.put('/:id', updateUser);     
+
+router.get('/:id', getUserById);
+router.put('/:id', updateUser);
 router.delete('/:id', deleteUser);
 
-//Onboarding
+/* ==============================
+   ONBOARDING ROUTES
+============================== */
 router.get("/:id/onboarding", getOnboardingStatus);
 router.patch("/:id/complete-onboarding", completeOnboarding);
 router.patch("/:id/reset-onboarding", resetOnboarding);

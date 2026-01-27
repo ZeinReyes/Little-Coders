@@ -17,6 +17,8 @@ const lessonActivitySchema = new mongoose.Schema(
         "if", "elif", "else", "while"
       ],
       default: [],
+      order: { type: Number, default: 0 },
+
     },
   },
   { timestamps: true }
