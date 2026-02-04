@@ -222,8 +222,9 @@ useEffect(() => {
       });
 
 // ------------------ HANDLE ASSESSMENT ------------------
+// In DragBoardLesson.js, update the handleAssessmentRun function:
+
 const handleAssessmentRun = async () => {
-  // CHANGED: use lesson.currentQuestion instead of lesson.questions[currentQuestionIndex]
   if (!lesson || lesson.type !== "assessment" || !lesson.currentQuestion) return;
   const question = lesson.currentQuestion;
   if (!question) return;
@@ -243,7 +244,7 @@ const handleAssessmentRun = async () => {
   const attempts = assessmentAttempts + 1;
   setAssessmentAttempts(attempts);
 
-  // Save attempt to backend (same as before)
+  // Save attempt to backend
   try {
     await axios.post(
       `http://localhost:5000/api/progress/mark-assessment-attempt`,
@@ -256,7 +257,7 @@ const handleAssessmentRun = async () => {
         totalAttempts: attempts,
         correct: result.passedAll,
         difficulty:
-        question.difficulty?.charAt(0).toUpperCase() + question.difficulty.slice(1).toLowerCase() || "Easy",
+          question.difficulty?.charAt(0).toUpperCase() + question.difficulty.slice(1).toLowerCase() || "Easy",
       },
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -267,37 +268,51 @@ const handleAssessmentRun = async () => {
   if (result.passedAll) {
     playSuccessSound();
 
-    // CHANGED: on success, pick next random question from questionsPool (if any)
     const pool = Array.isArray(lesson.questionsPool) ? [...lesson.questionsPool] : [];
     if (pool.length > 0) {
-      // pick random next question
+      // More questions remaining - move to next question
       const nextIndex = Math.floor(Math.random() * pool.length);
       const nextQuestion = pool.splice(nextIndex, 1)[0];
 
-      // update lesson with nextQuestion and remaining pool
       setLesson((prev) => ({
         ...prev,
         currentQuestion: nextQuestion,
         questionsPool: pool,
-        // optionally track answered
         answered: [...(prev.answered || []), question],
       }));
 
-      // reset attempts and start timer for next question
       setAssessmentAttempts(0);
       setQuestionStartTime(Date.now());
-
-      // show small congrats (optional). you had congrats modal after finishing; we'll show small feedback:
+      
+      // Show brief success feedback without finishing
       setCharacterImg(getRandomImage(congratsImages));
-      setShowCongratsModal(true);
-      // keep congrats modal behavior: user clicks continue to proceed; we do not auto-mark finished here
+      notification.textContent = "Correct! Moving to next question...";
+      notification.style.display = "block";
+      notification.style.backgroundColor = "#4CAF50";
+      notification.style.color = "white";
+      setTimeout(() => {
+        notification.style.display = "none";
+        notification.style.backgroundColor = "";
+        notification.style.color = "";
+      }, 2000);
+      
     } else {
-      // no more questions remaining — finish whole assessment
+      // ✅ ALL QUESTIONS ANSWERED CORRECTLY - Mark assessment as completed
       try {
-        await markCompleted();
+        await axios.post(
+          `http://localhost:5000/api/progress/complete-assessment`,
+          {
+            userId: user._id || user.id,
+            lessonId,
+            assessmentId: lesson._id || lesson.id,
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        console.log("✅ Assessment marked as completed");
       } catch (err) {
-        console.error("❌ Error marking completed after assessment:", err);
+        console.error("❌ Error marking assessment completed:", err);
       }
+      
       stopActivitySound();
       setCharacterImg(getRandomImage(congratsImages));
       setShowCongratsModal(true);

@@ -4,9 +4,9 @@ import LessonMaterial from "../model/LessonMaterial.js";
 
 export const createLesson = async (req, res) => {
   try {
-    const { title, description, topic } = req.body;
+    const { title, description, topic, order } = req.body;
 
-    const lesson = new Lesson({ title, description, topic });
+    const lesson = new Lesson({ title, description, topic, order });
     await lesson.save();
 
     res.status(201).json({ message: "Lesson added successfully", lesson });
@@ -17,7 +17,7 @@ export const createLesson = async (req, res) => {
 
 export const getLessons = async (req, res) => {
   try {
-    const lessons = await Lesson.find();
+    const lessons = await Lesson.find().sort({ order: 1 }); // Sort by order ascending
     res.json(lessons);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -37,11 +37,11 @@ export const getLessonById = async (req, res) => {
 
 export const updateLesson = async (req, res) => {
   try {
-    const { title, description, topic } = req.body;
+    const { title, description, topic, order } = req.body;
 
     const updatedLesson = await Lesson.findByIdAndUpdate(
       req.params.id,
-      { title, description, topic },
+      { title, description, topic, order },
       { new: true }
     );
 
@@ -81,7 +81,7 @@ export const reorderLessonContent = async (req, res) => {
           );
         } else if (item.type === "activity") {
           return LessonActivity.findOneAndUpdate(
-            { _id: item.id, lessonId },
+            { _id: item.id, materialId: lessonId }, // Note: activities reference materialId
             { order: item.order }
           );
         }

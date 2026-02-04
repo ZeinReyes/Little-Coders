@@ -3,20 +3,23 @@ import LessonMaterial from "../model/LessonMaterial.js";
 export const createMaterial = async (req, res) => {
   try {
     const { lessonId } = req.params;
-    const { title, overview, contents } = req.body;
+    const { title, overview, contents, order } = req.body;
 
-    const last = await LessonMaterial.find({ lessonId })
-      .sort({ order: -1 })
-      .limit(1);
-    const nextOrder = last.length ? (last[0].order ?? 0) + 1 : 0;
+    // If order is provided, use it; otherwise auto-increment
+    let materialOrder = order;
+    if (materialOrder === undefined) {
+      const last = await LessonMaterial.find({ lessonId })
+        .sort({ order: -1 })
+        .limit(1);
+      materialOrder = last.length ? (last[0].order ?? 0) + 1 : 0;
+    }
 
     const material = new LessonMaterial({
       lessonId,
       title,
       overview,
       contents,
-      order: nextOrder,
-      isCompleted: false,
+      order: materialOrder,
     });
 
     await material.save();
@@ -25,6 +28,7 @@ export const createMaterial = async (req, res) => {
     res.status(500).json({ message: "Error creating material", error: err.message });
   }
 };
+
 export const getMaterialById = async (req, res) => {
   try {
     const { materialId } = req.params;
@@ -41,11 +45,10 @@ export const getMaterialById = async (req, res) => {
   }
 };
 
-
 export const getMaterialsByLesson = async (req, res) => {
   try {
     const { lessonId } = req.params;
-    const materials = await LessonMaterial.find({ lessonId }).sort({ order: 1, createdAt: 1 });
+    const materials = await LessonMaterial.find({ lessonId }).sort({ order: 1 }); // Sort by order only
     res.status(200).json(materials);
   } catch (err) {
     res.status(500).json({ message: "Error fetching materials", error: err.message });
@@ -84,11 +87,18 @@ export const deleteMaterial = async (req, res) => {
 export const updateMaterial = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, overview, contents } = req.body;
+    const { title, overview, contents, order } = req.body;
+
+    const updateData = { title, overview, contents };
+    
+    // Only update order if it's provided
+    if (order !== undefined) {
+      updateData.order = order;
+    }
 
     const updated = await LessonMaterial.findByIdAndUpdate(
       id,
-      { title, overview, contents },
+      updateData,
       { new: true }
     );
 

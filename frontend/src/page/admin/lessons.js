@@ -87,7 +87,9 @@ function LessonsList() {
       const res = await axios.get(`${API_BASE}/lessons`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setLessons(res.data);
+      // Sort lessons by order
+      const sortedLessons = res.data.sort((a, b) => (a.order || 0) - (b.order || 0));
+      setLessons(sortedLessons);
     } catch (err) {
       console.error("Error fetching lessons:", err);
     }
@@ -109,15 +111,19 @@ function LessonsList() {
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
+        // Sort materials by order
+        const sortedMaterials = materialsRes.data.sort((a, b) => (a.order || 0) - (b.order || 0));
+
         const activitiesByMaterial = {};
         await Promise.all(
-          materialsRes.data.map(async (material) => {
+          sortedMaterials.map(async (material) => {
             try {
               const actRes = await axios.get(
                 `${API_BASE}/activities/materials/${material._id}/activities`,
                 { headers: { Authorization: `Bearer ${token}` } }
               );
-              activitiesByMaterial[material._id] = actRes.data;
+              // Sort activities by order
+              activitiesByMaterial[material._id] = actRes.data.sort((a, b) => (a.order || 0) - (b.order || 0));
             } catch {
               activitiesByMaterial[material._id] = [];
             }
@@ -129,12 +135,15 @@ function LessonsList() {
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
+        // Sort assessments by order (if they have an order field)
+        const sortedAssessments = assessmentsRes.data.sort((a, b) => (a.order || 0) - (b.order || 0));
+
         setLessonContents((prev) => ({
           ...prev,
           [lessonId]: {
-            materials: materialsRes.data,
+            materials: sortedMaterials,
             activitiesByMaterial,
-            assessments: assessmentsRes.data,
+            assessments: sortedAssessments,
           },
         }));
       } catch (err) {
@@ -255,9 +264,9 @@ function LessonsList() {
       </div>
     );
 
-  const filteredLessons = lessons.filter((lesson) =>
-    lesson.title.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredLessons = lessons
+    .filter((lesson) => lesson.title.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => (a.order || 0) - (b.order || 0)); // Ensure filtered lessons are also sorted
 
   return (
     <div className="p-3 admin-container">

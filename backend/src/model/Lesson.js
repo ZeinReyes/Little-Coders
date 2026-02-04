@@ -14,6 +14,10 @@ const LessonSchema = new mongoose.Schema({
     enum: ["variables", "operators", "conditionals", "loops", "overview"],
     required: true,
   },
+  order: { 
+    type: Number, 
+    default: 0 
+  },
 
   // ✅ Optional: Add relationship to assessments (if you want to populate later)
   assessments: [

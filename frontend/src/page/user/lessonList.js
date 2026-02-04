@@ -12,6 +12,7 @@ function LessonList() {
   const [items, setItems] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [unlockedItems, setUnlockedItems] = useState(new Set());
   const navigate = useNavigate();
 
   const { user, loading: userLoading, refreshUser, isOnboardingIncomplete } =
@@ -90,6 +91,7 @@ function LessonList() {
         }));
 
         setItems([...structuredItems, ...assessments]);
+
       } catch (err) {
         console.error("Error fetching lesson data:", err);
       } finally {
@@ -99,6 +101,57 @@ function LessonList() {
 
     if (!userLoading && user) fetchData();
   }, [lessonId, user, userLoading]);
+
+  // Dynamic unlock calculation
+ // Dynamic unlock calculation
+useEffect(() => {
+  const unlockItems = () => {
+    const unlocked = new Set();
+    if (!items.length) return;
+
+    const lessons = items.filter(i => i.type === "lesson");
+    const activitiesByMaterial = {};
+    lessons.forEach(lesson => {
+      activitiesByMaterial[lesson._id] = items.filter(a => a.type === "activity" && a.parentId === lesson._id);
+    });
+    const assessmentsItems = items.filter(i => i.type === "assessment");
+
+    // Unlock first lesson
+    if (lessons.length > 0) unlocked.add(lessons[0]._id);
+
+    lessons.forEach((lesson, i) => {
+      const activities = activitiesByMaterial[lesson._id] || [];
+
+      // Unlock next lesson only if current lesson is completed
+      if (lesson.isCompleted && i + 1 < lessons.length) {
+        unlocked.add(lessons[i + 1]._id);
+      }
+
+      // Unlock activities only if the parent lesson is completed
+      if (lesson.isCompleted) {
+        activities.forEach((activity, j) => {
+          // Unlock first activity
+          if (j === 0) unlocked.add(activity._id);
+          // Unlock next activity if previous completed
+          else if (activities[j - 1].isCompleted) unlocked.add(activity._id);
+        });
+      }
+    });
+
+    // Unlock assessments if all lessons + activities completed
+    const allLessonsCompleted = lessons.every(l => l.isCompleted);
+    const allActivitiesCompleted = items.filter(i => i.type === "activity").every(a => a.isCompleted);
+
+    if (allLessonsCompleted && allActivitiesCompleted) {
+      assessmentsItems.forEach(a => unlocked.add(a._id));
+    }
+
+    setUnlockedItems(unlocked);
+  };
+
+  unlockItems();
+}, [items]);
+
 
   const handleItemClick = async (item) => {
     const itemId = item._id || item.id;
@@ -111,7 +164,6 @@ function LessonList() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const assessment = res.data;
-     // Randomly select only 5 questions for the assessment
       const shuffled = [...assessment.questions].sort(() => Math.random() - 0.5);
       const selected = shuffled.slice(0, 5);
 
@@ -217,7 +269,7 @@ function LessonList() {
         >
           Back to Modules
         </Button>
-                <div
+        <div
           style={{
             flexGrow: 1,
             textAlign: "center",
@@ -227,7 +279,6 @@ function LessonList() {
         >
           {module?.title?.replace(/^Module\s*\d+:\s*/i, "")}
         </div>
-
       </header>
 
       {/* PROGRESS BAR */}
@@ -259,192 +310,187 @@ function LessonList() {
           boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
         }}
       >
-       
 
-     {/* LESSONS + ACTIVITIES + ASSESSMENTS */}
-<div
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    width: "100%",
-    gap: "0", // no extra spacing
-  }}
->
-  <h3 className="my-3">Lessons</h3>
-
-  {/* LESSONS + ACTIVITIES */}
-  {lessonsAndActivities
-    .filter((i) => i.type === "lesson")
-    .map((lesson) => {
-      const lessonStyle = colors.lesson;
-      const relatedActivities = lessonsAndActivities.filter(
-        (a) => a.type === "activity" && a.parentId === lesson._id
-      );
-
-      return (
+        {/* LESSONS + ACTIVITIES + ASSESSMENTS */}
         <div
-          key={lesson._id}
           style={{
-            borderRadius: "16px",
-            overflow: "hidden",
-            background: "#ffffff",
-                  marginBottom: "10px",
-            transition: "transform 0.2s ease, box-shadow 0.2s ease",
+            display: "flex",
+            flexDirection: "column",
+            width: "100%",
+            gap: "0",
           }}
         >
-          {/* LESSON BOX */}
-          <div
-            onClick={() => handleItemClick(lesson)}
-            style={{
-              background: lessonStyle.bg,
-              padding: "1rem 1.2rem",
-              display: "flex",
-              alignItems: "center",
-              cursor: "pointer",
-              transition: "background 0.2s ease",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.background = "#ffecb3")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.background = lessonStyle.bg)
-            }
-          >
-            <div style={{ width: "55px", textAlign: "center", flexShrink: 0 }}>
-              {icons.lesson}
-            </div>
-            <div>
-              <div
-                style={{
-                  fontSize: "1rem",
-                  fontWeight: "bold",
-                  color: lessonStyle.text,
-                }}
-              >
-                Lesson: {lesson.title}
-              </div>
-              <div
-                style={{
-                  fontSize: "0.85rem",
-                  color: lesson.isCompleted ? "#4CAF50" : "#9E9E9E",
-                }}
-              >
-                {lesson.isCompleted ? "Completed" : "Tap to begin"}
-              </div>
-            </div>
-          </div>
+          <h3 className="my-3">Lessons</h3>
 
-          {/* ACTIVITIES */}
-          {relatedActivities.map((activity) => {
-            const actStyle = colors.activity;
+          {/* LESSONS + ACTIVITIES */}
+          {lessonsAndActivities
+            .filter((i) => i.type === "lesson")
+            .map((lesson) => {
+              const lessonStyle = colors.lesson;
+              const relatedActivities = lessonsAndActivities.filter(
+                (a) => a.type === "activity" && a.parentId === lesson._id
+              );
+              const isUnlocked = unlockedItems.has(lesson._id);
+
+              return (
+                <div
+                  key={lesson._id}
+                  style={{
+                    borderRadius: "16px",
+                    overflow: "hidden",
+                    background: "#ffffff",
+                    marginBottom: "10px",
+                    transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                  }}
+                >
+                  {/* LESSON BOX */}
+                  <div
+                    onClick={() => isUnlocked && handleItemClick(lesson)}
+                    style={{
+                      background: lessonStyle.bg,
+                      padding: "1rem 1.2rem",
+                      display: "flex",
+                      alignItems: "center",
+                      cursor: isUnlocked ? "pointer" : "not-allowed",
+                      opacity: isUnlocked ? 1 : 0.5,
+                      pointerEvents: isUnlocked ? "auto" : "none",
+                      transition: "background 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => isUnlocked && (e.currentTarget.style.background = "#ffecb3")}
+                    onMouseLeave={(e) => e.currentTarget.style.background = lessonStyle.bg}
+                  >
+                    <div style={{ width: "55px", textAlign: "center", flexShrink: 0 }}>
+                      {icons.lesson}
+                      {!isUnlocked && <span role="img" aria-label="lock"> 🔒 </span>}
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          fontSize: "1rem",
+                          fontWeight: "bold",
+                          color: lessonStyle.text,
+                        }}
+                      >
+                        Lesson: {lesson.title}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "0.85rem",
+                          color: lesson.isCompleted ? "#4CAF50" : "#9E9E9E",
+                        }}
+                      >
+                        {lesson.isCompleted ? "Completed" : "Tap to begin"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ACTIVITIES */}
+                  {relatedActivities.map((activity) => {
+                    const actStyle = colors.activity;
+                    const isUnlocked = unlockedItems.has(activity._id);
+
+                    return (
+                      <div
+                        key={activity._id}
+                        onClick={() => isUnlocked && handleItemClick(activity)}
+                        style={{
+                          background: actStyle.bg,
+                          padding: "0.9rem 1.2rem 0.9rem 3rem",
+                          display: "flex",
+                          alignItems: "center",
+                          cursor: isUnlocked ? "pointer" : "not-allowed",
+                          opacity: isUnlocked ? 1 : 0.5,
+                          pointerEvents: isUnlocked ? "auto" : "none",
+                          transition: "background 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => isUnlocked && (e.currentTarget.style.background = "#d0e7ff")}
+                        onMouseLeave={(e) => e.currentTarget.style.background = actStyle.bg}
+                      >
+                        <div style={{ width: "45px", textAlign: "center", flexShrink: 0 }}>
+                          {icons.activity}
+                          {!isUnlocked && <span role="img" aria-label="lock"> 🔒 </span>}
+                        </div>
+                        <div>
+                          <div
+                            style={{
+                              fontSize: "0.95rem",
+                              fontWeight: "bold",
+                              color: actStyle.text,
+                            }}
+                          >
+                            Activity: {activity.name}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "0.85rem",
+                              color: activity.isCompleted ? "#4CAF50" : "#9E9E9E",
+                            }}
+                          >
+                            {activity.isCompleted ? "Completed" : "Tap to begin"}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+
+          {/* ASSESSMENT SECTION TITLE */}
+          {assessments.length > 0 && <h3 className="my-3">Assessment Tasks</h3>}
+
+          {/* ASSESSMENTS */}
+          {assessments.map((item) => {
+            const style = colors.assessment;
+            const isUnlocked = unlockedItems.has(item._id);
+
             return (
               <div
-                key={activity._id}
-                onClick={() => handleItemClick(activity)}
+                key={item._id}
+                onClick={() => isUnlocked && handleItemClick(item)}
                 style={{
-                  background: actStyle.bg,
-                  padding: "0.9rem 1.2rem 0.9rem 3rem",
+                  background: style.bg,
+                  borderRadius: "16px",
+                  cursor: isUnlocked ? "pointer" : "not-allowed",
+                  opacity: isUnlocked ? 1 : 0.5,
+                  pointerEvents: isUnlocked ? "auto" : "none",
                   display: "flex",
                   alignItems: "center",
-                  cursor: "pointer",
-                  transition: "background 0.2s ease",
+                  padding: "1rem 1.2rem",
+                  margin: "0",
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
+                  transition: "transform 0.2s ease, background 0.2s ease",
                 }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#d0e7ff")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = actStyle.bg)
-                }
+                onMouseEnter={(e) => isUnlocked && (e.currentTarget.style.background = "#d7f5dc")}
+                onMouseLeave={(e) => e.currentTarget.style.background = style.bg}
               >
-                <div
-                  style={{ width: "45px", textAlign: "center", flexShrink: 0 }}
-                >
-                  {icons.activity}
+                <div style={{ width: "50px", textAlign: "center", flexShrink: 0 }}>
+                  {icons.assessment}
+                  {!isUnlocked && <span role="img" aria-label="lock"> 🔒 </span>}
                 </div>
                 <div>
                   <div
                     style={{
-                      fontSize: "0.95rem",
+                      fontSize: "1rem",
                       fontWeight: "bold",
-                      color: actStyle.text,
+                      color: style.text,
                     }}
                   >
-                    Activity: {activity.name}
+                    Assessment: {item.title}
                   </div>
                   <div
                     style={{
                       fontSize: "0.85rem",
-                      color: activity.isCompleted ? "#4CAF50" : "#9E9E9E",
+                      color: item.isCompleted ? "#4CAF50" : "#9E9E9E",
                     }}
                   >
-                    {activity.isCompleted ? "Completed" : "Tap to begin"}
+                    {item.isCompleted ? "Completed" : "Tap to begin"}
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
-      );
-    })}
-
-  {/* ASSESSMENT SECTION TITLE */}
-  {assessments.length > 0 && (
-    <h3 className="my-3">Assessment Tasks</h3>
-  )}
-
-  {/* ASSESSMENTS */}
-  {assessments.map((item) => {
-    const style = colors.assessment;
-    return (
-      <div
-        key={item._id}
-        onClick={() => handleItemClick(item)}
-        style={{
-          background: style.bg,
-          borderRadius: "16px",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          padding: "1rem 1.2rem",
-          margin: "0", // remove spacing between items
-          boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
-          transition: "transform 0.2s ease, background 0.2s ease",
-        }}
-        onMouseEnter={(e) =>
-          (e.currentTarget.style.background = "#d7f5dc")
-        }
-        onMouseLeave={(e) =>
-          (e.currentTarget.style.background = style.bg)
-        }
-      >
-        <div style={{ width: "50px", textAlign: "center", flexShrink: 0 }}>
-          {icons.assessment}
-        </div>
-        <div>
-          <div
-            style={{
-              fontSize: "1rem",
-              fontWeight: "bold",
-              color: style.text,
-            }}
-          >
-            Assessment: {item.title}
-          </div>
-          <div
-            style={{
-              fontSize: "0.85rem",
-              color: item.isCompleted ? "#4CAF50" : "#9E9E9E",
-            }}
-          >
-            {item.isCompleted ? "Completed" : "Tap to begin"}
-          </div>
-        </div>
-      </div>
-    );
-  })}
-</div>
-
-
       </div>
     </div>
   );

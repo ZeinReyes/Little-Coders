@@ -3,7 +3,7 @@ import LessonActivity from "../model/LessonActivity.js";
 export const createActivity = async (req, res) => {
   try {
     const { materialId } = req.params; // now materialId refers to LessonMaterial
-    let { name, instructions, hints, expectedOutput, difficulty, dataTypesRequired } = req.body;
+    let { name, instructions, hints, expectedOutput, difficulty, dataTypesRequired, order } = req.body;
 
     if (!Array.isArray(hints)) hints = hints ? [hints] : [];
 
@@ -24,6 +24,7 @@ export const createActivity = async (req, res) => {
       expectedOutput: expectedOutput || "",
       difficulty: difficulty || "easy",
       dataTypesRequired: dataTypesRequired || [],
+      order: order || 0,
     });
 
     await activity.save();
@@ -47,7 +48,7 @@ export const getActivityById = async (req, res) => {
 export const getActivitiesByMaterial = async (req, res) => {
   try {
     const { materialId } = req.params; // materialId is now LessonMaterial
-    const activities = await LessonActivity.find({ materialId }).sort({ order: 1, createdAt: 1 });
+    const activities = await LessonActivity.find({ materialId }).sort({ order: 1 }); // Sort by order only
 
     const normalized = activities.map((a) => ({
       ...a.toObject(),
@@ -64,7 +65,7 @@ export const getActivitiesByMaterial = async (req, res) => {
 export const updateActivity = async (req, res) => {
   try {
     const { id } = req.params;
-    let { name, instructions, hints, expectedOutput, difficulty, materialId, dataTypesRequired } = req.body;
+    let { name, instructions, hints, expectedOutput, difficulty, materialId, dataTypesRequired, order } = req.body;
 
     if (!materialId) {
       const existing = await LessonActivity.findById(id);
@@ -83,17 +84,24 @@ export const updateActivity = async (req, res) => {
       return res.status(400).json({ message: "Invalid data type selected." });
     }
 
+    const updateData = {
+      materialId,
+      name,
+      instructions,
+      hints,
+      expectedOutput: expectedOutput || "",
+      difficulty: difficulty || "easy",
+      dataTypesRequired: dataTypesRequired || [],
+    };
+
+    // Only update order if it's provided
+    if (order !== undefined) {
+      updateData.order = order;
+    }
+
     const updated = await LessonActivity.findByIdAndUpdate(
       id,
-      {
-        materialId,
-        name,
-        instructions,
-        hints,
-        expectedOutput: expectedOutput || "",
-        difficulty: difficulty || "easy",
-        dataTypesRequired: dataTypesRequired || [],
-      },
+      updateData,
       { new: true, runValidators: true }
     );
 
