@@ -389,7 +389,9 @@ export const markAssessmentAttempt = async (req, res) => {
     res.status(200).json({
       message: "Assessment attempt recorded successfully",
       progress,
-    });
+      completed: correct === true,
+      redirectToLesson: correct === true,
+    });    
   } catch (err) {
     console.error("❌ Error recording assessment attempt:", err);
     res.status(500).json({
@@ -444,6 +446,8 @@ export const markActivityAttempt = async (req, res) => {
     res.status(200).json({
       message: "Activity attempt updated successfully",
       progress,
+      completed: correct === true,
+      redirectToLesson: correct === true,
     });
   } catch (err) {
     console.error("❌ Error recording activity attempt:", err);

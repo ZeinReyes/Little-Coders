@@ -91,13 +91,22 @@ useEffect(() => {
  // --- Activity-specific state ---
 const [activityAttempts, setActivityAttempts] = useState(0);
 const [currentActivityStartTime, setCurrentActivityStartTime] = useState(Date.now());
+const [revealedHints, setRevealedHints] = useState(0); // Track how many hints are revealed
 // --- Start timer when activity modal opens ---
 useEffect(() => {
   if (showActivityModal) {
     setCurrentActivityStartTime(Date.now());
     setActivityAttempts(0);
+    setRevealedHints(0); // Reset hints when starting activity
   }
 }, [showActivityModal]);
+
+// --- Reset hints when assessment question changes ---
+useEffect(() => {
+  if (lesson?.type === "assessment" && lesson?.currentQuestion) {
+    setRevealedHints(0); // Reset hints for new question
+  }
+}, [lesson?.currentQuestion]);
 
 
   const navigate = useNavigate();
@@ -222,8 +231,6 @@ useEffect(() => {
       });
 
 // ------------------ HANDLE ASSESSMENT ------------------
-// In DragBoardLesson.js, update the handleAssessmentRun function:
-
 const handleAssessmentRun = async () => {
   if (!lesson || lesson.type !== "assessment" || !lesson.currentQuestion) return;
   const question = lesson.currentQuestion;
@@ -246,7 +253,7 @@ const handleAssessmentRun = async () => {
 
   // Save attempt to backend
   try {
-    await axios.post(
+    const attemptResponse = await axios.post(
       `http://localhost:5000/api/progress/mark-assessment-attempt`,
       {
         assessmentId: lesson._id || lesson.id,
@@ -261,6 +268,12 @@ const handleAssessmentRun = async () => {
       },
       { headers: { Authorization: `Bearer ${token}` } }
     );
+
+    // ✅ NEW: Check if backend says to redirect after this attempt
+    if (attemptResponse.data?.redirectToLesson && attemptResponse.data?.completed) {
+      console.log("🔄 Assessment question answered correctly, checking for more questions...");
+    }
+
   } catch (err) {
     console.error("❌ Failed to submit assessment attempt:", err.response?.data || err.message);
   }
@@ -317,6 +330,11 @@ const handleAssessmentRun = async () => {
       setCharacterImg(getRandomImage(congratsImages));
       setShowCongratsModal(true);
       setAssessmentAttempts(0);
+      
+      // ✅ NEW: Auto-redirect after showing congrats for 2 seconds
+      setTimeout(() => {
+        navigate(`/lessons/${lessonId}`);
+      }, 2000);
     }
   } else {
     playErrorSound();
@@ -385,23 +403,32 @@ const handleActivityRun = async () => {
     // Save attempt if passed OR after 3 attempts
     if (result.passedAll || attempts >= 3) {
       // Always record attempt (backend will handle updating)
-console.log("💾 Saving attempt to database...");
-axios.post(
-  `http://localhost:5000/api/progress/mark-activity-attempt`,
-  {
-    activityId: lesson._id || lesson.id,
-    lessonId,
-    userId: user._id || user.id,
-    timeSeconds: timeTaken,
-    totalAttempts: attempts,
-    correct: result.passedAll,
-    attemptTime: Date.now(),
-  },
-  { headers: { Authorization: `Bearer ${token}` } }
-)
-.then(() => console.log("✅ Attempt saved/updated"))
-.catch(err => console.error("❌ Failed to save attempt:", err.response?.data || err.message));
-
+      console.log("💾 Saving attempt to database...");
+      axios.post(
+        `http://localhost:5000/api/progress/mark-activity-attempt`,
+        {
+          activityId: lesson._id || lesson.id,
+          lessonId,
+          userId: user._id || user.id,
+          timeSeconds: timeTaken,
+          totalAttempts: attempts,
+          correct: result.passedAll,
+          attemptTime: Date.now(),
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      .then((response) => {
+        console.log("✅ Attempt saved/updated");
+        // ✅ NEW: Check if backend says to redirect
+        if (response.data?.redirectToLesson && response.data?.completed) {
+          console.log("🔄 Redirecting to lesson list...");
+          // Show success modal first, then redirect after 2 seconds
+          setTimeout(() => {
+            navigate(`/lessons/${lessonId}`);
+          }, 2000);
+        }
+      })
+      .catch(err => console.error("❌ Failed to save attempt:", err.response?.data || err.message));
     }
 
     // Success case
@@ -557,9 +584,9 @@ const onRun = async () => {
       "Try to think about how this concept can be used here!",
     ];
     const solvingTexts = [
-      "Now it’s your turn — good luck!",
+      "Now it's your turn — good luck!",
       "Use the code blocks to finish the activity.",
-      "Let’s test your skills in this activity!",
+      "Let's test your skills in this activity!",
     ];
 
     return slide === 0
@@ -641,85 +668,416 @@ const onRun = async () => {
       {/* === Activity / Assessment Instructions === */}
 {lesson.type === "activity" && (
   <div
-    className="activity-instructions mb-3 p-3"
-    style={{ backgroundColor: "#FFF8F2", borderRadius: "8px" }}
+    className="activity-instructions mb-3"
+    style={{
+      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      borderRadius: "20px",
+      padding: "1.5rem",
+      boxShadow: "0 8px 16px rgba(102, 126, 234, 0.3)",
+      border: "4px solid #ffffff",
+    }}
   >
-    <h5 style={{ color: "#00796B" }}>Instructions</h5>
-    <p dangerouslySetInnerHTML={{ __html: lesson.instructions }} />
+    <div style={{
+      backgroundColor: "rgba(255, 255, 255, 0.95)",
+      borderRadius: "15px",
+      padding: "1rem",
+      marginBottom: "1rem",
+    }}>
+      <h5 style={{ 
+        color: "#667eea", 
+        marginBottom: "1rem",
+        fontSize: "1.4rem",
+        fontWeight: "700",
+        textAlign: "center",
+        textTransform: "uppercase",
+        letterSpacing: "1px"
+      }}>
+        Your Mission!
+      </h5>
 
-    {lesson.hints?.length > 0 && (
-      <>
-        <h6 style={{ color: "#0288D1" }}>Hints:</h6>
-        <ul>
-          {lesson.hints.map((hint, i) => (
-            <li key={i} dangerouslySetInnerHTML={{ __html: hint }} />
-          ))}
-        </ul>
-      </>
-    )}
+      <div style={{
+        backgroundColor: "#FFF9E6",
+        padding: "1rem",
+        borderRadius: "12px",
+        marginBottom: "1rem",
+        border: "3px dashed #FFC107",
+        color: "#333"
+      }}>
+        <div dangerouslySetInnerHTML={{ __html: lesson.instructions }} />
+      </div>
 
-    {lesson.expectedOutput && (
-      <>
-        <h6 style={{ color: "#E65100" }}>Expected Output:</h6>
-        <pre
-          style={{
-            backgroundColor: "#f4f4f4",
-            padding: "10px",
-            borderRadius: "8px",
-          }}
-        >
-          {lesson.expectedOutput}
-        </pre>
-      </>
-    )}
-  </div>
-)}
-
-{/* === CHANGED: Assessment display uses lesson.currentQuestion (one at a time) === */}
-{lesson.type === "assessment" && lesson.currentQuestion && (
-  <div
-    className="assessment-instructions mb-3 p-3"
-    style={{ backgroundColor: "#FFF8F2", borderRadius: "8px" }}
-  >
-    <h5 style={{ color: "#00796B" }}>Assessment: {lesson.title}</h5>
-    {(() => {
-      const q = lesson.currentQuestion;
-      return (
-        <div style={{ marginBottom: "1.5rem" }}>
-          <h6 style={{ color: "#00796B" }}>
-            Question { (lesson.answered?.length || 0) + 1 } of { ( (lesson.questionsPool?.length || 0) + (lesson.answered?.length || 0) + (lesson.currentQuestion ? 1 : 0) ) }
-          </h6>
-          <p dangerouslySetInnerHTML={{ __html: q.instructions }} />
-          {q.hints?.length > 0 && (
-            <>
-              <h6 style={{ color: "#0288D1" }}>Hints:</h6>
-              <ul>
-                {q.hints.map((hint, i) => (
-                  <li key={i} dangerouslySetInnerHTML={{ __html: hint }} />
-                ))}
-              </ul>
-            </>
-          )}
-          {q.expectedOutput && (
-            <>
-              <h6 style={{ color: "#E65100" }}>Expected Output:</h6>
-              <pre
+      {lesson.hints?.length > 0 && (
+        <div style={{
+          backgroundColor: "#E8F5E9",
+          padding: "1rem",
+          borderRadius: "12px",
+          marginBottom: "1rem",
+          border: "3px solid #4CAF50"
+        }}>
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "0.75rem"
+          }}>
+            <h6 style={{ 
+              color: "#2E7D32", 
+              margin: 0,
+              fontSize: "1.1rem",
+              fontWeight: "700"
+            }}>
+              Need Help? ({revealedHints}/{lesson.hints.length} unlocked)
+            </h6>
+            {revealedHints < lesson.hints.length && (
+              <button
+                onClick={() => setRevealedHints(prev => Math.min(prev + 1, lesson.hints.length))}
                 style={{
-                  backgroundColor: "#f4f4f4",
-                  padding: "10px",
-                  borderRadius: "8px",
+                  background: "linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "25px",
+                  padding: "8px 16px",
+                  fontSize: "0.9rem",
+                  cursor: "pointer",
+                  fontWeight: "700",
+                  boxShadow: "0 4px 8px rgba(76, 175, 80, 0.3)",
+                  transition: "transform 0.2s, box-shadow 0.2s",
+                  textTransform: "uppercase"
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = "scale(1.05)";
+                  e.target.style.boxShadow = "0 6px 12px rgba(76, 175, 80, 0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = "scale(1)";
+                  e.target.style.boxShadow = "0 4px 8px rgba(76, 175, 80, 0.3)";
                 }}
               >
-                {q.expectedOutput}
-              </pre>
-            </>
+                Unlock Hint!
+              </button>
+            )}
+          </div>
+          {revealedHints > 0 ? (
+            <div style={{
+              backgroundColor: "#ffffff",
+              padding: "1rem",
+              borderRadius: "8px"
+            }}>
+              <ul style={{ 
+                marginBottom: 0, 
+                paddingLeft: "0",
+                listStyleType: "none",
+                color: "#333"
+              }}>
+                {lesson.hints.slice(0, revealedHints).map((hint, i) => (
+                  <li 
+                    key={i} 
+                    style={{ 
+                      marginBottom: "0.75rem",
+                      padding: "0.75rem",
+                      backgroundColor: "#F1F8E9",
+                      borderRadius: "8px",
+                      borderLeft: "4px solid #4CAF50",
+                      display: "flex",
+                      alignItems: "flex-start"
+                    }}
+                  >
+                    <span style={{
+                      backgroundColor: "#4CAF50",
+                      color: "white",
+                      borderRadius: "50%",
+                      width: "24px",
+                      height: "24px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: "bold",
+                      fontSize: "0.85rem",
+                      marginRight: "0.75rem",
+                      flexShrink: 0
+                    }}>
+                      {i + 1}
+                    </span>
+                    <span dangerouslySetInnerHTML={{ __html: hint }} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div style={{
+              backgroundColor: "#ffffff",
+              padding: "1rem",
+              borderRadius: "8px",
+              textAlign: "center"
+            }}>
+              <p style={{ 
+                color: "#666", 
+                fontStyle: "italic", 
+                marginBottom: 0,
+                fontSize: "0.95rem"
+              }}>
+                Click "Unlock Hint!" to reveal helpful tips one by one!
+              </p>
+            </div>
           )}
         </div>
-      );
-    })()}
+      )}
+
+      {lesson.expectedOutput && (
+        <div style={{
+          backgroundColor: "#FFF3E0",
+          padding: "1rem",
+          borderRadius: "12px",
+          border: "3px solid #FF9800"
+        }}>
+          <h6 style={{ 
+            color: "#E65100", 
+            marginBottom: "0.75rem",
+            fontSize: "1.1rem",
+            fontWeight: "700"
+          }}>
+            What You Should See:
+          </h6>
+          <pre
+            style={{
+              backgroundColor: "#ffffff",
+              padding: "12px",
+              borderRadius: "8px",
+              marginBottom: 0,
+              border: "2px dashed #FF9800",
+              fontSize: "0.9rem",
+              fontFamily: "monospace",
+              color: "#333",
+              overflowX: "auto"
+            }}
+          >
+            {lesson.expectedOutput}
+          </pre>
+        </div>
+      )}
+    </div>
   </div>
 )}
-{/* === END CHANGED === */}
+
+{/* === Assessment instructions with playful design === */}
+{lesson.type === "assessment" && lesson.currentQuestion && (
+  <div
+    className="assessment-instructions mb-3"
+    style={{
+      background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+      borderRadius: "20px",
+      padding: "1.5rem",
+      boxShadow: "0 8px 16px rgba(240, 147, 251, 0.3)",
+      border: "4px solid #ffffff",
+    }}
+  >
+    <div style={{
+      backgroundColor: "rgba(255, 255, 255, 0.95)",
+      borderRadius: "15px",
+      padding: "1rem",
+    }}>
+      <div style={{ 
+        display: "flex", 
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: "1rem",
+        paddingBottom: "0.75rem",
+        borderBottom: "3px dashed #f5576c"
+      }}>
+        <h5 style={{ 
+          color: "#f5576c", 
+          margin: 0,
+          fontSize: "1.3rem",
+          fontWeight: "700",
+          textTransform: "uppercase",
+          letterSpacing: "1px"
+        }}>
+          {lesson.title}
+        </h5>
+        <div style={{
+          background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+          padding: "8px 16px",
+          borderRadius: "25px",
+          fontSize: "0.9rem",
+          fontWeight: "700",
+          color: "#ffffff",
+          boxShadow: "0 4px 8px rgba(245, 87, 108, 0.3)"
+        }}>
+          Question {(lesson.answered?.length || 0) + 1} of {((lesson.questionsPool?.length || 0) + (lesson.answered?.length || 0) + (lesson.currentQuestion ? 1 : 0))}
+        </div>
+      </div>
+
+      {(() => {
+        const q = lesson.currentQuestion;
+        return (
+          <div>
+            <div style={{
+              backgroundColor: "#E3F2FD",
+              padding: "1rem",
+              borderRadius: "12px",
+              marginBottom: "1rem",
+              border: "3px dashed #2196F3",
+              color: "#333"
+            }}>
+              <div dangerouslySetInnerHTML={{ __html: q.instructions }} />
+            </div>
+
+            {q.hints?.length > 0 && (
+              <div style={{
+                backgroundColor: "#FFF9C4",
+                padding: "1rem",
+                borderRadius: "12px",
+                marginBottom: "1rem",
+                border: "3px solid #FFC107"
+              }}>
+                <div style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "0.75rem"
+                }}>
+                  <h6 style={{ 
+                    color: "#F57F17", 
+                    margin: 0,
+                    fontSize: "1.1rem",
+                    fontWeight: "700"
+                  }}>
+                    Need Help? ({revealedHints}/{q.hints.length} unlocked)
+                  </h6>
+                  {revealedHints < q.hints.length && (
+                    <button
+                      onClick={() => setRevealedHints(prev => Math.min(prev + 1, q.hints.length))}
+                      style={{
+                        background: "linear-gradient(135deg, #FFC107 0%, #FFD54F 100%)",
+                        color: "#333",
+                        border: "none",
+                        borderRadius: "25px",
+                        padding: "8px 16px",
+                        fontSize: "0.9rem",
+                        cursor: "pointer",
+                        fontWeight: "700",
+                        boxShadow: "0 4px 8px rgba(255, 193, 7, 0.3)",
+                        transition: "transform 0.2s, box-shadow 0.2s",
+                        textTransform: "uppercase"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.transform = "scale(1.05)";
+                        e.target.style.boxShadow = "0 6px 12px rgba(255, 193, 7, 0.4)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.transform = "scale(1)";
+                        e.target.style.boxShadow = "0 4px 8px rgba(255, 193, 7, 0.3)";
+                      }}
+                    >
+                      Unlock Hint!
+                    </button>
+                  )}
+                </div>
+                {revealedHints > 0 ? (
+                  <div style={{
+                    backgroundColor: "#ffffff",
+                    padding: "1rem",
+                    borderRadius: "8px"
+                  }}>
+                    <ul style={{ 
+                      marginBottom: 0, 
+                      paddingLeft: "0",
+                      listStyleType: "none",
+                      color: "#333"
+                    }}>
+                      {q.hints.slice(0, revealedHints).map((hint, i) => (
+                        <li 
+                          key={i} 
+                          style={{ 
+                            marginBottom: "0.75rem",
+                            padding: "0.75rem",
+                            backgroundColor: "#FFFDE7",
+                            borderRadius: "8px",
+                            borderLeft: "4px solid #FFC107",
+                            display: "flex",
+                            alignItems: "flex-start"
+                          }}
+                        >
+                          <span style={{
+                            backgroundColor: "#FFC107",
+                            color: "#333",
+                            borderRadius: "50%",
+                            width: "24px",
+                            height: "24px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: "bold",
+                            fontSize: "0.85rem",
+                            marginRight: "0.75rem",
+                            flexShrink: 0
+                          }}>
+                            {i + 1}
+                          </span>
+                          <span dangerouslySetInnerHTML={{ __html: hint }} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <div style={{
+                    backgroundColor: "#ffffff",
+                    padding: "1rem",
+                    borderRadius: "8px",
+                    textAlign: "center"
+                  }}>
+                    <p style={{ 
+                      color: "#666", 
+                      fontStyle: "italic", 
+                      marginBottom: 0,
+                      fontSize: "0.95rem"
+                    }}>
+                      Click "Unlock Hint!" to reveal helpful tips one by one!
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {q.expectedOutput && (
+              <div style={{
+                backgroundColor: "#E1F5FE",
+                padding: "1rem",
+                borderRadius: "12px",
+                border: "3px solid #03A9F4"
+              }}>
+                <h6 style={{ 
+                  color: "#01579B", 
+                  marginBottom: "0.75rem",
+                  fontSize: "1.1rem",
+                  fontWeight: "700"
+                }}>
+                  What You Should See:
+                </h6>
+                <pre
+                  style={{
+                    backgroundColor: "#ffffff",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    marginBottom: 0,
+                    border: "2px dashed #03A9F4",
+                    fontSize: "0.9rem",
+                    fontFamily: "monospace",
+                    color: "#333",
+                    overflowX: "auto"
+                  }}
+                >
+                  {q.expectedOutput}
+                </pre>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+    </div>
+  </div>
+)}
+{/* === END Assessment === */}
 
       {/* === Drag & Drop + Workspace === */}
       <div className="main-container">
@@ -860,17 +1218,15 @@ const onRun = async () => {
           }}
         >
           <h3>🎉 Well Done!</h3>
-          <p>You completed this activity successfully!</p>
+          <p>You completed this {lesson?.type === "assessment" ? "assessment" : "activity"} successfully!</p>
+          <p style={{ fontSize: "0.9rem", color: "#666" }}>Redirecting you back to the lesson...</p>
         </Modal.Body>
         <Modal.Footer>
           <Button
             variant="primary"
             onClick={() => {
               setShowCongratsModal(false);
-              // If assessment: if no more questions, go back to lesson list
-              if (lesson?.type === "assessment" && (!lesson.questionsPool || lesson.questionsPool.length === 0)) {
-                navigate(`/lessons/${lessonId}`);
-              }
+              navigate(`/lessons/${lessonId}`);
             }}
           >
             Continue
@@ -934,7 +1290,8 @@ const onRun = async () => {
       </Modal>
 
      {/* === Character Avatar (Always Above Modal) === */}
-{(showLessonModal || showActivityModal || showCongratsModal) && (
+{/* ✅ CHANGED: Don't show character during assessment (only during lesson, activity intro, and congrats) */}
+{(showLessonModal || showActivityModal || showCongratsModal) && lesson?.type !== "assessment" && (
   <div
     style={{
       position: "fixed",
@@ -945,6 +1302,34 @@ const onRun = async () => {
       alignItems: "flex-end",
       flexDirection: "column",
       pointerEvents: "none", // allows clicking through
+    }}
+  >
+    <img
+      src={characterImg}
+      alt="Character"
+      style={{
+        width: "420px",
+        height: "auto",
+        userSelect: "none",
+        pointerEvents: "none",
+        animation: "bounce 2s infinite ease-in-out",
+        filter: "drop-shadow(3px 3px 8px rgba(0, 0, 0, 0.3))",
+      }}
+    />
+  </div>
+)}
+{/* ✅ Show character ONLY for congrats modal during assessment */}
+{showCongratsModal && lesson?.type === "assessment" && (
+  <div
+    style={{
+      position: "fixed",
+      bottom: "-50px",
+      left: "20px",
+      zIndex: 2000,
+      display: "flex",
+      alignItems: "flex-end",
+      flexDirection: "column",
+      pointerEvents: "none",
     }}
   >
     <img
