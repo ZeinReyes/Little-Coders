@@ -53,8 +53,16 @@ export default function DragBoardLesson() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
 
+  const [lessonStartTime, setLessonStartTime] = useState(Date.now());
+
    const location = useLocation();
   const { assessment, questions } = location.state || {};
+
+  useEffect(() => {
+  if (lesson?.type === "lesson" && showLessonModal) {
+    setLessonStartTime(Date.now());
+  }
+}, [lesson?.type, showLessonModal]);
 
   // === CHANGED: Initialize assessment with one random question at a time,
   // and ensure only 5 questions are used in total ===
@@ -498,32 +506,45 @@ const onRun = async () => {
 
   // --- Mark Completion ---
   const markCompleted = async () => {
-    if (!user?._id) return;
-    try {
-      const token = localStorage.getItem("token");
-      const payload = { userId: user._id, lessonId };
-      let endpoint = "";
+  if (!user?._id) return;
 
-      if (lesson?.type === "lesson") {
-        endpoint = "complete-material";
-        payload.materialId = itemId;
-      } else if (lesson?.type === "activity") {
-        endpoint = "complete-activity";
-        payload.activityId = itemId;
-      } else if (lesson?.type === "assessment") {
-        endpoint = "complete-assessment";
-        payload.assessmentId = itemId;
-      }
+  try {
+    const token = localStorage.getItem("token");
+    const payload = { userId: user._id, lessonId };
+    let endpoint = "";
 
-      if (!endpoint) return;
+    if (lesson?.type === "lesson") {
+      endpoint = "complete-material";
+      payload.materialId = itemId;
 
-      await axios.post(`http://localhost:5000/api/progress/${endpoint}`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    } catch (err) {
-      console.error("❌ Error marking item completed:", err);
+      // ✅ ADD THIS
+      payload.timeSeconds = Math.floor(
+        (Date.now() - lessonStartTime) / 1000
+      );
+
+    } else if (lesson?.type === "activity") {
+      endpoint = "complete-activity";
+      payload.activityId = itemId;
+
+    } else if (lesson?.type === "assessment") {
+      endpoint = "complete-assessment";
+      payload.assessmentId = itemId;
     }
-  };
+
+    if (!endpoint) return;
+
+    await axios.post(
+      `http://localhost:5000/api/progress/${endpoint}`,
+      payload,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+  } catch (err) {
+    console.error("❌ Error marking item completed:", err);
+  }
+};
 
   // --- Lesson Navigation ---
   const handleNextContent = async () => {

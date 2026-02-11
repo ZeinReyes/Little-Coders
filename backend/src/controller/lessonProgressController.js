@@ -243,20 +243,56 @@ export const getUnlockedItems = async (req, res) => {
 // --- Mark material completed ---
 export const markMaterialCompleted = async (req, res) => {
   try {
-    const { userId, lessonId, materialId } = req.body;
-    if (!userId || !lessonId || !materialId)
-      return res.status(400).json({ message: "Missing required fields" });
+    const { userId, lessonId, materialId, timeSeconds } = req.body;
 
-    const progress = await UserLessonProgress.findOneAndUpdate(
-      { userId, lessonId },
-      { $addToSet: { completedMaterials: materialId } },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
+    if (!userId || !lessonId || !materialId) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const userIdStr = userId.toString();
+    const lessonIdStr = lessonId.toString();
+    const materialIdStr = materialId.toString();
+
+    let progress = await UserLessonProgress.findOne({
+      userId: userIdStr,
+      lessonId: lessonIdStr,
+    });
+
+    if (!progress) {
+      progress = new UserLessonProgress({
+        userId: userIdStr,
+        lessonId: lessonIdStr,
+        completedMaterials: [],
+        materialTime: [],
+      });
+    }
+
+    // ✅ Add to completedMaterials
+    if (!progress.completedMaterials.some(
+      m => m.toString() === materialIdStr
+    )) {
+      progress.completedMaterials.push(materialIdStr);
+    }
+
+    // ✅ Update or Insert Material Time
+    const existingTimeIndex = progress.materialTime.findIndex(
+      (m) => m.materialId.toString() === materialIdStr
     );
 
-    // Check if lesson is fully completed
+    if (existingTimeIndex >= 0) {
+      progress.materialTime[existingTimeIndex].timeSeconds += timeSeconds ?? 0;
+      progress.materialTime[existingTimeIndex].updatedAt = new Date();
+    } else {
+      progress.materialTime.push({
+        materialId: materialIdStr,
+        timeSeconds: timeSeconds ?? 0,
+        updatedAt: new Date(),
+      });
+    }
+
+    // --- Recalculate Progress ---
     const totalMaterials = await LessonMaterial.countDocuments({ lessonId });
-    const allActivities = await LessonActivity.find({ lessonId });
-    const totalActivities = allActivities.length;
+    const totalActivities = await LessonActivity.countDocuments({ lessonId });
 
     const completedMaterialsCount = progress.completedMaterials.length;
     const completedActivitiesCount = progress.activityAttempts.filter(a => a.correct).length;
@@ -264,15 +300,28 @@ export const markMaterialCompleted = async (req, res) => {
     const totalItems = totalMaterials + totalActivities;
     const completedItems = completedMaterialsCount + completedActivitiesCount;
 
-    progress.progressPercentage = totalItems > 0 ? Math.min((completedItems / totalItems) * 100, 100) : 0;
-    progress.isLessonCompleted = completedMaterialsCount === totalMaterials && completedActivitiesCount === totalActivities;
-    
+    progress.progressPercentage =
+      totalItems > 0
+        ? Math.min((completedItems / totalItems) * 100, 100)
+        : 0;
+
+    progress.isLessonCompleted =
+      completedMaterialsCount === totalMaterials &&
+      completedActivitiesCount === totalActivities;
+
     await progress.save();
 
-    res.status(200).json({ message: "Material marked as completed", progress });
+    res.status(200).json({
+      message: "Material marked as completed and time recorded",
+      progress,
+    });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error updating progress", error: err.message });
+    console.error("❌ Error updating material progress:", err);
+    res.status(500).json({
+      message: "Error updating material progress",
+      error: err.message,
+    });
   }
 };
 
