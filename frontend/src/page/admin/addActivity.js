@@ -17,6 +17,7 @@ function AddActivity() {
   const [formData, setFormData] = useState({
     name: "",
     instructions: "",
+    timeLimit: 30,
     hints: [""],
     difficulty: "easy",
     expectedOutput: "",
@@ -123,6 +124,22 @@ function AddActivity() {
                 Word count: {countWords(formData.instructions)} / 70
               </small>
             </Form.Group>
+
+            <div className="mb-3">
+          <label className="form-label">Time Limit (seconds)</label>
+          <input
+  type="number"
+  name="timeLimit"
+  className="form-control"
+  value={formData.timeLimit}
+  min={30}
+  required
+  onChange={(e) =>
+    setFormData({ ...formData, timeLimit: parseInt(e.target.value) })
+  }
+/>
+
+        </div>
 
             {/* Hints */}
             <div className="d-flex justify-content-between align-items-center mb-2">

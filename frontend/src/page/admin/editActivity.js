@@ -10,6 +10,7 @@ function EditActivity() {
   const [activity, setActivity] = useState({
     name: "",
     instructions: "",
+    timeLimit: 30,
     hints: [""],
     expectedOutput: "",
     difficulty: "easy",
@@ -47,6 +48,7 @@ function EditActivity() {
         expectedOutput: data.expectedOutput || "",
         difficulty: data.difficulty || "easy",
         dataTypesRequired: data.dataTypesRequired || [],
+        timeLimit: data.timeLimit || 5,
       });
       setLoading(false);
     } catch (err) {
@@ -150,7 +152,22 @@ function EditActivity() {
               + Add Hint
             </Button>
           </Form.Group>
+ {/* Time Limit */}
+        <div className="mb-3">
+          <label className="form-label">Time Limit (seconds)</label>
+          <input
+  type="number"
+  name="timeLimit"
+  className="form-control"
+  value={activity.timeLimit}
+  min={30}
+  required
+  onChange={(e) =>
+    setActivity({ ...activity, timeLimit: parseInt(e.target.value) })
+  }
+/>
 
+        </div>
           <Form.Group className="mb-3">
             <Form.Label>Expected Output</Form.Label>
             <Form.Control

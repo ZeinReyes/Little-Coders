@@ -12,6 +12,7 @@ const AddAssessment = () => {
   const [formData, setFormData] = useState({
     title: "",
     lessonId: "",
+    timeLimit: 30, // ✅ default to 30 seconds
     questions: [
       {
         instructions: "",
@@ -25,7 +26,7 @@ const AddAssessment = () => {
 
   const [lessons, setLessons] = useState([]);
   const [message, setMessage] = useState("");
-  const [expandedQuestions, setExpandedQuestions] = useState([0]); // track open questions
+  const [expandedQuestions, setExpandedQuestions] = useState([0]);
 
   // ✅ Fetch lessons
   useEffect(() => {
@@ -49,7 +50,7 @@ const AddAssessment = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  // ✅ Handle question field changes
+  // ✅ Handle question changes
   const handleQuestionChange = (index, field, value) => {
     const updatedQuestions = [...formData.questions];
     updatedQuestions[index][field] = value;
@@ -57,27 +58,24 @@ const AddAssessment = () => {
   };
 
   // ✅ Handle hint changes
-  const handleHintChange = (qIndex, hintIndex, value) => {
+  const handleHintChange = (qIndex, hIndex, value) => {
     const updatedQuestions = [...formData.questions];
-    updatedQuestions[qIndex].hints[hintIndex] = value;
+    updatedQuestions[qIndex].hints[hIndex] = value;
     setFormData({ ...formData, questions: updatedQuestions });
   };
 
-  // ✅ Add new hint
   const addHint = (qIndex) => {
     const updatedQuestions = [...formData.questions];
     updatedQuestions[qIndex].hints.push("");
     setFormData({ ...formData, questions: updatedQuestions });
   };
 
-  // ✅ Delete hint
   const deleteHint = (qIndex, hIndex) => {
     const updatedQuestions = [...formData.questions];
     updatedQuestions[qIndex].hints.splice(hIndex, 1);
     setFormData({ ...formData, questions: updatedQuestions });
   };
 
-  // ✅ Add new question
   const addQuestion = () => {
     const newQuestions = [
       ...formData.questions,
@@ -93,21 +91,18 @@ const AddAssessment = () => {
     setExpandedQuestions([...expandedQuestions, newQuestions.length - 1]);
   };
 
-  // ✅ Delete question
   const deleteQuestion = (index) => {
     const newQuestions = formData.questions.filter((_, i) => i !== index);
     setFormData({ ...formData, questions: newQuestions });
     setExpandedQuestions(expandedQuestions.filter((i) => i !== index));
   };
 
-  // ✅ Toggle question collapse
   const toggleQuestion = (index) => {
     setExpandedQuestions((prev) =>
       prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
     );
   };
 
-  // ✅ Handle Data Type change
   const handleDataTypeChange = (qIndex, type) => {
     const updatedQuestions = [...formData.questions];
     const currentTypes = updatedQuestions[qIndex].dataTypesRequired;
@@ -127,6 +122,11 @@ const AddAssessment = () => {
     setMessage("");
 
     try {
+      if (formData.timeLimit < 30) {
+        setMessage("❌ Time limit must be at least 30 seconds.");
+        return;
+      }
+
       const token = localStorage.getItem("token");
       const res = await axios.post(
         "http://localhost:5000/api/assessments",
@@ -140,6 +140,7 @@ const AddAssessment = () => {
       setFormData({
         title: "",
         lessonId: "",
+        timeLimit: 30,
         questions: [
           {
             instructions: "",
@@ -173,10 +174,7 @@ const AddAssessment = () => {
         </p>
       )}
 
-      <form
-        onSubmit={handleSubmit}
-        className="p-4 bg-light rounded shadow-sm"
-      >
+      <form onSubmit={handleSubmit} className="p-4 bg-light rounded shadow-sm">
         {/* Assessment Title */}
         <div className="mb-3">
           <label className="form-label">Assessment Title</label>
@@ -207,6 +205,20 @@ const AddAssessment = () => {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Time Limit */}
+        <div className="mb-3">
+          <label className="form-label">Time Limit (seconds)</label>
+          <input
+            type="number"
+            name="timeLimit"
+            className="form-control"
+            value={formData.timeLimit}
+            min={30}
+            onChange={handleChange}
+            required
+          />
         </div>
 
         {/* Questions Section */}

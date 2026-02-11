@@ -3,11 +3,20 @@ import mongoose from "mongoose";
 const assessmentSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
+
     lessonId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Lesson",
       required: true,
     },
+
+    // ✅ WHOLE ASSESSMENT TIME LIMIT (in seconds)
+    timeLimit: {
+      type: Number,
+      required: true,
+      min: 30, // minimum 30 seconds
+    },
+
     questions: [
       {
         instructions: { type: String, required: true },
@@ -29,6 +38,7 @@ const assessmentSchema = new mongoose.Schema(
         },
       },
     ],
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

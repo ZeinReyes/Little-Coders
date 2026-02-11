@@ -16,6 +16,7 @@ const EditAssessment = () => {
   const [formData, setFormData] = useState({
     title: "",
     lessonId: "",
+    timeLimit: 30, // ✅ added default time limit
     questions: [],
   });
 
@@ -40,23 +41,22 @@ const EditAssessment = () => {
   }, []);
 
   // ✅ Fetch assessment to edit
-  // ✅ Fetch assessment to edit
-useEffect(() => {
+  useEffect(() => {
     const fetchAssessment = async () => {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get(`http://localhost:5000/api/assessments/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-  
-        // handle various response shapes safely
+
         const a = res.data?.data || res.data || {};
         setFormData({
           title: a.title || "",
           lessonId: a.lessonId?._id || a.lessonId || "",
+          timeLimit: a.timeLimit || 30, // ✅ set time limit from backend
           questions: Array.isArray(a.questions) ? a.questions : [],
         });
-  
+
         // expand all questions by default
         setExpandedQuestions(
           Array.isArray(a.questions) ? a.questions.map((_, i) => i) : []
@@ -66,10 +66,9 @@ useEffect(() => {
         setMessage("❌ Failed to load assessment details. Please check your connection or ID.");
       }
     };
-  
+
     if (id) fetchAssessment();
   }, [id]);
-  
 
   // ✅ Handle main input change
   const handleChange = (e) => {
@@ -91,21 +90,18 @@ useEffect(() => {
     setFormData({ ...formData, questions: updated });
   };
 
-  // ✅ Add new hint
   const addHint = (qIndex) => {
     const updated = [...formData.questions];
     updated[qIndex].hints.push("");
     setFormData({ ...formData, questions: updated });
   };
 
-  // ✅ Delete hint
   const deleteHint = (qIndex, hIndex) => {
     const updated = [...formData.questions];
     updated[qIndex].hints.splice(hIndex, 1);
     setFormData({ ...formData, questions: updated });
   };
 
-  // ✅ Add new question
   const addQuestion = () => {
     const newQuestion = {
       instructions: "",
@@ -119,21 +115,18 @@ useEffect(() => {
     setExpandedQuestions([...expandedQuestions, newQuestions.length - 1]);
   };
 
-  // ✅ Delete question
   const deleteQuestion = (index) => {
     const newQuestions = formData.questions.filter((_, i) => i !== index);
     setFormData({ ...formData, questions: newQuestions });
     setExpandedQuestions(expandedQuestions.filter((i) => i !== index));
   };
 
-  // ✅ Toggle collapse
   const toggleQuestion = (index) => {
     setExpandedQuestions((prev) =>
       prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
     );
   };
 
-  // ✅ Handle data type checkbox
   const handleDataTypeChange = (qIndex, type) => {
     const updated = [...formData.questions];
     const current = updated[qIndex].dataTypesRequired;
@@ -147,6 +140,11 @@ useEffect(() => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
+
+    if (formData.timeLimit < 30) {
+      setMessage("❌ Time limit must be at least 30 seconds.");
+      return;
+    }
 
     try {
       const token = localStorage.getItem("token");
@@ -214,6 +212,20 @@ useEffect(() => {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Time Limit */}
+        <div className="mb-3">
+          <label className="form-label">Time Limit (seconds)</label>
+          <input
+            type="number"
+            name="timeLimit"
+            className="form-control"
+            value={formData.timeLimit}
+            min={30}
+            onChange={handleChange}
+            required
+          />
         </div>
 
         {/* Questions Section */}

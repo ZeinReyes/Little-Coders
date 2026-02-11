@@ -3,7 +3,7 @@ import Assessment from "../model/Assessment.js";
 // ✅ Create Assessment (with multiple embedded questions)
 export const createAssessment = async (req, res) => {
   try {
-    const { title, lessonId, questions } = req.body;
+    const { title, lessonId, questions, timeLimit } = req.body;
 
     if (!title || !lessonId || !questions || questions.length === 0) {
       return res.status(400).json({
@@ -12,7 +12,13 @@ export const createAssessment = async (req, res) => {
       });
     }
 
-    // Validate each question
+    if (!timeLimit || timeLimit < 30) {
+      return res.status(400).json({
+        success: false,
+        message: "Time limit must be at least 30 seconds.",
+      });
+    }
+
     const validDifficulties = ["Easy", "Medium", "Hard"];
     const validDataTypes = [
       "print", "variable", "multiple", "add", "subtract", "divide",
@@ -47,6 +53,7 @@ export const createAssessment = async (req, res) => {
       title,
       lessonId,
       questions,
+      timeLimit, // ✅ added
     });
 
     await newAssessment.save();
@@ -56,6 +63,7 @@ export const createAssessment = async (req, res) => {
       message: "Assessment created successfully!",
       data: newAssessment,
     });
+
   } catch (error) {
     console.error("Error creating assessment:", error);
     res.status(500).json({
@@ -64,6 +72,7 @@ export const createAssessment = async (req, res) => {
     });
   }
 };
+
 
 // ✅ Get All Assessments
 export const getAllAssessments = async (req, res) => {
@@ -132,12 +141,23 @@ export const getAssessmentByLessonAndId = async (req, res) => {
 // ✅ Update Assessment (can also update nested questions)
 export const updateAssessment = async (req, res) => {
   try {
-    const { title, lessonId, questions } = req.body;
+    const { title, lessonId, questions, timeLimit } = req.body;
 
     const updateFields = {};
+
     if (title) updateFields.title = title;
     if (lessonId) updateFields.lessonId = lessonId;
     if (questions) updateFields.questions = questions;
+
+    if (timeLimit !== undefined) {
+      if (timeLimit < 30) {
+        return res.status(400).json({
+          success: false,
+          message: "Time limit must be at least 30 seconds.",
+        });
+      }
+      updateFields.timeLimit = timeLimit;
+    }
 
     // Validate questions if provided
     if (questions) {
@@ -190,6 +210,7 @@ export const updateAssessment = async (req, res) => {
       message: "Assessment updated successfully!",
       data: updatedAssessment,
     });
+
   } catch (error) {
     console.error("Error updating assessment:", error);
     res.status(500).json({
@@ -198,6 +219,7 @@ export const updateAssessment = async (req, res) => {
     });
   }
 };
+
 
 // ✅ Delete Assessment
 export const deleteAssessment = async (req, res) => {

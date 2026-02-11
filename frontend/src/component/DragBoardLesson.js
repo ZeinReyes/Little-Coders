@@ -58,6 +58,33 @@ export default function DragBoardLesson() {
    const location = useLocation();
   const { assessment, questions } = location.state || {};
 
+  const [timeLeft, setTimeLeft] = useState(lesson?.timeLimit || 300); // default 5 min
+useEffect(() => {
+  if (!lesson) return;
+
+  // Reset timer on new lesson/activity/assessment
+  setTimeLeft(lesson.timeLimit || 300);
+
+  const interval = setInterval(() => {
+    setTimeLeft(prev => {
+      if (prev <= 1) {
+        clearInterval(interval);
+        handleTimeUp(); // what happens when timer ends
+        return 0;
+      }
+      return prev - 1;
+    });
+  }, 1000);
+
+  return () => clearInterval(interval);
+}, [lesson]);
+
+const formatTime = (seconds) => {
+  const m = String(Math.floor(seconds / 60)).padStart(2, "0");
+  const s = String(seconds % 60).padStart(2, "0");
+  return `${m}:${s}`;
+};
+
   useEffect(() => {
   if (lesson?.type === "lesson" && showLessonModal) {
     setLessonStartTime(Date.now());
@@ -596,7 +623,15 @@ const onRun = async () => {
       }));
     }
   };
+const handleTimeUp = async () => {
+  playErrorSound();
+  
+  if (lesson.type === "assessment" || lesson.type === "activity") {
+    setShowAnswerModal(true); // show answers or feedback
+  }
 
+  stopActivitySound();
+};
   // --- Activity Transition ---
   const randomActivityText = (slide) => {
     const thinkingTexts = [
@@ -843,6 +878,7 @@ const onRun = async () => {
           )}
         </div>
       )}
+      
 
       {lesson.expectedOutput && (
         <div style={{
@@ -1128,6 +1164,9 @@ const onRun = async () => {
           <div className="whiteboard-wrap">
             <div id="whiteboard" className="whiteboard">
               <div id="trashCan" className="trash-can">🗑️</div>
+                    <div style={{ fontSize: "1.2rem", fontWeight: "700", color: "#e53935", marginBottom: "1rem" }}>
+  ⏱ Time Left: {formatTime(timeLeft)}
+</div>
             </div>
           </div>
         </div>

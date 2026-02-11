@@ -2,16 +2,34 @@ import LessonActivity from "../model/LessonActivity.js";
 
 export const createActivity = async (req, res) => {
   try {
-    const { materialId } = req.params; // now materialId refers to LessonMaterial
-    let { name, instructions, hints, expectedOutput, difficulty, dataTypesRequired, order } = req.body;
+    const { materialId } = req.params;
+
+    let { 
+      name, 
+      instructions, 
+      hints, 
+      expectedOutput, 
+      difficulty, 
+      dataTypesRequired, 
+      order,
+      timeLimit // ✅ added
+    } = req.body;
 
     if (!Array.isArray(hints)) hints = hints ? [hints] : [];
+
+    // ✅ Validate timeLimit
+    if (!timeLimit || timeLimit < 30) {
+      return res.status(400).json({
+        message: "Time limit must be at least 30 seconds."
+      });
+    }
 
     const validDataTypes = [
       "print", "variable", "multiple", "add", "subtract", "divide",
       "equal", "notequal", "less", "lessequal", "greater", "greaterequal",
       "if", "elif", "else", "while"
     ];
+
     if (dataTypesRequired && !dataTypesRequired.every(dt => validDataTypes.includes(dt))) {
       return res.status(400).json({ message: "Invalid data type selected." });
     }
@@ -25,14 +43,17 @@ export const createActivity = async (req, res) => {
       difficulty: difficulty || "easy",
       dataTypesRequired: dataTypesRequired || [],
       order: order || 0,
+      timeLimit, // ✅ added
     });
 
     await activity.save();
     res.status(201).json(activity);
+
   } catch (err) {
     res.status(500).json({ message: "Error creating activity", error: err.message });
   }
 };
+
 
 export const getActivityById = async (req, res) => {
   try {
@@ -65,7 +86,18 @@ export const getActivitiesByMaterial = async (req, res) => {
 export const updateActivity = async (req, res) => {
   try {
     const { id } = req.params;
-    let { name, instructions, hints, expectedOutput, difficulty, materialId, dataTypesRequired, order } = req.body;
+
+    let { 
+      name, 
+      instructions, 
+      hints, 
+      expectedOutput, 
+      difficulty, 
+      materialId, 
+      dataTypesRequired, 
+      order,
+      timeLimit // ✅ added
+    } = req.body;
 
     if (!materialId) {
       const existing = await LessonActivity.findById(id);
@@ -80,6 +112,7 @@ export const updateActivity = async (req, res) => {
       "equal", "notequal", "less", "lessequal", "greater", "greaterequal",
       "if", "elif", "else", "while"
     ];
+
     if (dataTypesRequired && !dataTypesRequired.every(dt => validDataTypes.includes(dt))) {
       return res.status(400).json({ message: "Invalid data type selected." });
     }
@@ -94,7 +127,17 @@ export const updateActivity = async (req, res) => {
       dataTypesRequired: dataTypesRequired || [],
     };
 
-    // Only update order if it's provided
+    // Validate & update timeLimit if provided
+if (timeLimit !== undefined) {
+  timeLimit = Number(timeLimit);
+  if (!timeLimit || timeLimit < 30) {
+    return res.status(400).json({
+      message: "Time limit must be a number and at least 30 seconds."
+    });
+  }
+  updateData.timeLimit = timeLimit;
+}
+
     if (order !== undefined) {
       updateData.order = order;
     }
@@ -108,10 +151,12 @@ export const updateActivity = async (req, res) => {
     if (!updated) return res.status(404).json({ message: "Activity not found" });
 
     res.status(200).json(updated);
+
   } catch (err) {
     res.status(500).json({ message: "Error updating activity", error: err.message });
   }
 };
+
 
 export const deleteActivity = async (req, res) => {
   try {
