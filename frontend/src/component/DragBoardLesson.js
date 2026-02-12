@@ -59,11 +59,21 @@ export default function DragBoardLesson() {
   const { assessment, questions } = location.state || {};
 
   const [timeLeft, setTimeLeft] = useState(lesson?.timeLimit || 300); // default 5 min
+  const [timerStarted, setTimerStarted] = useState(false);
+
 useEffect(() => {
   if (!lesson) return;
 
-  // Reset timer on new lesson/activity/assessment
+  // Only reset timer when lesson changes OR when starting a new activity
+  // For assessments, don't reset between questions
+  if (lesson.type === "assessment" && timerStarted) {
+    // Don't reset timer for assessment question changes
+    return;
+  }
+
+  // Reset timer for new lesson/activity or first assessment question
   setTimeLeft(lesson.timeLimit || 300);
+  setTimerStarted(true);
 
   const interval = setInterval(() => {
     setTimeLeft(prev => {
@@ -77,7 +87,7 @@ useEffect(() => {
   }, 1000);
 
   return () => clearInterval(interval);
-}, [lesson]);
+}, [lesson?.type, lesson?._id, lesson?.id, itemId]);
 
 const formatTime = (seconds) => {
   const m = String(Math.floor(seconds / 60)).padStart(2, "0");
@@ -1164,14 +1174,27 @@ const handleTimeUp = async () => {
           <div className="whiteboard-wrap">
             <div id="whiteboard" className="whiteboard">
               <div id="trashCan" className="trash-can">🗑️</div>
-                    <div style={{ fontSize: "1.2rem", fontWeight: "700", color: "#e53935", marginBottom: "1rem" }}>
-  ⏱ Time Left: {formatTime(timeLeft)}
-</div>
             </div>
           </div>
         </div>
 
         <div className="right-panel">
+          {(lesson.type === "activity" || lesson.type === "assessment") && (
+            <div style={{ 
+              fontSize: "1.3rem", 
+              fontWeight: "700", 
+              color: "#e53935", 
+              marginBottom: "1rem",
+              textAlign: "center",
+              padding: "0.75rem",
+              backgroundColor: "#fff3e0",
+              borderRadius: "12px",
+              border: "3px solid #ff9800",
+              boxShadow: "0 4px 8px rgba(255, 152, 0, 0.2)"
+            }}>
+              ⏱ Time Left: {formatTime(timeLeft)}
+            </div>
+          )}
           <div className="code-panel">
             <button id="runButton" className="run-button">{actionButtonText}</button>
             <div>Source Code (preview)</div>
