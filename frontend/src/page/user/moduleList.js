@@ -16,15 +16,15 @@ function ModuleList() {
   const [loading, setLoading] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
   const [unlockedLessons, setUnlockedLessons] = useState(new Set());
-  const [completedLessons, setCompletedLessons] = useState(new Set()); // ✅ NEW
+  const [completedLessons, setCompletedLessons] = useState(new Set());
   const navigate = useNavigate();
 
   // Splash fade effect
   useEffect(() => {
     const timer = setTimeout(() => {
       setFadeOut(true);
-      setTimeout(() => setLoading(false), 500);
-    }, 500);
+      setTimeout(() => setLoading(false), 200);
+    }, 200);
     return () => clearTimeout(timer);
   }, []);
 
@@ -49,7 +49,7 @@ function ModuleList() {
         const sortedModules = res.data.sort((a, b) => (a.order || 0) - (b.order || 0));
         setModules(sortedModules);
 
-        // Check which lessons are unlocked and completed
+        // ✅ OPTIMIZED: Check unlock/completion status in parallel
         await checkUnlockAndCompletionStatus(sortedModules, user._id, token);
       } catch (err) {
         console.error("Error fetching modules:", err);
@@ -61,46 +61,68 @@ function ModuleList() {
     fetchModules();
   }, [user]);
 
-  // ✅ UPDATED: Check both unlock and completion status
+  // ✅ OPTIMIZED: Use Promise.all to make all API calls in parallel
   const checkUnlockAndCompletionStatus = async (lessons, userId, token) => {
     try {
       const unlocked = new Set();
       const completed = new Set();
 
-      for (let i = 0; i < lessons.length; i++) {
-        const lesson = lessons[i];
-
-        // First lesson always unlocked
-        if (i === 0) {
-          unlocked.add(lesson._id);
-        }
-
-        // Check unlock status
-        const unlockResponse = await axios.get(
-          `http://localhost:5000/api/progress/check-unlock`,
-          {
-            params: { userId, itemType: "lesson", itemId: lesson._id },
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-
-        if (unlockResponse.data.isUnlocked) {
-          unlocked.add(lesson._id);
-        }
-
-        // ✅ NEW: Check completion status
-        const progressResponse = await axios.get(
-          `http://localhost:5000/api/progress/${userId}/${lesson._id}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        if (progressResponse.data?.isLessonCompleted) {
-          completed.add(lesson._id);
-        }
+      // First lesson always unlocked
+      if (lessons.length > 0) {
+        unlocked.add(lessons[0]._id);
       }
 
-      setUnlockedLessons(new Set([...unlocked]));
-      setCompletedLessons(new Set([...completed])); // ✅ NEW
+      // ✅ Create all API calls as promises (they execute in parallel)
+      const unlockPromises = lessons.map((lesson) =>
+        axios
+          .get(`http://localhost:5000/api/progress/check-unlock`, {
+            params: { userId, itemType: "lesson", itemId: lesson._id },
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          .then((res) => ({ lessonId: lesson._id, isUnlocked: res.data.isUnlocked }))
+          .catch((err) => {
+            console.error(`Error checking unlock for ${lesson._id}:`, err);
+            return { lessonId: lesson._id, isUnlocked: false };
+          })
+      );
+
+      const progressPromises = lessons.map((lesson) =>
+        axios
+          .get(`http://localhost:5000/api/progress/${userId}/${lesson._id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          .then((res) => ({
+            lessonId: lesson._id,
+            isCompleted: res.data?.isLessonCompleted || false,
+          }))
+          .catch((err) => {
+            console.error(`Error checking progress for ${lesson._id}:`, err);
+            return { lessonId: lesson._id, isCompleted: false };
+          })
+      );
+
+      // ✅ Wait for all API calls to complete simultaneously
+      const [unlockResults, progressResults] = await Promise.all([
+        Promise.all(unlockPromises),
+        Promise.all(progressPromises),
+      ]);
+
+      // Process unlock results
+      unlockResults.forEach((result) => {
+        if (result.isUnlocked) {
+          unlocked.add(result.lessonId);
+        }
+      });
+
+      // Process completion results
+      progressResults.forEach((result) => {
+        if (result.isCompleted) {
+          completed.add(result.lessonId);
+        }
+      });
+
+      setUnlockedLessons(unlocked);
+      setCompletedLessons(completed);
     } catch (err) {
       console.error("Error checking unlock/completion status:", err);
     }
@@ -143,7 +165,7 @@ function ModuleList() {
         <div className="modules-list-game">
           {modules.map((module, index) => {
             const isLocked = !unlockedLessons.has(module._id);
-            const isCompleted = completedLessons.has(module._id); // ✅ NEW
+            const isCompleted = completedLessons.has(module._id);
 
             return (
               <div
@@ -152,7 +174,7 @@ function ModuleList() {
                 onClick={() => handleClick(module)}
                 style={{ cursor: isLocked ? "not-allowed" : "pointer" }}
               >
-                {/* ✅ NEW: Completion Badge */}
+                {/* Completion Badge */}
                 {isCompleted && (
                   <div className="completion-badge">
                     <i className="bi bi-check-circle-fill"></i>

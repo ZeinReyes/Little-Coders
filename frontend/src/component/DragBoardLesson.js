@@ -1167,6 +1167,8 @@ const handleTimeUp = async () => {
             <img src="/assets/images/elif.png" data-type="elif" draggable alt="Elif" />
             <img src="/assets/images/else.png" data-type="else" draggable alt="Else" />
             <img src="/assets/images/while.png" data-type="while" draggable alt="While" />
+            <img src="/assets/images/do_while.png" data-type="do-while" draggable="true" alt="Do While Loop" />
+            <img src="/assets/images/for.png" data-type="for" draggable="true" alt="For Loop" />
           </div>
         </div>
 
