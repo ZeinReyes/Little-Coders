@@ -1,4 +1,3 @@
-// src/pages/user/LessonList.js
 import React, { useEffect, useState, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -91,7 +90,6 @@ function LessonList() {
         }));
 
         setItems([...structuredItems, ...assessments]);
-
       } catch (err) {
         console.error("Error fetching lesson data:", err);
       } finally {
@@ -103,55 +101,51 @@ function LessonList() {
   }, [lessonId, user, userLoading]);
 
   // Dynamic unlock calculation
- // Dynamic unlock calculation
-useEffect(() => {
-  const unlockItems = () => {
-    const unlocked = new Set();
-    if (!items.length) return;
+  useEffect(() => {
+    const unlockItems = () => {
+      const unlocked = new Set();
+      if (!items.length) return;
 
-    const lessons = items.filter(i => i.type === "lesson");
-    const activitiesByMaterial = {};
-    lessons.forEach(lesson => {
-      activitiesByMaterial[lesson._id] = items.filter(a => a.type === "activity" && a.parentId === lesson._id);
-    });
-    const assessmentsItems = items.filter(i => i.type === "assessment");
+      const lessons = items.filter((i) => i.type === "lesson");
+      const activitiesByMaterial = {};
+      lessons.forEach((lesson) => {
+        activitiesByMaterial[lesson._id] = items.filter(
+          (a) => a.type === "activity" && a.parentId === lesson._id
+        );
+      });
+      const assessmentsItems = items.filter((i) => i.type === "assessment");
 
-    // Unlock first lesson
-    if (lessons.length > 0) unlocked.add(lessons[0]._id);
+      if (lessons.length > 0) unlocked.add(lessons[0]._id);
 
-    lessons.forEach((lesson, i) => {
-      const activities = activitiesByMaterial[lesson._id] || [];
+      lessons.forEach((lesson, i) => {
+        const activities = activitiesByMaterial[lesson._id] || [];
 
-      // Unlock next lesson only if current lesson is completed
-      if (lesson.isCompleted && i + 1 < lessons.length) {
-        unlocked.add(lessons[i + 1]._id);
+        if (lesson.isCompleted && i + 1 < lessons.length) {
+          unlocked.add(lessons[i + 1]._id);
+        }
+
+        if (lesson.isCompleted) {
+          activities.forEach((activity, j) => {
+            if (j === 0) unlocked.add(activity._id);
+            else if (activities[j - 1].isCompleted) unlocked.add(activity._id);
+          });
+        }
+      });
+
+      const allLessonsCompleted = lessons.every((l) => l.isCompleted);
+      const allActivitiesCompleted = items
+        .filter((i) => i.type === "activity")
+        .every((a) => a.isCompleted);
+
+      if (allLessonsCompleted && allActivitiesCompleted) {
+        assessmentsItems.forEach((a) => unlocked.add(a._id));
       }
 
-      // Unlock activities only if the parent lesson is completed
-      if (lesson.isCompleted) {
-        activities.forEach((activity, j) => {
-          // Unlock first activity
-          if (j === 0) unlocked.add(activity._id);
-          // Unlock next activity if previous completed
-          else if (activities[j - 1].isCompleted) unlocked.add(activity._id);
-        });
-      }
-    });
+      setUnlockedItems(unlocked);
+    };
 
-    // Unlock assessments if all lessons + activities completed
-    const allLessonsCompleted = lessons.every(l => l.isCompleted);
-    const allActivitiesCompleted = items.filter(i => i.type === "activity").every(a => a.isCompleted);
-
-    if (allLessonsCompleted && allActivitiesCompleted) {
-      assessmentsItems.forEach(a => unlocked.add(a._id));
-    }
-
-    setUnlockedItems(unlocked);
-  };
-
-  unlockItems();
-}, [items]);
-
+    unlockItems();
+  }, [items]);
 
   const handleItemClick = async (item) => {
     const itemId = item._id || item.id;
@@ -170,7 +164,6 @@ useEffect(() => {
       navigate(`/lessons/${lessonId}/${itemId}`, {
         state: { assessment, questions: selected },
       });
-
     } else {
       navigate(`/lessons/${lessonId}/${itemId}`);
     }
@@ -231,7 +224,7 @@ useEffect(() => {
         background: "linear-gradient(180deg, #E0F7FA 0%, #FFF9F0 100%)",
         fontFamily: "'Comic Neue', 'Comic Sans MS', cursive",
         marginBottom: "-30px",
-        paddingBottom: "10px"
+        paddingBottom: "10px",
       }}
     >
       {showTutorial && (
@@ -239,8 +232,7 @@ useEffect(() => {
           show={showTutorial}
           onClose={async () => {
             setShowTutorial(false);
-            if (user?._id || user?.id)
-              await refreshUser(user._id || user.id);
+            if (user?._id || user?.id) await refreshUser(user._id || user.id);
           }}
         />
       )}
@@ -283,7 +275,9 @@ useEffect(() => {
 
       {/* PROGRESS BAR */}
       <div className="text-center mt-3">
-        <span className="fs-4" style={{ fontWeight: "bold", color: "#FF7043" }}>Progress</span>
+        <span className="fs-4" style={{ fontWeight: "bold", color: "#FF7043" }}>
+          Progress
+        </span>
         <ProgressBar
           now={progressPercent}
           label={`${progressPercent}%`}
@@ -310,8 +304,6 @@ useEffect(() => {
           boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
         }}
       >
-
-        {/* LESSONS + ACTIVITIES + ASSESSMENTS */}
         <div
           style={{
             display: "flex",
@@ -356,12 +348,23 @@ useEffect(() => {
                       pointerEvents: isUnlocked ? "auto" : "none",
                       transition: "background 0.2s ease",
                     }}
-                    onMouseEnter={(e) => isUnlocked && (e.currentTarget.style.background = "#ffecb3")}
-                    onMouseLeave={(e) => e.currentTarget.style.background = lessonStyle.bg}
+                    onMouseEnter={(e) =>
+                      isUnlocked && (e.currentTarget.style.background = "#ffecb3")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = lessonStyle.bg)
+                    }
                   >
-                    <div style={{ width: "55px", textAlign: "center", flexShrink: 0 }}>
+                    <div
+                      style={{ width: "55px", textAlign: "center", flexShrink: 0 }}
+                    >
                       {icons.lesson}
-                      {!isUnlocked && <span role="img" aria-label="lock"> 🔒 </span>}
+                      {!isUnlocked && (
+                        <span role="img" aria-label="lock">
+                          {" "}
+                          🔒{" "}
+                        </span>
+                      )}
                     </div>
                     <div>
                       <div
@@ -403,12 +406,27 @@ useEffect(() => {
                           pointerEvents: isUnlocked ? "auto" : "none",
                           transition: "background 0.2s ease",
                         }}
-                        onMouseEnter={(e) => isUnlocked && (e.currentTarget.style.background = "#d0e7ff")}
-                        onMouseLeave={(e) => e.currentTarget.style.background = actStyle.bg}
+                        onMouseEnter={(e) =>
+                          isUnlocked && (e.currentTarget.style.background = "#d0e7ff")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = actStyle.bg)
+                        }
                       >
-                        <div style={{ width: "45px", textAlign: "center", flexShrink: 0 }}>
+                        <div
+                          style={{
+                            width: "45px",
+                            textAlign: "center",
+                            flexShrink: 0,
+                          }}
+                        >
                           {icons.activity}
-                          {!isUnlocked && <span role="img" aria-label="lock"> 🔒 </span>}
+                          {!isUnlocked && (
+                            <span role="img" aria-label="lock">
+                              {" "}
+                              🔒{" "}
+                            </span>
+                          )}
                         </div>
                         <div>
                           <div
@@ -436,10 +454,9 @@ useEffect(() => {
               );
             })}
 
-          {/* ASSESSMENT SECTION TITLE */}
+          {/* ASSESSMENT SECTION */}
           {assessments.length > 0 && <h3 className="my-3">Assessment Tasks</h3>}
 
-          {/* ASSESSMENTS */}
           {assessments.map((item) => {
             const style = colors.assessment;
             const isUnlocked = unlockedItems.has(item._id);
@@ -461,12 +478,23 @@ useEffect(() => {
                   boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
                   transition: "transform 0.2s ease, background 0.2s ease",
                 }}
-                onMouseEnter={(e) => isUnlocked && (e.currentTarget.style.background = "#d7f5dc")}
-                onMouseLeave={(e) => e.currentTarget.style.background = style.bg}
+                onMouseEnter={(e) =>
+                  isUnlocked && (e.currentTarget.style.background = "#d7f5dc")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = style.bg)
+                }
               >
-                <div style={{ width: "50px", textAlign: "center", flexShrink: 0 }}>
+                <div
+                  style={{ width: "50px", textAlign: "center", flexShrink: 0 }}
+                >
                   {icons.assessment}
-                  {!isUnlocked && <span role="img" aria-label="lock"> 🔒 </span>}
+                  {!isUnlocked && (
+                    <span role="img" aria-label="lock">
+                      {" "}
+                      🔒{" "}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <div

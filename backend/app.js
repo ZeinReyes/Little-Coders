@@ -21,6 +21,7 @@ import activityRoute from "./src/route/activityRoute.js";
 import assessmentRoute from "./src/route/assessmentRoute.js"; // keep naming consistent
 import lessonProgressRoutes from "./src/route/lessonProgressRoute.js";
 import contactRoute from "./src/route/contactRoute.js";
+import aiRoute from "./src/route/aiRoute.js"
 
 // ✅ Use Routes
 app.use("/api/auth", authRoute);
@@ -31,6 +32,7 @@ app.use("/api/activities", activityRoute);
 app.use("/api/assessments", assessmentRoute);
 app.use("/api/progress", lessonProgressRoutes);
 app.use("/api/contact", contactRoute);
+app.use("/api/ai", aiRoute);
 
 
 // ✅ MongoDB Connection

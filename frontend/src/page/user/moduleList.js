@@ -45,11 +45,9 @@ function ModuleList() {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        // Sort lessons by order
         const sortedModules = res.data.sort((a, b) => (a.order || 0) - (b.order || 0));
         setModules(sortedModules);
 
-        // ✅ OPTIMIZED: Check unlock/completion status in parallel
         await checkUnlockAndCompletionStatus(sortedModules, user._id, token);
       } catch (err) {
         console.error("Error fetching modules:", err);
@@ -61,18 +59,15 @@ function ModuleList() {
     fetchModules();
   }, [user]);
 
-  // ✅ OPTIMIZED: Use Promise.all to make all API calls in parallel
   const checkUnlockAndCompletionStatus = async (lessons, userId, token) => {
     try {
       const unlocked = new Set();
       const completed = new Set();
 
-      // First lesson always unlocked
       if (lessons.length > 0) {
         unlocked.add(lessons[0]._id);
       }
 
-      // ✅ Create all API calls as promises (they execute in parallel)
       const unlockPromises = lessons.map((lesson) =>
         axios
           .get(`http://localhost:5000/api/progress/check-unlock`, {
@@ -101,20 +96,17 @@ function ModuleList() {
           })
       );
 
-      // ✅ Wait for all API calls to complete simultaneously
       const [unlockResults, progressResults] = await Promise.all([
         Promise.all(unlockPromises),
         Promise.all(progressPromises),
       ]);
 
-      // Process unlock results
       unlockResults.forEach((result) => {
         if (result.isUnlocked) {
           unlocked.add(result.lessonId);
         }
       });
 
-      // Process completion results
       progressResults.forEach((result) => {
         if (result.isCompleted) {
           completed.add(result.lessonId);
@@ -170,11 +162,12 @@ function ModuleList() {
             return (
               <div
                 key={module._id}
-                className={`module-card-game ${isLocked ? "locked" : ""} ${isCompleted ? "completed" : ""}`}
+                className={`module-card-game ${isLocked ? "locked" : ""} ${
+                  isCompleted ? "completed" : ""
+                }`}
                 onClick={() => handleClick(module)}
                 style={{ cursor: isLocked ? "not-allowed" : "pointer" }}
               >
-                {/* Completion Badge */}
                 {isCompleted && (
                   <div className="completion-badge">
                     <i className="bi bi-check-circle-fill"></i>
@@ -185,7 +178,10 @@ function ModuleList() {
                 <div className="card-img-wrapper">
                   {isLocked && (
                     <div className="lock-overlay">
-                      <i className="bi bi-lock-fill" style={{ fontSize: "3rem", color: "#fff" }}></i>
+                      <i
+                        className="bi bi-lock-fill"
+                        style={{ fontSize: "3rem", color: "#fff" }}
+                      ></i>
                     </div>
                   )}
                   <img
@@ -208,14 +204,18 @@ function ModuleList() {
                 <div className="card-content">
                   <h3>{module.title}</h3>
                   <p>
-                    {module.description || "Embark on a new coding adventure and unlock your skills!"}
+                    {module.description ||
+                      "Embark on a new coding adventure and unlock your skills!"}
                   </p>
                 </div>
 
                 <button
                   className="start-btn"
                   disabled={isLocked}
-                  style={{ opacity: isLocked ? 0.6 : 1, cursor: isLocked ? "not-allowed" : "pointer" }}
+                  style={{
+                    opacity: isLocked ? 0.6 : 1,
+                    cursor: isLocked ? "not-allowed" : "pointer",
+                  }}
                 >
                   {isLocked ? (
                     <>

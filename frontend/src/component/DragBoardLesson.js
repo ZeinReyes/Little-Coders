@@ -11,17 +11,16 @@ import { initDragAndDrop } from "../utils/dragAndDrop";
 import { updateCode } from "../utils/codeGen";
 import { updateVariableState } from "../utils/state";
 import { runProgram } from "../utils/runner";
-import {codeChecker} from "../utils/codeChecker"
+import { codeChecker } from "../utils/codeChecker";
 import {
   playLessonSound,
   stopLessonSound,
   playActivitySound,
   stopActivitySound,
   playSuccessSound,
-  playErrorSound
+  playErrorSound,
 } from "../utils/sfx";
 
-// --- Character images ---
 const lessonImages = ["/assets/images/lesson.png", "/assets/images/lesson1.png"];
 const activityImages = ["/assets/images/activity.png", "/assets/images/activity1.png"];
 const congratsImages = [
@@ -32,8 +31,7 @@ const congratsImages = [
   "/assets/images/congrats4.png",
 ];
 
-const getRandomImage = (images) =>
-  images[Math.floor(Math.random() * images.length)];
+const getRandomImage = (images) => images[Math.floor(Math.random() * images.length)];
 
 export default function DragBoardLesson() {
   const { lessonId, itemId } = useParams();
@@ -46,116 +44,150 @@ export default function DragBoardLesson() {
   const [activityText, setActivityText] = useState("");
   const [activitySlide, setActivitySlide] = useState(0);
 
-  // --- Assessment-specific state ---
   const [assessmentAttempts, setAssessmentAttempts] = useState(0);
   const [showAnswerModal, setShowAnswerModal] = useState(false);
   const [assessmentAnswer, setAssessmentAnswer] = useState({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
-
   const [lessonStartTime, setLessonStartTime] = useState(Date.now());
 
-   const location = useLocation();
-  const { assessment, questions } = location.state || {};
+  const location = useLocation();
+  const { assessment, questions, aiActivity, isAIReview, aiAssessment } = location.state || {};
 
-  const [timeLeft, setTimeLeft] = useState(lesson?.timeLimit || 300); // default 5 min
+  const [timeLeft, setTimeLeft] = useState(300);
   const [timerStarted, setTimerStarted] = useState(false);
 
-useEffect(() => {
-  if (!lesson) return;
+  // ── AI PERSONALIZATION STATE ──
+  const [aiRecommendation, setAiRecommendation] = useState(null);
+  const [showAIPrompt, setShowAIPrompt] = useState(false);
+  const [loadingAI, setLoadingAI] = useState(false);
+  const [currentMissingTypes, setCurrentMissingTypes] = useState([]);
+  const [aiCheckPerformed, setAiCheckPerformed] = useState(false);
 
-  // Only reset timer when lesson changes OR when starting a new activity
-  // For assessments, don't reset between questions
-  if (lesson.type === "assessment" && timerStarted) {
-    // Don't reset timer for assessment question changes
-    return;
-  }
+  // ── AI REVIEW SESSION STATE (inline) ──
+  const [aiReviewData, setAiReviewData] = useState(null);
+  const [aiReviewStep, setAiReviewStep] = useState("lesson"); // "lesson" | "activity" | "assessment"
+  const [aiReviewLoading, setAiReviewLoading] = useState(false);
+  const [aiReviewError, setAiReviewError] = useState(null);
+  const [aiReviewRevealedHints, setAiReviewRevealedHints] = useState(0);
+  const [showAIReviewPanel, setShowAIReviewPanel] = useState(false);
 
-  // Reset timer for new lesson/activity or first assessment question
-  setTimeLeft(lesson.timeLimit || 300);
-  setTimerStarted(true);
-
-  const interval = setInterval(() => {
-    setTimeLeft(prev => {
-      if (prev <= 1) {
-        clearInterval(interval);
-        handleTimeUp(); // what happens when timer ends
-        return 0;
-      }
-      return prev - 1;
-    });
-  }, 1000);
-
-  return () => clearInterval(interval);
-}, [lesson?.type, lesson?._id, lesson?.id, itemId]);
-
-const formatTime = (seconds) => {
-  const m = String(Math.floor(seconds / 60)).padStart(2, "0");
-  const s = String(seconds % 60).padStart(2, "0");
-  return `${m}:${s}`;
-};
-
-  useEffect(() => {
-  if (lesson?.type === "lesson" && showLessonModal) {
-    setLessonStartTime(Date.now());
-  }
-}, [lesson?.type, showLessonModal]);
-
-  // === CHANGED: Initialize assessment with one random question at a time,
-  // and ensure only 5 questions are used in total ===
-useEffect(() => {
-  if (assessment && questions) {
-    // ensure we only work with up to 5 questions (if LessonList already sent 5, this is a no-op)
-    const shuffledAll = [...questions].sort(() => Math.random() - 0.5);
-    const selectedFive = shuffledAll.slice(0, 5); // CHANGED: limit to 5
-
-    // pick a random first question from the selected pool
-    const pool = [...selectedFive];
-    const randomIndex = Math.floor(Math.random() * pool.length);
-    const firstQuestion = pool.splice(randomIndex, 1)[0]; // remove chosen from pool
-
-    setLesson({
-      ...assessment,
-      type: "assessment",
-      // questionsPool holds the remaining questions (0..4)
-      questionsPool: pool,
-      // currentQuestion is the one shown on the board
-      currentQuestion: firstQuestion,
-      answered: [],
-    });
-
-    // reset attempts and timers for a fresh assessment start
-    setAssessmentAttempts(0);
-    setQuestionStartTime(Date.now());
-    setLoading(false);
-  }
-}, [assessment, questions]);
-// === END CHANGED ===
-
-
- // --- Activity-specific state ---
-const [activityAttempts, setActivityAttempts] = useState(0);
-const [currentActivityStartTime, setCurrentActivityStartTime] = useState(Date.now());
-const [revealedHints, setRevealedHints] = useState(0); // Track how many hints are revealed
-// --- Start timer when activity modal opens ---
-useEffect(() => {
-  if (showActivityModal) {
-    setCurrentActivityStartTime(Date.now());
-    setActivityAttempts(0);
-    setRevealedHints(0); // Reset hints when starting activity
-  }
-}, [showActivityModal]);
-
-// --- Reset hints when assessment question changes ---
-useEffect(() => {
-  if (lesson?.type === "assessment" && lesson?.currentQuestion) {
-    setRevealedHints(0); // Reset hints for new question
-  }
-}, [lesson?.currentQuestion]);
-
+  const [activityAttempts, setActivityAttempts] = useState(0);
+  const [currentActivityStartTime, setCurrentActivityStartTime] = useState(Date.now());
+  const [revealedHints, setRevealedHints] = useState(0);
 
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+
+  // ── Load AI Activity from navigation state ──
+  useEffect(() => {
+    if (aiActivity && isAIReview) {
+      setLesson({ ...aiActivity, type: "activity", isAIReview: true });
+      setLoading(false);
+      setShowLessonModal(false);
+    }
+  }, [aiActivity, isAIReview]);
+
+  // ── Load AI Assessment from navigation state ──
+  useEffect(() => {
+    if (aiAssessment && isAIReview) {
+      const qs = aiAssessment.questions || [];
+      const pool = [...qs];
+      const firstQuestion = pool.splice(0, 1)[0];
+      // ── FIX: store totalQuestions = full count (pool remaining + current) ──
+      const totalQuestions = qs.length;
+      setLesson({
+        ...aiAssessment,
+        type: "assessment",
+        questionsPool: pool,
+        currentQuestion: firstQuestion,
+        answered: [],
+        totalQuestions,
+        isAIReview: true,
+      });
+      setAssessmentAttempts(0);
+      setQuestionStartTime(Date.now());
+      setLoading(false);
+      setShowLessonModal(false);
+    }
+  }, [aiAssessment, isAIReview]);
+
+  // ── Timer ──
+  useEffect(() => {
+    if (!lesson) return;
+    if (lesson.type === "assessment" && timerStarted) return;
+
+    setTimeLeft(lesson.timeLimit || 300);
+    setTimerStarted(true);
+
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          handleTimeUp();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [lesson?.type, lesson?._id, lesson?.id, itemId]);
+
+  const formatTime = (seconds) => {
+    const m = String(Math.floor(seconds / 60)).padStart(2, "0");
+    const s = String(seconds % 60).padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
+  useEffect(() => {
+    if (lesson?.type === "lesson" && showLessonModal) {
+      setLessonStartTime(Date.now());
+    }
+  }, [lesson?.type, showLessonModal]);
+
+  // ── Initialize assessment from navigation state ──
+  useEffect(() => {
+    if (assessment && questions) {
+      const shuffledAll = [...questions].sort(() => Math.random() - 0.5);
+      const selectedFive = shuffledAll.slice(0, 5);
+      const pool = [...selectedFive];
+      const randomIndex = Math.floor(Math.random() * pool.length);
+      const firstQuestion = pool.splice(randomIndex, 1)[0];
+      // ── FIX: store totalQuestions = selectedFive.length (fixed at init) ──
+      const totalQuestions = selectedFive.length;
+
+      setLesson({
+        ...assessment,
+        type: "assessment",
+        questionsPool: pool,
+        currentQuestion: firstQuestion,
+        answered: [],
+        totalQuestions,
+      });
+
+      setAssessmentAttempts(0);
+      setQuestionStartTime(Date.now());
+      setLoading(false);
+    }
+  }, [assessment, questions]);
+
+  // ── Reset on new activity ──
+  useEffect(() => {
+    if (showActivityModal) {
+      setCurrentActivityStartTime(Date.now());
+      setActivityAttempts(0);
+      setRevealedHints(0);
+      setAiCheckPerformed(false);
+    }
+  }, [showActivityModal]);
+
+  // ── Reset on new assessment question ──
+  useEffect(() => {
+    if (lesson?.type === "assessment" && lesson?.currentQuestion) {
+      setRevealedHints(0);
+    }
+  }, [lesson?.currentQuestion]);
 
   useEffect(() => {
     if (lesson?.type === "assessment") {
@@ -163,7 +195,7 @@ useEffect(() => {
     }
   }, [currentQuestionIndex, lesson?.currentQuestion]);
 
-  // --- Handle Lesson Sound ---
+  // ── Lesson sound ──
   useEffect(() => {
     if (showLessonModal && lesson?.type === "lesson") {
       const startSound = () => {
@@ -174,7 +206,7 @@ useEffect(() => {
     }
   }, [showLessonModal, lesson]);
 
-  // --- Handle Activity Sound ---
+  // ── Activity sound ──
   useEffect(() => {
     if (showActivityModal) {
       const startSound = () => {
@@ -185,74 +217,195 @@ useEffect(() => {
     }
   }, [showActivityModal]);
 
-  // --- Fetch Lesson / Activity / Assessment ---
-  useEffect(() => {
-  const fetchLessonOrActivity = async () => {
+  // ── checkIfNeedsReview ──
+  const checkIfNeedsReview = async (currentFailures, missingTypes) => {
+    if (showAIPrompt || loadingAI) return;
+    const userId = user?._id || user?.id;
+    if (!userId) return;
+
+    setLoadingAI(true);
     try {
-      // If assessment is already passed from navigation state, skip fetching
-      if (assessment && questions) {
-        // NOTE: we already handle initialization above when assessment & questions are provided via location.state
-        setCurrentQuestionIndex(0);
-        setLoading(false);
-        return;
-      }
-
       const token = localStorage.getItem("token");
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-      const res =
-        (await axios
-          .get(
-            `http://localhost:5000/api/materials/lessons/${lessonId}/materials/${itemId}`,
-            { headers }
-          )
-          .then((r) => ({ ...r.data, type: "lesson" }))
-          .catch(async () =>
-            axios
-              .get(
-                `http://localhost:5000/api/assessments/lessons/${lessonId}/assessments/${itemId}`,
-                { headers }
-              )
-              .then((r) => {
-                const assessmentFetched = { ...r.data, _id: r.data.id, type: "assessment" };
-
-                // CHANGED: If assessment fetched from API (not passed in state), limit questions to 5
-                if (assessmentFetched.questions?.length > 0) {
-                  assessmentFetched.questions = [...assessmentFetched.questions]
-                    .sort(() => Math.random() - 0.5)
-                    .slice(0, 5); // CHANGED
-                }
-
-                return assessmentFetched;
-              })
-              .catch(() =>
-                axios
-                  .get(
-                    `http://localhost:5000/api/activities/lessons/${lessonId}/activities/${itemId}`,
-                    { headers }
-                  )
-                  .then((r) => ({ ...r.data, type: "activity" }))
-              )
-          )) || null;
-
-      setLesson({
-        ...res,
-        currentContentIndex: res.type === "lesson" ? 0 : null,
-      });
-
-      if (res.type === "lesson") setCharacterImg(getRandomImage(lessonImages));
+      const res = await axios.post(
+        `http://localhost:5000/api/ai/check-review`,
+        {
+          userId,
+          lessonId,
+          currentFailures,
+          missingTypes: [...new Set(missingTypes)],
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = res.data;
+      if (data.needsReview) {
+        setAiRecommendation(data);
+        setShowAIPrompt(true);
+      }
     } catch (err) {
-      console.error("❌ Error fetching content:", err);
+      console.error("Review check error:", err);
     } finally {
-      setLoading(false);
+      setLoadingAI(false);
     }
   };
 
-  fetchLessonOrActivity();
-}, [itemId, lessonId, assessment, questions]);
+  // ── Handle AI decision — now generates inline instead of navigating away ──
+  const handleAIDecision = async (choice) => {
+    if (choice === "review") {
+      setShowAIPrompt(false);
+      setShowAIReviewPanel(true);
+      setAiReviewStep("lesson");
+      setAiReviewLoading(true);
+      setAiReviewError(null);
 
+      try {
+        const userId = user?._id || user?.id;
+        const token = localStorage.getItem("token");
+        const res = await axios.post(
+          `http://localhost:5000/api/ai/generate-review`,
+          {
+            userId,
+            lessonId,
+            missingTypes: aiRecommendation.missingTypes,
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setAiReviewData(res.data);
+      } catch (err) {
+        console.error("Failed to generate review:", err);
+        setAiReviewError("Couldn't create your review lesson. Sorry!");
+      } finally {
+        setAiReviewLoading(false);
+      }
+    } else {
+      setShowAIPrompt(false);
+      setAiRecommendation(null);
+    }
+  };
 
-  // --- Initialize drag & drop ---
+  // ── Start AI Review Activity (loads into the existing dragboard) ──
+  const handleStartAIActivity = () => {
+    const activity = aiReviewData?.reviewContent?.activity;
+    if (!activity) return;
+
+    // ── Clear whiteboard before loading new activity ──
+    const whiteboard = document.getElementById("whiteboard");
+    if (whiteboard) {
+      const blocks = whiteboard.querySelectorAll("[data-type]");
+      blocks.forEach((block) => block.remove());
+      const outputArea = document.getElementById("outputArea");
+      const codeArea = document.getElementById("codeArea");
+      if (outputArea) outputArea.textContent = "/* Results will appear here */";
+      if (codeArea) codeArea.textContent = "/* Build expressions on the whiteboard */";
+    }
+
+    setShowAIReviewPanel(false);
+    setShowCongratsModal(false);
+    setShowAnswerModal(false);
+    setLesson({ ...activity, type: "activity", isAIReview: true });
+    setCurrentActivityStartTime(Date.now());
+    setActivityAttempts(0);
+    setRevealedHints(0);
+    setAiCheckPerformed(false);
+  };
+
+  // ── Start AI Review Assessment ──
+  const handleStartAIAssessment = () => {
+    const qs = aiReviewData?.reviewContent?.assessmentQuestions || [];
+    if (!qs.length) return;
+    const pool = [...qs];
+    const firstQuestion = pool.splice(0, 1)[0];
+    // ── FIX: store totalQuestions at init ──
+    const totalQuestions = qs.length;
+    setShowAIReviewPanel(false);
+    setLesson({
+      _id: "ai-review",
+      title: "Review Assessment",
+      type: "assessment",
+      questionsPool: pool,
+      currentQuestion: firstQuestion,
+      answered: [],
+      totalQuestions,
+      timeLimit: 300,
+      isAIReview: true,
+    });
+    setAssessmentAttempts(0);
+    setQuestionStartTime(Date.now());
+  };
+
+  // ── Clear whiteboard when lesson changes ──
+  useEffect(() => {
+    if (!lesson) return;
+    const whiteboard = document.getElementById("whiteboard");
+    if (!whiteboard) return;
+
+    const blocks = whiteboard.querySelectorAll("[data-type]");
+    blocks.forEach((block) => block.remove());
+
+    const outputArea = document.getElementById("outputArea");
+    const codeArea = document.getElementById("codeArea");
+    if (outputArea) outputArea.textContent = "/* Results will appear here */";
+    if (codeArea) codeArea.textContent = "/* Build expressions on the whiteboard */";
+  }, [lesson?._id, lesson?.type, lesson?.isAIReview]);
+
+  // ── Fetch lesson / activity / assessment ──
+  useEffect(() => {
+    const fetchLessonOrActivity = async () => {
+      if (aiActivity || aiAssessment) return;
+
+      try {
+        if (assessment && questions) {
+          setCurrentQuestionIndex(0);
+          setLoading(false);
+          return;
+        }
+
+        const token = localStorage.getItem("token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+        const res =
+          (await axios
+            .get(`http://localhost:5000/api/materials/lessons/${lessonId}/materials/${itemId}`, { headers })
+            .then((r) => ({ ...r.data, type: "lesson" }))
+            .catch(async () =>
+              axios
+                .get(`http://localhost:5000/api/assessments/lessons/${lessonId}/assessments/${itemId}`, { headers })
+                .then((r) => {
+                  const assessmentFetched = { ...r.data, _id: r.data.id, type: "assessment" };
+                  if (assessmentFetched.questions?.length > 0) {
+                    const shuffled = [...assessmentFetched.questions]
+                      .sort(() => Math.random() - 0.5)
+                      .slice(0, 5);
+                    const pool = [...shuffled];
+                    const firstQuestion = pool.splice(0, 1)[0];
+                    // ── FIX: store totalQuestions at fetch time ──
+                    assessmentFetched.questionsPool = pool;
+                    assessmentFetched.currentQuestion = firstQuestion;
+                    assessmentFetched.answered = [];
+                    assessmentFetched.totalQuestions = shuffled.length;
+                    delete assessmentFetched.questions;
+                  }
+                  return assessmentFetched;
+                })
+                .catch(() =>
+                  axios
+                    .get(`http://localhost:5000/api/activities/lessons/${lessonId}/activities/${itemId}`, { headers })
+                    .then((r) => ({ ...r.data, type: "activity" }))
+                )
+            )) || null;
+
+        setLesson({ ...res, currentContentIndex: res.type === "lesson" ? 0 : null });
+        if (res.type === "lesson") setCharacterImg(getRandomImage(lessonImages));
+      } catch (err) {
+        console.error("❌ Error fetching content:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLessonOrActivity();
+  }, [itemId, lessonId, assessment, questions, aiActivity, aiAssessment]);
+
+  // ── Drag & drop + run logic ──
   useEffect(() => {
     const init = () => {
       const whiteboard = document.getElementById("whiteboard");
@@ -275,249 +428,201 @@ useEffect(() => {
         notification,
       });
 
-// ------------------ HANDLE ASSESSMENT ------------------
-const handleAssessmentRun = async () => {
-  if (!lesson || lesson.type !== "assessment" || !lesson.currentQuestion) return;
-  const question = lesson.currentQuestion;
-  if (!question) return;
+      // ── ASSESSMENT RUN ──
+      const handleAssessmentRun = async () => {
+        if (!lesson || lesson.type !== "assessment" || !lesson.currentQuestion) return;
 
-  const token = localStorage.getItem("token");
-  const notification = document.getElementById("notification");
-
-  const questionMeta = {
-    expectedOutput: question.expectedOutput || null,
-    dataTypesRequired: question.dataTypesRequired || [],
-  };
-
-  const result = await codeChecker(whiteboard, codeArea, outputArea, questionMeta);
-  outputArea.textContent = result.stdout || result.stderr || "/* No output */";
-
-  const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
-  const attempts = assessmentAttempts + 1;
-  setAssessmentAttempts(attempts);
-
-  // Save attempt to backend
-  try {
-    const attemptResponse = await axios.post(
-      `http://localhost:5000/api/progress/mark-assessment-attempt`,
-      {
-        assessmentId: lesson._id || lesson.id,
-        lessonId,
-        questionId: question._id,
-        userId: user._id || user.id,
-        timeSeconds: timeTaken,
-        totalAttempts: attempts,
-        correct: result.passedAll,
-        difficulty:
-          question.difficulty?.charAt(0).toUpperCase() + question.difficulty.slice(1).toLowerCase() || "Easy",
-      },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    // ✅ NEW: Check if backend says to redirect after this attempt
-    if (attemptResponse.data?.redirectToLesson && attemptResponse.data?.completed) {
-      console.log("🔄 Assessment question answered correctly, checking for more questions...");
-    }
-
-  } catch (err) {
-    console.error("❌ Failed to submit assessment attempt:", err.response?.data || err.message);
-  }
-
-  if (result.passedAll) {
-    playSuccessSound();
-
-    const pool = Array.isArray(lesson.questionsPool) ? [...lesson.questionsPool] : [];
-    if (pool.length > 0) {
-      // More questions remaining - move to next question
-      const nextIndex = Math.floor(Math.random() * pool.length);
-      const nextQuestion = pool.splice(nextIndex, 1)[0];
-
-      setLesson((prev) => ({
-        ...prev,
-        currentQuestion: nextQuestion,
-        questionsPool: pool,
-        answered: [...(prev.answered || []), question],
-      }));
-
-      setAssessmentAttempts(0);
-      setQuestionStartTime(Date.now());
-      
-      // Show brief success feedback without finishing
-      setCharacterImg(getRandomImage(congratsImages));
-      notification.textContent = "Correct! Moving to next question...";
-      notification.style.display = "block";
-      notification.style.backgroundColor = "#4CAF50";
-      notification.style.color = "white";
-      setTimeout(() => {
-        notification.style.display = "none";
-        notification.style.backgroundColor = "";
-        notification.style.color = "";
-      }, 2000);
-      
-    } else {
-      // ✅ ALL QUESTIONS ANSWERED CORRECTLY - Mark assessment as completed
-      try {
-        await axios.post(
-          `http://localhost:5000/api/progress/complete-assessment`,
-          {
-            userId: user._id || user.id,
-            lessonId,
-            assessmentId: lesson._id || lesson.id,
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        console.log("✅ Assessment marked as completed");
-      } catch (err) {
-        console.error("❌ Error marking assessment completed:", err);
-      }
-      
-      stopActivitySound();
-      setCharacterImg(getRandomImage(congratsImages));
-      setShowCongratsModal(true);
-      setAssessmentAttempts(0);
-      
-      // ✅ NEW: Auto-redirect after showing congrats for 2 seconds
-      setTimeout(() => {
-        navigate(`/lessons/${lessonId}`);
-      }, 2000);
-    }
-  } else {
-    playErrorSound();
-    const notifText = [];
-    if (question.expectedOutput && !result.passedOutput)
-      notifText.push("Output does not match expected.");
-    if (!result.passedNodes)
-      notifText.push(`Missing objects: ${result.missingNodes?.join(", ")}`);
-    notification.textContent = notifText.join(" ");
-    notification.style.display = "block";
-    setTimeout(() => (notification.style.display = "none"), 5000);
-
-    if (attempts >= 3) {
-      setAssessmentAnswer({
-        expectedOutput: question.expectedOutput,
-        dataTypesRequired: question.dataTypesRequired,
-      });
-      setShowAnswerModal(true);
-    }
-  }
-};
-// ------------------ END CHANGED handleAssessmentRun ------------------
-
-// ------------------ HANDLE ACTIVITY ------------------
-const handleActivityRun = async () => {
-  if (!lesson) return;
-
-  console.log("🚀 handleActivityRun started");
-
-  const token = localStorage.getItem("token");
-  const notification = document.getElementById("notification");
-
-  const activityMeta = {
-    expectedOutput: lesson.expectedOutput || null,
-    dataTypesRequired: lesson.dataTypesRequired || [],
-  };
-
-  console.log("📌 lesson.expectedOutput:", lesson.expectedOutput);
-  console.log("📌 lesson.dataTypesRequired:", lesson.dataTypesRequired);
-
-  // Run codeChecker
-  console.log("⚡ Running codeChecker...");
-  const result = await codeChecker(whiteboard, codeArea, outputArea, activityMeta);
-  console.log("✅ codeChecker finished", result);
-  outputArea.textContent = result.stdout || result.stderr || "/* No output */";
-
-  const timeTaken = Math.floor((Date.now() - currentActivityStartTime) / 1000);
-
-  // Update attempts using functional state update
-  setActivityAttempts(prev => {
-    const attempts = prev + 1;
-    console.log("🕒 Time taken:", timeTaken + "s", "Attempts:", attempts);
-
-    // Show notification if failed
-    const notifText = [];
-    if (lesson.expectedOutput && !result.passedOutput)
-      notifText.push("Output does not match expected.");
-    if (!result.passedNodes)
-      notifText.push(`Missing objects: ${result.missingNodes?.join(", ")}`);
-    if (notifText.length) {
-      notification.textContent = notifText.join(" ");
-      notification.style.display = "block";
-      setTimeout(() => (notification.style.display = "none"), 5000);
-    }
-
-    // Save attempt if passed OR after 3 attempts
-    if (result.passedAll || attempts >= 3) {
-      // Always record attempt (backend will handle updating)
-      console.log("💾 Saving attempt to database...");
-      axios.post(
-        `http://localhost:5000/api/progress/mark-activity-attempt`,
-        {
-          activityId: lesson._id || lesson.id,
-          lessonId,
-          userId: user._id || user.id,
-          timeSeconds: timeTaken,
-          totalAttempts: attempts,
-          correct: result.passedAll,
-          attemptTime: Date.now(),
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      .then((response) => {
-        console.log("✅ Attempt saved/updated");
-        // ✅ NEW: Check if backend says to redirect
-        if (response.data?.redirectToLesson && response.data?.completed) {
-          console.log("🔄 Redirecting to lesson list...");
-          // Show success modal first, then redirect after 2 seconds
-          setTimeout(() => {
-            navigate(`/lessons/${lessonId}`);
-          }, 2000);
+        const blocks = whiteboard.querySelectorAll("[data-type]");
+        if (blocks.length === 0) {
+          notification.textContent = "Add some blocks to the whiteboard first! 🧩";
+          notification.style.display = "block";
+          setTimeout(() => (notification.style.display = "none"), 3000);
+          return;
         }
-      })
-      .catch(err => console.error("❌ Failed to save attempt:", err.response?.data || err.message));
-    }
 
-    // Success case
-    if (result.passedAll) {
-      playSuccessSound();
-      markCompleted()
-        .then(() => console.log("✅ Activity marked completed"))
-        .catch(err => console.error(err));
-      stopActivitySound();
-      setCharacterImg(getRandomImage(congratsImages));
-      setShowCongratsModal(true);
-      return 0; // reset attempts on success
-    }
+        const question = lesson.currentQuestion;
+        const token = localStorage.getItem("token");
 
-    // Failed case, show modal after 3 failed attempts
-    if (!result.passedAll && attempts >= 3) {
-      console.log("⚠️ Activity failed, showing answer modal");
-      setAssessmentAnswer({
-        expectedOutput: lesson.expectedOutput,
-        dataTypesRequired: lesson.dataTypesRequired,
-      });
-      setShowAnswerModal(true);
-    } else {
-      console.log("⚠️ Activity failed");
-      playErrorSound();
-    }
+        const questionMeta = {
+          expectedOutput: question.expectedOutput || null,
+          dataTypesRequired: question.dataTypesRequired || [],
+        };
 
-    return attempts; // keep updated attempts
-  });
+        const result = await codeChecker(whiteboard, codeArea, outputArea, questionMeta);
+        outputArea.textContent = result.stdout || result.stderr || "/* No output */";
 
-  console.log("🚀 handleActivityRun finished");
-};
+        const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
+        const attempts = assessmentAttempts + 1;
+        setAssessmentAttempts(attempts);
 
+        const missingTypes = result.missingNodes || [];
+        setCurrentMissingTypes((prev) => [...new Set([...prev, ...missingTypes])]);
 
-// ------------------ MAIN ONRUN ------------------
-const onRun = async () => {
-  if (!lesson) return;
+        if (!lesson.isAIReview) {
+          try {
+            await axios.post(
+              `http://localhost:5000/api/progress/mark-assessment-attempt`,
+              {
+                assessmentId: lesson._id || lesson.id,
+                lessonId,
+                questionId: question._id,
+                userId: user._id || user.id,
+                timeSeconds: timeTaken,
+                totalAttempts: attempts,
+                correct: result.passedAll,
+                difficulty:
+                  question.difficulty?.charAt(0).toUpperCase() +
+                    question.difficulty?.slice(1).toLowerCase() || "Easy",
+              },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+          } catch (err) {
+            console.error("❌ Failed to submit assessment attempt:", err);
+          }
+        }
 
-  if (lesson.type === "assessment") {
-    await handleAssessmentRun();
-  } else if (lesson.type === "activity") {
-    await handleActivityRun();
-  }
-};
+        if (result.passedAll) {
+          playSuccessSound();
+          setCurrentMissingTypes([]);
+
+          const nextPool = [...(lesson.questionsPool || [])];
+          if (nextPool.length > 0) {
+            const nextQuestion = nextPool.splice(0, 1)[0];
+            setLesson((prev) => ({
+              ...prev,
+              currentQuestion: nextQuestion,
+              questionsPool: nextPool,
+              answered: [...(prev.answered || []), question._id],
+              // totalQuestions stays unchanged — do NOT recalculate
+            }));
+            setAssessmentAttempts(0);
+            setRevealedHints(0);
+          } else {
+            setCharacterImg(getRandomImage(congratsImages));
+            setShowCongratsModal(true);
+            markCompleted();
+          }
+        } else {
+          playErrorSound();
+          const notifText = [];
+          if (question.expectedOutput && !result.passedOutput)
+            notifText.push("Output does not match expected.");
+          if (!result.passedNodes)
+            notifText.push(`Missing blocks: ${result.missingNodes?.join(", ")}`);
+          notification.textContent = notifText.join(" ");
+          notification.style.display = "block";
+          setTimeout(() => (notification.style.display = "none"), 5000);
+
+          if (attempts >= 2 && !lesson.isAIReview) {
+            checkIfNeedsReview(attempts, currentMissingTypes.concat(missingTypes));
+          }
+          if (attempts >= 3) {
+            setAssessmentAnswer({
+              expectedOutput: question.expectedOutput,
+              dataTypesRequired: question.dataTypesRequired,
+            });
+            setShowAnswerModal(true);
+          }
+        }
+      };
+
+      // ── ACTIVITY RUN ──
+      const handleActivityRun = async () => {
+        if (!lesson) return;
+
+        const blocks = whiteboard.querySelectorAll("[data-type]");
+        if (blocks.length === 0) {
+          notification.textContent = "Add some blocks to the whiteboard first! 🧩";
+          notification.style.display = "block";
+          setTimeout(() => (notification.style.display = "none"), 3000);
+          return;
+        }
+
+        const token = localStorage.getItem("token");
+
+        const activityMeta = {
+          expectedOutput: lesson.expectedOutput || null,
+          dataTypesRequired: lesson.dataTypesRequired || [],
+        };
+
+        const result = await codeChecker(whiteboard, codeArea, outputArea, activityMeta);
+        outputArea.textContent = result.stdout || result.stderr || "/* No output */";
+
+        const timeTaken = Math.floor((Date.now() - currentActivityStartTime) / 1000);
+
+        setActivityAttempts((prev) => {
+          const attempts = prev + 1;
+          const missingTypes = result.missingNodes || [];
+          setCurrentMissingTypes((prevMissing) => [...new Set([...prevMissing, ...missingTypes])]);
+
+          const notifText = [];
+          if (lesson.expectedOutput && !result.passedOutput)
+            notifText.push("Output does not match expected.");
+          if (!result.passedNodes)
+            notifText.push(`Missing blocks: ${result.missingNodes?.join(", ")}`);
+          if (notifText.length) {
+            notification.textContent = notifText.join(" ");
+            notification.style.display = "block";
+            setTimeout(() => (notification.style.display = "none"), 5000);
+          }
+
+          if (!lesson.isAIReview && (result.passedAll || attempts >= 3)) {
+            axios
+              .post(
+                `http://localhost:5000/api/progress/mark-activity-attempt`,
+                {
+                  activityId: lesson._id || lesson.id,
+                  lessonId,
+                  userId: user._id || user.id,
+                  timeSeconds: timeTaken,
+                  totalAttempts: attempts,
+                  correct: result.passedAll,
+                  attemptTime: Date.now(),
+                },
+                { headers: { Authorization: `Bearer ${token}` } }
+              )
+              .catch((err) =>
+                console.error("❌ Failed to save attempt:", err.response?.data || err.message)
+              );
+          }
+
+          if (result.passedAll) {
+            playSuccessSound();
+            if (!lesson.isAIReview) markCompleted();
+            stopActivitySound();
+            setCharacterImg(getRandomImage(congratsImages));
+            setShowCongratsModal(true);
+            setCurrentMissingTypes([]);
+            return 0;
+          }
+
+          if (!result.passedAll && attempts >= 2 && !lesson.isAIReview) {
+            checkIfNeedsReview(attempts, currentMissingTypes.concat(missingTypes));
+          }
+
+          if (!result.passedAll && attempts >= 3) {
+            setAssessmentAnswer({
+              expectedOutput: lesson.expectedOutput,
+              dataTypesRequired: lesson.dataTypesRequired,
+            });
+            setShowAnswerModal(true);
+          } else {
+            playErrorSound();
+          }
+
+          return attempts;
+        });
+      };
+
+      // ── MAIN RUN ──
+      const onRun = async () => {
+        if (!lesson) return;
+        if (lesson.type === "assessment") {
+          await handleAssessmentRun();
+        } else if (lesson.type === "activity") {
+          await handleActivityRun();
+        }
+      };
 
       runButton.addEventListener("click", onRun);
 
@@ -539,62 +644,45 @@ const onRun = async () => {
 
     const cleanup = init();
     return cleanup;
-  }, [lesson, assessmentAttempts]);
+  }, [lesson, assessmentAttempts, activityAttempts, aiCheckPerformed]);
 
-  // --- Mark Completion ---
+  // ── Mark completion ──
   const markCompleted = async () => {
-  if (!user?._id) return;
+    if (!user?._id) return;
+    if (lesson?.type === "assessment") return;
 
-  try {
-    const token = localStorage.getItem("token");
-    const payload = { userId: user._id, lessonId };
-    let endpoint = "";
+    try {
+      const token = localStorage.getItem("token");
+      const payload = { userId: user._id, lessonId };
+      let endpoint = "";
 
-    if (lesson?.type === "lesson") {
-      endpoint = "complete-material";
-      payload.materialId = itemId;
-
-      // ✅ ADD THIS
-      payload.timeSeconds = Math.floor(
-        (Date.now() - lessonStartTime) / 1000
-      );
-
-    } else if (lesson?.type === "activity") {
-      endpoint = "complete-activity";
-      payload.activityId = itemId;
-
-    } else if (lesson?.type === "assessment") {
-      endpoint = "complete-assessment";
-      payload.assessmentId = itemId;
-    }
-
-    if (!endpoint) return;
-
-    await axios.post(
-      `http://localhost:5000/api/progress/${endpoint}`,
-      payload,
-      {
-        headers: { Authorization: `Bearer ${token}` },
+      if (lesson?.type === "lesson") {
+        endpoint = "complete-material";
+        payload.materialId = itemId;
+        payload.timeSeconds = Math.floor((Date.now() - lessonStartTime) / 1000);
+      } else if (lesson?.type === "activity") {
+        endpoint = "complete-activity";
+        payload.activityId = itemId;
       }
-    );
 
-  } catch (err) {
-    console.error("❌ Error marking item completed:", err);
-  }
-};
+      if (!endpoint) return;
 
-  // --- Lesson Navigation ---
+      await axios.post(`http://localhost:5000/api/progress/${endpoint}`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (err) {
+      console.error("❌ Error marking item completed:", err);
+    }
+  };
+
+  // ── Lesson navigation ──
   const handleNextContent = async () => {
     if (lesson?.type === "lesson" && lesson.currentContentIndex < lesson.contents.length) {
-      setLesson((prev) => ({
-        ...prev,
-        currentContentIndex: prev.currentContentIndex + 1,
-      }));
+      setLesson((prev) => ({ ...prev, currentContentIndex: prev.currentContentIndex + 1 }));
       setCharacterImg(getRandomImage(lessonImages));
       return;
     }
 
-    // ✅ Lesson finished
     await markCompleted();
     stopLessonSound();
 
@@ -627,22 +715,18 @@ const onRun = async () => {
 
   const handlePreviousContent = () => {
     if (lesson?.type === "lesson" && lesson.currentContentIndex > 0) {
-      setLesson((prev) => ({
-        ...prev,
-        currentContentIndex: prev.currentContentIndex - 1,
-      }));
+      setLesson((prev) => ({ ...prev, currentContentIndex: prev.currentContentIndex - 1 }));
     }
   };
-const handleTimeUp = async () => {
-  playErrorSound();
-  
-  if (lesson.type === "assessment" || lesson.type === "activity") {
-    setShowAnswerModal(true); // show answers or feedback
-  }
 
-  stopActivitySound();
-};
-  // --- Activity Transition ---
+  const handleTimeUp = async () => {
+    playErrorSound();
+    if (lesson.type === "assessment" || lesson.type === "activity") {
+      setShowAnswerModal(true);
+    }
+    stopActivitySound();
+  };
+
   const randomActivityText = (slide) => {
     const thinkingTexts = [
       "Let's see how we can apply what we just learned!",
@@ -654,7 +738,6 @@ const handleTimeUp = async () => {
       "Use the code blocks to finish the activity.",
       "Let's test your skills in this activity!",
     ];
-
     return slide === 0
       ? thinkingTexts[Math.floor(Math.random() * thinkingTexts.length)]
       : solvingTexts[Math.floor(Math.random() * solvingTexts.length)];
@@ -671,15 +754,7 @@ const handleTimeUp = async () => {
     }
   };
 
-  // --- Proceed to Activity ---
   const handleProceedToActivity = async () => {
-    console.log("🚀 Proceeding to activity:", { user, lessonId, itemId });
-    const userId = user?._id || user?.id;
-    if (!userId) {
-      console.warn("⚠️ No user ID found, aborting proceed.");
-      return;
-    }
-
     try {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
@@ -694,7 +769,6 @@ const handleTimeUp = async () => {
         setShowActivityModal(false);
         navigate(`/lessons/${lessonId}/${firstActivity._id}`);
       } else {
-        console.warn("⚠️ No activities found, returning to lesson list.");
         setShowActivityModal(false);
         navigate(`/lessons/${lessonId}`);
       }
@@ -705,17 +779,13 @@ const handleTimeUp = async () => {
     }
   };
 
-  // --- Render Lesson Content ---
   const renderLessonContent = () => {
     if (!lesson || lesson.type !== "lesson") return null;
     if (lesson.currentContentIndex === 0)
       return <div dangerouslySetInnerHTML={{ __html: lesson.overview }} />;
     const index = lesson.currentContentIndex - 1;
-    return (
-      <div dangerouslySetInnerHTML={{ __html: lesson.contents[index] || "" }} />
-    );
+    return <div dangerouslySetInnerHTML={{ __html: lesson.contents[index] || "" }} />;
   };
-
 
   if (loading)
     return (
@@ -729,424 +799,342 @@ const handleTimeUp = async () => {
   const isLesson = lesson.type === "lesson";
   const actionButtonText = isLesson ? "▶ Run Program" : "Submit";
 
-  return (
-    <div className="dragboard-wrapper">
-      {/* === Activity / Assessment Instructions === */}
-{lesson.type === "activity" && (
-  <div
-    className="activity-instructions mb-3"
-    style={{
-      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-      borderRadius: "20px",
-      padding: "1.5rem",
-      boxShadow: "0 8px 16px rgba(102, 126, 234, 0.3)",
-      border: "4px solid #ffffff",
-    }}
-  >
-    <div style={{
-      backgroundColor: "rgba(255, 255, 255, 0.95)",
-      borderRadius: "15px",
-      padding: "1rem",
-      marginBottom: "1rem",
-    }}>
-      <h5 style={{ 
-        color: "#667eea", 
-        marginBottom: "1rem",
-        fontSize: "1.4rem",
-        fontWeight: "700",
-        textAlign: "center",
-        textTransform: "uppercase",
-        letterSpacing: "1px"
-      }}>
-        Your Mission!
-      </h5>
-
-      <div style={{
-        backgroundColor: "#FFF9E6",
-        padding: "1rem",
-        borderRadius: "12px",
-        marginBottom: "1rem",
-        border: "3px dashed #FFC107",
-        color: "#333"
-      }}>
-        <div dangerouslySetInnerHTML={{ __html: lesson.instructions }} />
+  // ══════════════════════════════════════════════════════════
+  // AI REVIEW PANEL — shown inline over the dragboard
+  // ══════════════════════════════════════════════════════════
+  if (showAIReviewPanel) {
+    if (aiReviewLoading) return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", fontFamily: "Comic Sans MS, cursive" }}>
+        <div style={{ background: "#fff", borderRadius: "24px", padding: "3rem", textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.1)", maxWidth: "500px" }}>
+          <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>🤖</div>
+          <h3 style={{ color: "#667eea" }}>AI is creating your personalized lesson...</h3>
+          <p style={{ color: "#888" }}>Teaching you about: {aiRecommendation?.missingTypes?.join(", ")} ✨</p>
+          <Spinner animation="border" variant="primary" />
+        </div>
       </div>
+    );
 
-      {lesson.hints?.length > 0 && (
-        <div style={{
-          backgroundColor: "#E8F5E9",
-          padding: "1rem",
-          borderRadius: "12px",
-          marginBottom: "1rem",
-          border: "3px solid #4CAF50"
-        }}>
-          <div style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "0.75rem"
-          }}>
-            <h6 style={{ 
-              color: "#2E7D32", 
-              margin: 0,
-              fontSize: "1.1rem",
-              fontWeight: "700"
-            }}>
-              Need Help? ({revealedHints}/{lesson.hints.length} unlocked)
-            </h6>
-            {revealedHints < lesson.hints.length && (
-              <button
-                onClick={() => setRevealedHints(prev => Math.min(prev + 1, lesson.hints.length))}
-                style={{
-                  background: "linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "25px",
-                  padding: "8px 16px",
-                  fontSize: "0.9rem",
-                  cursor: "pointer",
-                  fontWeight: "700",
-                  boxShadow: "0 4px 8px rgba(76, 175, 80, 0.3)",
-                  transition: "transform 0.2s, box-shadow 0.2s",
-                  textTransform: "uppercase"
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = "scale(1.05)";
-                  e.target.style.boxShadow = "0 6px 12px rgba(76, 175, 80, 0.4)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = "scale(1)";
-                  e.target.style.boxShadow = "0 4px 8px rgba(76, 175, 80, 0.3)";
-                }}
-              >
-                Unlock Hint!
-              </button>
-            )}
+    if (aiReviewError) return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", fontFamily: "Comic Sans MS, cursive" }}>
+        <div style={{ background: "#fff", borderRadius: "24px", padding: "3rem", textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.1)", maxWidth: "500px" }}>
+          <div style={{ fontSize: "3rem" }}>😕</div>
+          <h3 style={{ color: "#e53935" }}>{aiReviewError}</h3>
+          <button
+            onClick={() => { setShowAIReviewPanel(false); setAiReviewError(null); }}
+            style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "#fff", border: "none", borderRadius: "24px", padding: "0.9rem 2rem", fontWeight: "bold", cursor: "pointer", fontSize: "1rem", fontFamily: "Comic Sans MS, cursive", marginTop: "1rem" }}
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+
+    const { reviewContent, currentLessonTitle, missingTypes: reviewMissingTypes } = aiReviewData || {};
+    const { lessonMaterial, activity, assessmentQuestions } = reviewContent || {};
+
+    if (aiReviewStep === "lesson") return (
+      <div style={{ maxWidth: "760px", margin: "0 auto", padding: "1.5rem", fontFamily: "Comic Sans MS, cursive" }}>
+        <div style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", borderRadius: "20px", padding: "1.5rem", display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+          <span style={{ fontSize: "2rem" }}>📚</span>
+          <div>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "rgba(255,255,255,0.8)" }}>AI Review Session</p>
+            <h2 style={{ margin: 0, color: "#fff" }}>{lessonMaterial?.title}</h2>
           </div>
-          {revealedHints > 0 ? (
-            <div style={{
-              backgroundColor: "#ffffff",
-              padding: "1rem",
-              borderRadius: "8px"
-            }}>
-              <ul style={{ 
-                marginBottom: 0, 
-                paddingLeft: "0",
-                listStyleType: "none",
-                color: "#333"
-              }}>
-                {lesson.hints.slice(0, revealedHints).map((hint, i) => (
-                  <li 
-                    key={i} 
-                    style={{ 
-                      marginBottom: "0.75rem",
-                      padding: "0.75rem",
-                      backgroundColor: "#F1F8E9",
-                      borderRadius: "8px",
-                      borderLeft: "4px solid #4CAF50",
-                      display: "flex",
-                      alignItems: "flex-start"
-                    }}
-                  >
-                    <span style={{
-                      backgroundColor: "#4CAF50",
-                      color: "white",
-                      borderRadius: "50%",
-                      width: "24px",
-                      height: "24px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: "bold",
-                      fontSize: "0.85rem",
-                      marginRight: "0.75rem",
-                      flexShrink: 0
-                    }}>
-                      {i + 1}
-                    </span>
-                    <span dangerouslySetInnerHTML={{ __html: hint }} />
-                  </li>
-                ))}
-              </ul>
+        </div>
+
+        <div style={{ background: "#FFF3E0", border: "2px solid #FFE0B2", borderRadius: "12px", padding: "0.75rem 1rem", fontSize: "0.9rem", color: "#E65100", marginBottom: "1rem" }}>
+          🎯 Reviewing blocks: <strong>{reviewMissingTypes?.join(", ")}</strong> · From {currentLessonTitle}
+        </div>
+
+        <div style={{ background: "#fff", borderRadius: "20px", padding: "1.5rem", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", marginBottom: "1rem" }}>
+          <h3 style={{ color: "#667eea", marginBottom: "1rem" }}>📖 Let's Learn Together!</h3>
+          <div style={{ background: "#E8F5E9", borderRadius: "12px", padding: "1rem", border: "2px dashed #4CAF50", marginBottom: "1rem" }}>
+            <p style={{ margin: 0, fontWeight: "600", color: "#555" }}>{lessonMaterial?.overview}</p>
+          </div>
+          {lessonMaterial?.contents?.map((para, i) => (
+            <div key={i} style={{ background: "#F8F9FF", borderRadius: "12px", padding: "1rem", marginBottom: "0.75rem", border: "2px solid #E3F2FD", lineHeight: "1.7", color: "#333" }}>
+              {para}
             </div>
-          ) : (
-            <div style={{
-              backgroundColor: "#ffffff",
-              padding: "1rem",
-              borderRadius: "8px",
-              textAlign: "center"
-            }}>
-              <p style={{ 
-                color: "#666", 
-                fontStyle: "italic", 
-                marginBottom: 0,
-                fontSize: "0.95rem"
-              }}>
-                Click "Unlock Hint!" to reveal helpful tips one by one!
-              </p>
+          ))}
+        </div>
+
+        <div style={{ background: "#E8F5E9", border: "2px solid #A5D6A7", borderRadius: "16px", padding: "1rem", marginBottom: "1.5rem" }}>
+          <h4 style={{ color: "#555", marginBottom: "0.5rem" }}>📝 What's next:</h4>
+          <p style={{ color: "#777", margin: 0 }}>1 practice activity + 1 mini assessment to test your understanding!</p>
+        </div>
+
+        <button
+          style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "#fff", border: "none", borderRadius: "24px", padding: "0.9rem 2rem", fontWeight: "bold", cursor: "pointer", fontSize: "1rem", fontFamily: "Comic Sans MS, cursive", width: "100%", marginBottom: "0.75rem" }}
+          onClick={() => setAiReviewStep("activity")}
+        >
+          Let's Practice! 🚀
+        </button>
+
+        <button
+          style={{ background: "#eee", color: "#666", border: "2px solid #ccc", borderRadius: "24px", padding: "0.9rem 1.5rem", fontWeight: "bold", cursor: "pointer", fontSize: "0.95rem", fontFamily: "Comic Sans MS, cursive", width: "100%" }}
+          onClick={() => { setShowAIReviewPanel(false); setAiReviewData(null); }}
+        >
+          Back to Activity
+        </button>
+      </div>
+    );
+
+    if (aiReviewStep === "activity") return (
+      <div style={{ maxWidth: "760px", margin: "0 auto", padding: "1.5rem", fontFamily: "Comic Sans MS, cursive" }}>
+        <div style={{ background: "linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)", borderRadius: "20px", padding: "1.5rem", display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+          <span style={{ fontSize: "2rem" }}>🏋️</span>
+          <div>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "rgba(255,255,255,0.8)" }}>Practice Activity</p>
+            <h2 style={{ margin: 0, color: "#fff" }}>{activity?.name}</h2>
+          </div>
+        </div>
+
+        <div style={{ background: "#fff", borderRadius: "20px", padding: "1.5rem", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", marginBottom: "1rem" }}>
+          <h4 style={{ color: "#4CAF50", marginBottom: "0.75rem" }}>📋 Your Mission</h4>
+          <div style={{ background: "#FFF9E6", borderRadius: "12px", padding: "1rem", border: "3px dashed #FFC107", color: "#333", marginBottom: "1rem" }}>
+            <p style={{ margin: 0 }}>{activity?.instructions}</p>
+          </div>
+          {activity?.expectedOutput && (
+            <div style={{ marginBottom: "1rem" }}>
+              <h5 style={{ color: "#E65100" }}>🎯 Expected Output:</h5>
+              <pre style={{ background: "#f4f4f4", padding: "12px", borderRadius: "8px", border: "2px dashed #FF9800", fontSize: "0.9rem", fontFamily: "monospace", color: "#333" }}>{activity.expectedOutput}</pre>
+            </div>
+          )}
+          {activity?.dataTypesRequired?.length > 0 && (
+            <div>
+              <h5 style={{ color: "#5c6bc0" }}>🧩 Blocks you'll need:</h5>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "0.5rem" }}>
+                {activity.dataTypesRequired.map((block, i) => (
+                  <span key={i} style={{ background: "#E3F2FD", border: "2px solid #90CAF9", borderRadius: "20px", padding: "4px 14px", fontSize: "0.85rem", color: "#1565C0", fontWeight: "600" }}>{block}</span>
+                ))}
+              </div>
             </div>
           )}
         </div>
-      )}
-      
 
-      {lesson.expectedOutput && (
-        <div style={{
-          backgroundColor: "#FFF3E0",
-          padding: "1rem",
-          borderRadius: "12px",
-          border: "3px solid #FF9800"
-        }}>
-          <h6 style={{ 
-            color: "#E65100", 
-            marginBottom: "0.75rem",
-            fontSize: "1.1rem",
-            fontWeight: "700"
-          }}>
-            What You Should See:
-          </h6>
-          <pre
-            style={{
-              backgroundColor: "#ffffff",
-              padding: "12px",
-              borderRadius: "8px",
-              marginBottom: 0,
-              border: "2px dashed #FF9800",
-              fontSize: "0.9rem",
-              fontFamily: "monospace",
-              color: "#333",
-              overflowX: "auto"
-            }}
-          >
-            {lesson.expectedOutput}
-          </pre>
-        </div>
-      )}
-    </div>
-  </div>
-)}
-
-{/* === Assessment instructions with playful design === */}
-{lesson.type === "assessment" && lesson.currentQuestion && (
-  <div
-    className="assessment-instructions mb-3"
-    style={{
-      background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-      borderRadius: "20px",
-      padding: "1.5rem",
-      boxShadow: "0 8px 16px rgba(240, 147, 251, 0.3)",
-      border: "4px solid #ffffff",
-    }}
-  >
-    <div style={{
-      backgroundColor: "rgba(255, 255, 255, 0.95)",
-      borderRadius: "15px",
-      padding: "1rem",
-    }}>
-      <div style={{ 
-        display: "flex", 
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginBottom: "1rem",
-        paddingBottom: "0.75rem",
-        borderBottom: "3px dashed #f5576c"
-      }}>
-        <h5 style={{ 
-          color: "#f5576c", 
-          margin: 0,
-          fontSize: "1.3rem",
-          fontWeight: "700",
-          textTransform: "uppercase",
-          letterSpacing: "1px"
-        }}>
-          {lesson.title}
-        </h5>
-        <div style={{
-          background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-          padding: "8px 16px",
-          borderRadius: "25px",
-          fontSize: "0.9rem",
-          fontWeight: "700",
-          color: "#ffffff",
-          boxShadow: "0 4px 8px rgba(245, 87, 108, 0.3)"
-        }}>
-          Question {(lesson.answered?.length || 0) + 1} of {((lesson.questionsPool?.length || 0) + (lesson.answered?.length || 0) + (lesson.currentQuestion ? 1 : 0))}
-        </div>
-      </div>
-
-      {(() => {
-        const q = lesson.currentQuestion;
-        return (
-          <div>
-            <div style={{
-              backgroundColor: "#E3F2FD",
-              padding: "1rem",
-              borderRadius: "12px",
-              marginBottom: "1rem",
-              border: "3px dashed #2196F3",
-              color: "#333"
-            }}>
-              <div dangerouslySetInnerHTML={{ __html: q.instructions }} />
+        {activity?.hints?.length > 0 && (
+          <div style={{ background: "#E8F5E9", border: "3px solid #4CAF50", borderRadius: "16px", padding: "1rem", marginBottom: "1rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+              <h5 style={{ margin: 0, color: "#2E7D32" }}>💚 Hints ({aiReviewRevealedHints}/{activity.hints.length} unlocked)</h5>
+              {aiReviewRevealedHints < activity.hints.length && (
+                <button
+                  style={{ background: "linear-gradient(135deg, #4CAF50, #66BB6A)", color: "#fff", border: "none", borderRadius: "20px", padding: "6px 14px", cursor: "pointer", fontFamily: "Comic Sans MS, cursive", fontWeight: "700", fontSize: "0.85rem" }}
+                  onClick={() => setAiReviewRevealedHints((p) => Math.min(p + 1, activity.hints.length))}
+                >
+                  Unlock Hint!
+                </button>
+              )}
             </div>
+            {aiReviewRevealedHints > 0 && (
+              <ul style={{ paddingLeft: 0, listStyle: "none", marginBottom: 0 }}>
+                {activity.hints.slice(0, aiReviewRevealedHints).map((hint, i) => (
+                  <li key={i} style={{ background: "#fff", borderRadius: "8px", padding: "0.6rem 0.8rem", borderLeft: "4px solid #4CAF50", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.75rem", color: "#333" }}>
+                    <span style={{ background: "#4CAF50", color: "#fff", borderRadius: "50%", width: "22px", height: "22px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "0.8rem", flexShrink: 0 }}>{i + 1}</span>
+                    {hint}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
-            {q.hints?.length > 0 && (
-              <div style={{
-                backgroundColor: "#FFF9C4",
-                padding: "1rem",
-                borderRadius: "12px",
-                marginBottom: "1rem",
-                border: "3px solid #FFC107"
-              }}>
-                <div style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "0.75rem"
-                }}>
-                  <h6 style={{ 
-                    color: "#F57F17", 
-                    margin: 0,
-                    fontSize: "1.1rem",
-                    fontWeight: "700"
-                  }}>
-                    Need Help? ({revealedHints}/{q.hints.length} unlocked)
-                  </h6>
-                  {revealedHints < q.hints.length && (
-                    <button
-                      onClick={() => setRevealedHints(prev => Math.min(prev + 1, q.hints.length))}
-                      style={{
-                        background: "linear-gradient(135deg, #FFC107 0%, #FFD54F 100%)",
-                        color: "#333",
-                        border: "none",
-                        borderRadius: "25px",
-                        padding: "8px 16px",
-                        fontSize: "0.9rem",
-                        cursor: "pointer",
-                        fontWeight: "700",
-                        boxShadow: "0 4px 8px rgba(255, 193, 7, 0.3)",
-                        transition: "transform 0.2s, box-shadow 0.2s",
-                        textTransform: "uppercase"
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.transform = "scale(1.05)";
-                        e.target.style.boxShadow = "0 6px 12px rgba(255, 193, 7, 0.4)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.transform = "scale(1)";
-                        e.target.style.boxShadow = "0 4px 8px rgba(255, 193, 7, 0.3)";
-                      }}
-                    >
-                      Unlock Hint!
-                    </button>
+        <div style={{ background: "#FFF8E1", border: "2px solid #FFE082", borderRadius: "12px", padding: "0.75rem", fontSize: "0.9rem", color: "#F57F17", marginBottom: "1rem" }}>
+          ⏱️ <strong>Time limit:</strong> {activity?.timeLimit} seconds ({Math.floor((activity?.timeLimit || 180) / 60)} minutes)
+        </div>
+
+        <button
+          style={{ background: "linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)", color: "#fff", border: "none", borderRadius: "24px", padding: "0.9rem 2rem", fontWeight: "bold", cursor: "pointer", fontSize: "1rem", fontFamily: "Comic Sans MS, cursive", width: "100%", marginBottom: "0.75rem" }}
+          onClick={() => { setAiReviewRevealedHints(0); handleStartAIActivity(); }}
+        >
+          Start Activity! 🎯
+        </button>
+      </div>
+    );
+
+    return (
+      <div style={{ maxWidth: "760px", margin: "0 auto", padding: "1.5rem", fontFamily: "Comic Sans MS, cursive" }}>
+        <div style={{ background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", borderRadius: "20px", padding: "1.5rem", display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+          <span style={{ fontSize: "2rem" }}>📝</span>
+          <div>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "rgba(255,255,255,0.8)" }}>Mini Assessment</p>
+            <h2 style={{ margin: 0, color: "#fff" }}>Let's Test Your Knowledge!</h2>
+          </div>
+        </div>
+
+        <div style={{ background: "#fff", borderRadius: "20px", padding: "1.5rem", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", marginBottom: "1rem" }}>
+          <h4 style={{ color: "#f5576c", marginBottom: "1rem" }}>🎯 Ready to show what you learned?</h4>
+          <p style={{ color: "#555", marginBottom: "1rem" }}>
+            You'll get <strong>{assessmentQuestions?.length} questions</strong> to test your understanding of {reviewMissingTypes?.join(", ")}.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {assessmentQuestions?.map((q, i) => (
+              <div key={i} style={{ background: "#F8F9FF", border: "2px solid #E3F2FD", borderRadius: "12px", padding: "0.75rem" }}>
+                <div style={{ display: "inline-block", background: "#f093fb", color: "#fff", borderRadius: "20px", padding: "4px 12px", fontSize: "0.75rem", fontWeight: "bold" }}>
+                  Question {i + 1} - {q.difficulty}
+                </div>
+                <p style={{ margin: "0.5rem 0 0", fontSize: "0.9rem", color: "#555" }}>
+                  {q.instructions?.slice(0, 80)}...
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <button
+          style={{ background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", color: "#fff", border: "none", borderRadius: "24px", padding: "0.9rem 2rem", fontWeight: "bold", cursor: "pointer", fontSize: "1rem", fontFamily: "Comic Sans MS, cursive", width: "100%", marginBottom: "0.75rem" }}
+          onClick={handleStartAIAssessment}
+        >
+          Start Assessment! 📝
+        </button>
+
+        <button
+          style={{ background: "#eee", color: "#666", border: "2px solid #ccc", borderRadius: "24px", padding: "0.9rem 1.5rem", fontWeight: "bold", cursor: "pointer", fontSize: "0.95rem", fontFamily: "Comic Sans MS, cursive", width: "100%" }}
+          onClick={() => navigate(`/lessons/${lessonId}`)}
+        >
+          Skip & Go Back to Lesson
+        </button>
+      </div>
+    );
+  }
+  // ══════════════════════════════════════════════════════════
+  // END AI REVIEW PANEL
+  // ══════════════════════════════════════════════════════════
+
+  return (
+    <div className="dragboard-wrapper">
+
+      {/* ══ AI PROMPT MODAL ══ */}
+      {showAIPrompt && aiRecommendation && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", fontFamily: "'Comic Sans MS', cursive" }}>
+          <div style={{ background: "#fff", borderRadius: "24px", padding: "2.5rem", maxWidth: "550px", width: "100%", textAlign: "center", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", border: "4px solid #FF9800" }}>
+            <div style={{ fontSize: "4rem", marginBottom: "0.5rem" }}>😓</div>
+            <h2 style={{ fontWeight: "bold", color: "#E65100", marginBottom: "0.5rem" }}>Need some help?</h2>
+            <p style={{ color: "#555", fontSize: "1.05rem", marginBottom: "1rem" }}>{aiRecommendation.message}</p>
+            <div style={{ background: "#FFF3E0", borderRadius: "12px", padding: "1rem", marginBottom: "1.5rem", border: "2px solid #FFE0B2" }}>
+              <p style={{ color: "#E65100", fontSize: "0.95rem", margin: 0, fontWeight: "600" }}>🧩 Blocks you're having trouble with:</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center", marginTop: "0.75rem" }}>
+                {aiRecommendation.missingTypes?.map((type, i) => (
+                  <span key={i} style={{ background: "#FFE0B2", border: "2px solid #FF9800", borderRadius: "20px", padding: "4px 12px", fontSize: "0.85rem", color: "#E65100", fontWeight: "600" }}>{type}</span>
+                ))}
+              </div>
+              <p style={{ color: "#777", fontSize: "0.88rem", margin: "0.75rem 0 0" }}>Want me to create a quick lesson just for these blocks? 📚✨</p>
+            </div>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+              <button onClick={() => handleAIDecision("review")} style={{ background: "linear-gradient(135deg, #FF9800 0%, #F57C00 100%)", color: "#fff", border: "none", borderRadius: "24px", padding: "0.9rem 2rem", fontWeight: "bold", cursor: "pointer", fontSize: "1rem", fontFamily: "inherit" }}>
+                Yes, help me learn! 🎓
+              </button>
+              <button onClick={() => handleAIDecision("continue")} style={{ background: "#eee", color: "#555", border: "2px solid #ccc", borderRadius: "24px", padding: "0.9rem 2rem", fontWeight: "bold", cursor: "pointer", fontSize: "1rem", fontFamily: "inherit" }}>
+                No, I'll keep trying
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === Activity Instructions === */}
+      {lesson.type === "activity" && (
+        <div className="activity-instructions mb-3" style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", borderRadius: "20px", padding: "1.5rem", boxShadow: "0 8px 16px rgba(102, 126, 234, 0.3)", border: "4px solid #ffffff" }}>
+          <div style={{ backgroundColor: "rgba(255,255,255,0.95)", borderRadius: "15px", padding: "1rem" }}>
+            {lesson.isAIReview && (
+              <div style={{ background: "#FFF3E0", border: "2px solid #FF9800", borderRadius: "12px", padding: "0.5rem 1rem", marginBottom: "1rem", fontSize: "0.85rem", color: "#E65100", fontWeight: "600" }}>
+                🤖 AI Review Activity
+              </div>
+            )}
+            <h5 style={{ color: "#667eea", marginBottom: "1rem", fontSize: "1.4rem", fontWeight: "700", textAlign: "center", textTransform: "uppercase", letterSpacing: "1px" }}>Your Mission!</h5>
+            <div style={{ backgroundColor: "#FFF9E6", padding: "1rem", borderRadius: "12px", marginBottom: "1rem", border: "3px dashed #FFC107", color: "#333" }}>
+              <div dangerouslySetInnerHTML={{ __html: lesson.instructions }} />
+            </div>
+            {lesson.hints?.length > 0 && (
+              <div style={{ backgroundColor: "#E8F5E9", padding: "1rem", borderRadius: "12px", marginBottom: "1rem", border: "3px solid #4CAF50" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                  <h6 style={{ color: "#2E7D32", margin: 0, fontSize: "1.1rem", fontWeight: "700" }}>Need Help? ({revealedHints}/{lesson.hints.length} unlocked)</h6>
+                  {revealedHints < lesson.hints.length && (
+                    <button onClick={() => setRevealedHints((prev) => Math.min(prev + 1, lesson.hints.length))} style={{ background: "linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)", color: "white", border: "none", borderRadius: "25px", padding: "8px 16px", fontSize: "0.9rem", cursor: "pointer", fontWeight: "700" }}>Unlock Hint!</button>
                   )}
                 </div>
                 {revealedHints > 0 ? (
-                  <div style={{
-                    backgroundColor: "#ffffff",
-                    padding: "1rem",
-                    borderRadius: "8px"
-                  }}>
-                    <ul style={{ 
-                      marginBottom: 0, 
-                      paddingLeft: "0",
-                      listStyleType: "none",
-                      color: "#333"
-                    }}>
-                      {q.hints.slice(0, revealedHints).map((hint, i) => (
-                        <li 
-                          key={i} 
-                          style={{ 
-                            marginBottom: "0.75rem",
-                            padding: "0.75rem",
-                            backgroundColor: "#FFFDE7",
-                            borderRadius: "8px",
-                            borderLeft: "4px solid #FFC107",
-                            display: "flex",
-                            alignItems: "flex-start"
-                          }}
-                        >
-                          <span style={{
-                            backgroundColor: "#FFC107",
-                            color: "#333",
-                            borderRadius: "50%",
-                            width: "24px",
-                            height: "24px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontWeight: "bold",
-                            fontSize: "0.85rem",
-                            marginRight: "0.75rem",
-                            flexShrink: 0
-                          }}>
-                            {i + 1}
-                          </span>
-                          <span dangerouslySetInnerHTML={{ __html: hint }} />
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  <ul style={{ marginBottom: 0, paddingLeft: 0, listStyleType: "none", color: "#333" }}>
+                    {lesson.hints.slice(0, revealedHints).map((hint, i) => (
+                      <li key={i} style={{ marginBottom: "0.75rem", padding: "0.75rem", backgroundColor: "#F1F8E9", borderRadius: "8px", borderLeft: "4px solid #4CAF50", display: "flex", alignItems: "flex-start" }}>
+                        <span style={{ backgroundColor: "#4CAF50", color: "white", borderRadius: "50%", width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "0.85rem", marginRight: "0.75rem", flexShrink: 0 }}>{i + 1}</span>
+                        <span dangerouslySetInnerHTML={{ __html: hint }} />
+                      </li>
+                    ))}
+                  </ul>
                 ) : (
-                  <div style={{
-                    backgroundColor: "#ffffff",
-                    padding: "1rem",
-                    borderRadius: "8px",
-                    textAlign: "center"
-                  }}>
-                    <p style={{ 
-                      color: "#666", 
-                      fontStyle: "italic", 
-                      marginBottom: 0,
-                      fontSize: "0.95rem"
-                    }}>
-                      Click "Unlock Hint!" to reveal helpful tips one by one!
-                    </p>
-                  </div>
+                  <p style={{ color: "#666", fontStyle: "italic", marginBottom: 0, textAlign: "center" }}>Click "Unlock Hint!" to reveal helpful tips one by one!</p>
                 )}
               </div>
             )}
-
-            {q.expectedOutput && (
-              <div style={{
-                backgroundColor: "#E1F5FE",
-                padding: "1rem",
-                borderRadius: "12px",
-                border: "3px solid #03A9F4"
-              }}>
-                <h6 style={{ 
-                  color: "#01579B", 
-                  marginBottom: "0.75rem",
-                  fontSize: "1.1rem",
-                  fontWeight: "700"
-                }}>
-                  What You Should See:
-                </h6>
-                <pre
-                  style={{
-                    backgroundColor: "#ffffff",
-                    padding: "12px",
-                    borderRadius: "8px",
-                    marginBottom: 0,
-                    border: "2px dashed #03A9F4",
-                    fontSize: "0.9rem",
-                    fontFamily: "monospace",
-                    color: "#333",
-                    overflowX: "auto"
-                  }}
-                >
-                  {q.expectedOutput}
-                </pre>
+            {lesson.expectedOutput && (
+              <div style={{ backgroundColor: "#FFF3E0", padding: "1rem", borderRadius: "12px", border: "3px solid #FF9800" }}>
+                <h6 style={{ color: "#E65100", marginBottom: "0.75rem", fontSize: "1.1rem", fontWeight: "700" }}>What You Should See:</h6>
+                <pre style={{ backgroundColor: "#ffffff", padding: "12px", borderRadius: "8px", marginBottom: 0, border: "2px dashed #FF9800", fontSize: "0.9rem", fontFamily: "monospace", color: "#333", overflowX: "auto" }}>{lesson.expectedOutput}</pre>
               </div>
             )}
           </div>
-        );
-      })()}
-    </div>
-  </div>
-)}
-{/* === END Assessment === */}
+        </div>
+      )}
 
-      {/* === Drag & Drop + Workspace === */}
+      {/* === Assessment Instructions === */}
+      {lesson.type === "assessment" && lesson.currentQuestion && (
+        <div className="assessment-instructions mb-3" style={{ background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", borderRadius: "20px", padding: "1.5rem", boxShadow: "0 8px 16px rgba(240, 147, 251, 0.3)", border: "4px solid #ffffff" }}>
+          <div style={{ backgroundColor: "rgba(255,255,255,0.95)", borderRadius: "15px", padding: "1rem" }}>
+            {lesson.isAIReview && (
+              <div style={{ background: "#FFF3E0", border: "2px solid #FF9800", borderRadius: "12px", padding: "0.5rem 1rem", marginBottom: "1rem", fontSize: "0.85rem", color: "#E65100", fontWeight: "600" }}>
+                🤖 AI Review Assessment
+              </div>
+            )}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", paddingBottom: "0.75rem", borderBottom: "3px dashed #f5576c" }}>
+              <h5 style={{ color: "#f5576c", margin: 0, fontSize: "1.3rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "1px" }}>{lesson.title}</h5>
+              {/* ── FIX: use lesson.totalQuestions (set once at init) for the total ── */}
+              <div style={{ background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", padding: "8px 16px", borderRadius: "25px", fontSize: "0.9rem", fontWeight: "700", color: "#ffffff" }}>
+                Question {(lesson.answered?.length || 0) + 1} of {lesson.totalQuestions || 1}
+              </div>
+            </div>
+            {(() => {
+              const q = lesson.currentQuestion;
+              return (
+                <div>
+                  <div style={{ backgroundColor: "#E3F2FD", padding: "1rem", borderRadius: "12px", marginBottom: "1rem", border: "3px dashed #2196F3", color: "#333" }}>
+                    <div dangerouslySetInnerHTML={{ __html: q.instructions }} />
+                  </div>
+                  {q.hints?.length > 0 && (
+                    <div style={{ backgroundColor: "#FFF9C4", padding: "1rem", borderRadius: "12px", marginBottom: "1rem", border: "3px solid #FFC107" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                        <h6 style={{ color: "#F57F17", margin: 0, fontSize: "1.1rem", fontWeight: "700" }}>Need Help? ({revealedHints}/{q.hints.length} unlocked)</h6>
+                        {revealedHints < q.hints.length && (
+                          <button onClick={() => setRevealedHints((prev) => Math.min(prev + 1, q.hints.length))} style={{ background: "linear-gradient(135deg, #FFC107 0%, #FFD54F 100%)", color: "#333", border: "none", borderRadius: "25px", padding: "8px 16px", fontSize: "0.9rem", cursor: "pointer", fontWeight: "700" }}>Unlock Hint!</button>
+                        )}
+                      </div>
+                      {revealedHints > 0 ? (
+                        <ul style={{ marginBottom: 0, paddingLeft: 0, listStyleType: "none", color: "#333" }}>
+                          {q.hints.slice(0, revealedHints).map((hint, i) => (
+                            <li key={i} style={{ marginBottom: "0.75rem", padding: "0.75rem", backgroundColor: "#FFFDE7", borderRadius: "8px", borderLeft: "4px solid #FFC107", display: "flex", alignItems: "flex-start" }}>
+                              <span style={{ backgroundColor: "#FFC107", color: "#333", borderRadius: "50%", width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "0.85rem", marginRight: "0.75rem", flexShrink: 0 }}>{i + 1}</span>
+                              <span dangerouslySetInnerHTML={{ __html: hint }} />
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p style={{ color: "#666", fontStyle: "italic", marginBottom: 0, textAlign: "center" }}>Click "Unlock Hint!" to reveal helpful tips one by one!</p>
+                      )}
+                    </div>
+                  )}
+                  {q.expectedOutput && (
+                    <div style={{ backgroundColor: "#E1F5FE", padding: "1rem", borderRadius: "12px", border: "3px solid #03A9F4" }}>
+                      <h6 style={{ color: "#01579B", marginBottom: "0.75rem", fontSize: "1.1rem", fontWeight: "700" }}>What You Should See:</h6>
+                      <pre style={{ backgroundColor: "#ffffff", padding: "12px", borderRadius: "8px", marginBottom: 0, border: "2px dashed #03A9F4", fontSize: "0.9rem", fontFamily: "monospace", color: "#333", overflowX: "auto" }}>{q.expectedOutput}</pre>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* === Workspace === */}
       <div className="main-container">
         <div className="draggable">
           <h3>Elements</h3>
@@ -1182,18 +1170,7 @@ const handleTimeUp = async () => {
 
         <div className="right-panel">
           {(lesson.type === "activity" || lesson.type === "assessment") && (
-            <div style={{ 
-              fontSize: "1.3rem", 
-              fontWeight: "700", 
-              color: "#e53935", 
-              marginBottom: "1rem",
-              textAlign: "center",
-              padding: "0.75rem",
-              backgroundColor: "#fff3e0",
-              borderRadius: "12px",
-              border: "3px solid #ff9800",
-              boxShadow: "0 4px 8px rgba(255, 152, 0, 0.2)"
-            }}>
+            <div style={{ fontSize: "1.3rem", fontWeight: "700", color: "#e53935", marginBottom: "1rem", textAlign: "center", padding: "0.75rem", backgroundColor: "#fff3e0", borderRadius: "12px", border: "3px solid #ff9800" }}>
               ⏱ Time Left: {formatTime(timeLeft)}
             </div>
           )}
@@ -1213,267 +1190,110 @@ const handleTimeUp = async () => {
 
       {/* === Lesson Modal === */}
       {isLesson && showLessonModal && (
-        <Modal
-          style={{ position: "fixed", top: "70px" }}
-          show={showLessonModal}
-          backdrop="static"
-          size="lg"
-        >
-          <Modal.Header>
-            <Modal.Title>{lesson.title}</Modal.Title>
-          </Modal.Header>
-          <Modal.Body
-            key={lesson.currentContentIndex}
-            style={{
-              maxHeight: "65vh",
-              overflowY: "auto",
-              padding: "1.5rem",
-              backgroundColor: "#FFF8F2",
-              fontFamily: "'Comic Sans MS', cursive",
-            }}
-          >
-            <div className="typing-container">
-              {renderLessonContent()}
-            </div>
+        <Modal style={{ position: "fixed", top: "70px" }} show={showLessonModal} backdrop="static" size="lg">
+          <Modal.Header><Modal.Title>{lesson.title}</Modal.Title></Modal.Header>
+          <Modal.Body key={lesson.currentContentIndex} style={{ maxHeight: "65vh", overflowY: "auto", padding: "1.5rem", backgroundColor: "#FFF8F2", fontFamily: "'Comic Sans MS', cursive" }}>
+            <div className="typing-container">{renderLessonContent()}</div>
           </Modal.Body>
           <Modal.Footer className="d-flex justify-content-between">
-            <Button
-              variant="secondary"
-              onClick={handlePreviousContent}
-              disabled={lesson.currentContentIndex === 0}
-            >
-              ← Previous
-            </Button>
+            <Button variant="secondary" onClick={handlePreviousContent} disabled={lesson.currentContentIndex === 0}>← Previous</Button>
             <Button variant="primary" onClick={handleNextContent}>
-              {lesson.currentContentIndex >= lesson.contents.length
-                ? "Finish Lesson"
-                : "Next →"}
+              {lesson.currentContentIndex >= lesson.contents.length ? "Finish Lesson" : "Next →"}
             </Button>
           </Modal.Footer>
         </Modal>
       )}
 
       {/* === Activity Modal === */}
-      <Modal
-        show={showActivityModal}
-        style={{ position: "fixed", top: "140px" }}
-        backdrop="static"
-        size="lg"
-      >
-        <Modal.Header>
-          <Modal.Title>Activity</Modal.Title>
-        </Modal.Header>
-        <Modal.Body
-          style={{
-            maxHeight: "65vh",
-            overflowY: "auto",
-            padding: "1.5rem",
-            backgroundColor: "#FFF8F2",
-            fontFamily: "'Comic Sans MS', cursive",
-            textAlign: "center",
-          }}
-        >
+      <Modal show={showActivityModal} style={{ position: "fixed", top: "140px" }} backdrop="static" size="lg">
+        <Modal.Header><Modal.Title>Activity</Modal.Title></Modal.Header>
+        <Modal.Body style={{ maxHeight: "65vh", overflowY: "auto", padding: "1.5rem", backgroundColor: "#FFF8F2", fontFamily: "'Comic Sans MS', cursive", textAlign: "center" }}>
           <p className="typing-line">{activityText}</p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="primary" onClick={handleActivityNext}>
-            {activitySlide === 0 ? "Next →" : "Proceed"}
-          </Button>
+          <Button variant="primary" onClick={handleActivityNext}>{activitySlide === 0 ? "Next →" : "Proceed"}</Button>
         </Modal.Footer>
       </Modal>
 
       {/* === Congrats Modal === */}
-      <Modal
-        style={{ position: "fixed", top: "40px" }}
-        show={showCongratsModal}
-        backdrop="static"
-        size="lg"
-      >
-        <Modal.Header>
-          <Modal.Title>🎉 Congratulations!</Modal.Title>
-        </Modal.Header>
-        <Modal.Body
-          style={{
-            maxHeight: "65vh",
-            overflowY: "auto",
-            padding: "1.5rem",
-            backgroundColor: "#FFF8F2",
-            fontFamily: "'Comic Sans MS', cursive",
-            textAlign: "center",
-          }}
-        >
+      <Modal style={{ position: "fixed", top: "40px" }} show={showCongratsModal} backdrop="static" size="lg">
+        <Modal.Header><Modal.Title>🎉 Congratulations!</Modal.Title></Modal.Header>
+        <Modal.Body style={{ maxHeight: "65vh", overflowY: "auto", padding: "1.5rem", backgroundColor: "#FFF8F2", fontFamily: "'Comic Sans MS', cursive", textAlign: "center" }}>
           <h3>🎉 Well Done!</h3>
           <p>You completed this {lesson?.type === "assessment" ? "assessment" : "activity"} successfully!</p>
-          <p style={{ fontSize: "0.9rem", color: "#666" }}>Redirecting you back to the lesson...</p>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="primary"
-            onClick={() => {
-              setShowCongratsModal(false);
-              navigate(`/lessons/${lessonId}`);
-            }}
-          >
-            Continue
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* === Assessment Answer Modal === */}
-      <Modal
-        show={showAnswerModal}
-        backdrop="static"
-        size="lg"
-        style={{ top: "100px" }}
-      >
-        <Modal.Header>
-          <Modal.Title>Correct Answer</Modal.Title>
-        </Modal.Header>
-        <Modal.Body
-          style={{
-            maxHeight: "65vh",
-            overflowY: "auto",
-            padding: "1.5rem",
-            backgroundColor: "#FFF8F2",
-            fontFamily: "'Comic Sans MS', cursive",
-            textAlign: "center",
-          }}
-        >
-          <h5>Required Data Types:</h5>
-          <ul>
-            {assessmentAnswer.dataTypesRequired?.map((dt, i) => (
-              <li key={i}>{dt}</li>
-            ))}
-          </ul>
-
-          {assessmentAnswer.expectedOutput && (
-            <>
-              <h5>Expected Output:</h5>
-              <pre
-                style={{
-                  backgroundColor: "#f4f4f4",
-                  padding: "10px",
-                  borderRadius: "8px",
-                }}
-              >
-                {assessmentAnswer.expectedOutput}
-              </pre>
-            </>
+          {lesson?.isAIReview && lesson?.type === "activity" && (
+            <p style={{ color: "#667eea", fontWeight: "bold" }}>
+              🌟 Great job on the review activity! Now let's test what you learned!
+            </p>
+          )}
+          {lesson?.isAIReview && lesson?.type === "assessment" && (
+            <p style={{ color: "#4CAF50", fontWeight: "bold" }}>
+              🌟 Amazing! You've completed your AI review session! Ready to go back and try again?
+            </p>
           )}
         </Modal.Body>
         <Modal.Footer>
           <Button
             variant="primary"
             onClick={() => {
-              setShowAnswerModal(false);
-              navigate(`/lessons/${lessonId}`);
+              setShowCongratsModal(false);
+              if (lesson?.isAIReview && lesson?.type === "activity" && aiReviewData?.reviewContent?.assessmentQuestions) {
+                setShowAIReviewPanel(true);
+                setAiReviewStep("assessment");
+              } else if (lesson?.isAIReview && lesson?.type === "assessment") {
+                navigate(`/lessons/${lessonId}`);
+              } else {
+                navigate(`/lessons/${lessonId}`);
+              }
             }}
           >
-            Continue
+            {lesson?.isAIReview && lesson?.type === "activity" && aiReviewData?.reviewContent?.assessmentQuestions
+              ? "Continue to Assessment! 📝"
+              : lesson?.isAIReview && lesson?.type === "assessment"
+              ? "Back to Lesson! 🏠"
+              : "Continue"}
           </Button>
         </Modal.Footer>
       </Modal>
 
-     {/* === Character Avatar (Always Above Modal) === */}
-{/* ✅ CHANGED: Don't show character during assessment (only during lesson, activity intro, and congrats) */}
-{(showLessonModal || showActivityModal || showCongratsModal) && lesson?.type !== "assessment" && (
-  <div
-    style={{
-      position: "fixed",
-      bottom: "-50px",
-      left: "20px",
-      zIndex: 2000, // ⬅️ higher than modal (Bootstrap modals are 1055)
-      display: "flex",
-      alignItems: "flex-end",
-      flexDirection: "column",
-      pointerEvents: "none", // allows clicking through
-    }}
-  >
-    <img
-      src={characterImg}
-      alt="Character"
-      style={{
-        width: "420px",
-        height: "auto",
-        userSelect: "none",
-        pointerEvents: "none",
-        animation: "bounce 2s infinite ease-in-out",
-        filter: "drop-shadow(3px 3px 8px rgba(0, 0, 0, 0.3))",
-      }}
-    />
-  </div>
-)}
-{/* ✅ Show character ONLY for congrats modal during assessment */}
-{showCongratsModal && lesson?.type === "assessment" && (
-  <div
-    style={{
-      position: "fixed",
-      bottom: "-50px",
-      left: "20px",
-      zIndex: 2000,
-      display: "flex",
-      alignItems: "flex-end",
-      flexDirection: "column",
-      pointerEvents: "none",
-    }}
-  >
-    <img
-      src={characterImg}
-      alt="Character"
-      style={{
-        width: "420px",
-        height: "auto",
-        userSelect: "none",
-        pointerEvents: "none",
-        animation: "bounce 2s infinite ease-in-out",
-        filter: "drop-shadow(3px 3px 8px rgba(0, 0, 0, 0.3))",
-      }}
-    />
-  </div>
-)}
+      {/* === Answer Modal === */}
+      <Modal show={showAnswerModal} backdrop="static" size="lg" style={{ top: "100px" }}>
+        <Modal.Header><Modal.Title>Correct Answer</Modal.Title></Modal.Header>
+        <Modal.Body style={{ maxHeight: "65vh", overflowY: "auto", padding: "1.5rem", backgroundColor: "#FFF8F2", fontFamily: "'Comic Sans MS', cursive", textAlign: "center" }}>
+          <h5>Required Data Types:</h5>
+          <ul>{assessmentAnswer.dataTypesRequired?.map((dt, i) => <li key={i}>{dt}</li>)}</ul>
+          {assessmentAnswer.expectedOutput && (
+            <>
+              <h5>Expected Output:</h5>
+              <pre style={{ backgroundColor: "#f4f4f4", padding: "10px", borderRadius: "8px" }}>{assessmentAnswer.expectedOutput}</pre>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="primary" onClick={() => { setShowAnswerModal(false); navigate(`/lessons/${lessonId}`); }}>Continue</Button>
+        </Modal.Footer>
+      </Modal>
 
+      {/* === Character === */}
+      {(showLessonModal || showActivityModal || showCongratsModal) && lesson?.type !== "assessment" && (
+        <div style={{ position: "fixed", bottom: "-50px", left: "20px", zIndex: 2000, pointerEvents: "none" }}>
+          <img src={characterImg} alt="Character" style={{ width: "420px", height: "auto", animation: "bounce 2s infinite ease-in-out", filter: "drop-shadow(3px 3px 8px rgba(0,0,0,0.3))" }} />
+        </div>
+      )}
+      {showCongratsModal && lesson?.type === "assessment" && (
+        <div style={{ position: "fixed", bottom: "-50px", left: "20px", zIndex: 2000, pointerEvents: "none" }}>
+          <img src={characterImg} alt="Character" style={{ width: "420px", height: "auto", animation: "bounce 2s infinite ease-in-out", filter: "drop-shadow(3px 3px 8px rgba(0,0,0,0.3))" }} />
+        </div>
+      )}
 
       <style>{`
-        @keyframes bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
-        }
-        /* === Typing animation for lesson === */
-        .typing-container {
-          display: inline-block;
-          overflow: hidden;
-          white-space: normal;
-          border-right: 3px solid #333;
-          animation: typingDown 3s steps(40, end), blink 0.8s step-end infinite;
-        }
-
-        @keyframes typingDown {
-          from {
-            clip-path: inset(0 0 100% 0);
-          }
-          to {
-            clip-path: inset(0 0 0 0);
-          }
-        }
-
-        /* === Typing for activity/congrats short text === */
-        .typing-line {
-          display: inline-block;
-          overflow: hidden;
-          white-space: nowrap;
-          border-right: 2px solid #333;
-          animation: typingShort 2.5s steps(35, end), blink 0.8s step-end infinite;
-        }
-
-        @keyframes typingShort {
-          from { width: 0; }
-          to { width: 100%; }
-        }
-
-        @keyframes blink {
-          0%, 50% { border-color: #333; }
-          51%, 100% { border-color: transparent; }
-        }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-30px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .typing-container { display: inline-block; overflow: hidden; white-space: normal; border-right: 3px solid #333; animation: typingDown 3s steps(40, end), blink 0.8s step-end infinite; }
+        @keyframes typingDown { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
+        .typing-line { display: inline-block; overflow: hidden; white-space: nowrap; border-right: 2px solid #333; animation: typingShort 2.5s steps(35, end), blink 0.8s step-end infinite; }
+        @keyframes typingShort { from { width: 0; } to { width: 100%; } }
+        @keyframes blink { 0%, 50% { border-color: #333; } 51%, 100% { border-color: transparent; } }
       `}</style>
     </div>
   );

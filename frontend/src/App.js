@@ -17,6 +17,7 @@ import DragBoard from "./component/DragBoard";
 import DragBoardLesson from "./component/DragBoardLesson";
 import ContactPage from "./page/user/contactPage";
 import EditProfile from "./page/user/editProfile";
+import AIReviewSession from "./page/user/aiReviewSession";
 
 // Admin
 import AdminPage from "./page/admin/adminPage";
@@ -89,6 +90,7 @@ function App() {
         path="/lessons/:lessonId/:itemId"
         element={<ProtectedRoute element={<DragBoardLesson />} allowedRoles={["user", "admin"]} />}
       />
+      <Route path="/ai-review/:lessonId/:weakLessonId" element={<AIReviewSession />} />
       <Route path="/dragboard" element={<DragBoard />} />
 
       {/* Admin routes */}
