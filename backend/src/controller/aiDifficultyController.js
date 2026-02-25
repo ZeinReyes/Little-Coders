@@ -1,67 +1,32 @@
-/**
- * aiDifficultyController.js
- * 
- * Uses the custom-trained LittleCoders AI (no external APIs).
- * Drop-in replacement — same request/response shape as before.
- */
+// controllers/aiDifficultyController.js
+import { suggestNextDifficulty, recordSession, getModelStatus } from "../services/LittleCodersAI.js";
 
-import { suggestNextDifficulty, initAI } from "../services/LittleCodersAI.js";
-
-// Pre-train the model when the server starts (takes ~1 second)
-initAI();
-
-/**
- * POST /api/ai/suggest-difficulty
- */
+// POST /api/ai/suggest-difficulty
 export const getSuggestedDifficulty = async (req, res) => {
   try {
     const { history, currentDifficulty, questionsRemaining } = req.body;
-
-    if (!Array.isArray(history)) {
-      return res.status(400).json({
-        success: false,
-        message: "history must be an array of question attempt objects.",
-      });
-    }
-
-    for (const item of history) {
-      if (!["Easy", "Medium", "Hard"].includes(item.difficulty)) {
-        return res.status(400).json({
-          success: false,
-          message: `Invalid difficulty "${item.difficulty}" in history.`,
-        });
-      }
-      if (typeof item.solved !== "boolean") {
-        return res.status(400).json({
-          success: false,
-          message: "Each history item must have a boolean 'solved' field.",
-        });
-      }
-      if (typeof item.attemptsUsed !== "number" || item.attemptsUsed < 1 || item.attemptsUsed > 3) {
-        return res.status(400).json({
-          success: false,
-          message: "attemptsUsed must be a number between 1 and 3.",
-        });
-      }
-    }
-
-    // suggestNextDifficulty is now synchronous (no external API calls!)
-    const result = suggestNextDifficulty({
-      history,
-      currentDifficulty: currentDifficulty ?? "Easy",
-      questionsRemaining: questionsRemaining ?? null,
-    });
-
-    return res.status(200).json({
-      success: true,
-      ...result,
-    });
-
-  } catch (error) {
-    console.error("Error getting AI difficulty suggestion:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Server error while getting difficulty suggestion.",
-    });
+    if (!Array.isArray(history)) return res.status(400).json({ success: false, message: "history must be an array." });
+    const result = suggestNextDifficulty({ history, currentDifficulty: currentDifficulty ?? "Easy", questionsRemaining: questionsRemaining ?? 0 });
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    console.error("Error in suggest-difficulty:", err);
+    return res.status(500).json({ success: false, message: "Server error." });
   }
+};
+
+// POST /api/ai/record-session
+export const recordAssessmentSession = (req, res) => {
+  try {
+    const { completedQuestions } = req.body;
+    if (!Array.isArray(completedQuestions)) return res.status(400).json({ success: false, message: "completedQuestions must be an array." });
+    setImmediate(() => recordSession(completedQuestions));
+    return res.status(200).json({ success: true, message: "Session recorded." });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Server error." });
+  }
+};
+
+// GET /api/ai/status
+export const getAIStatus = (_req, res) => {
+  return res.status(200).json({ success: true, ...getModelStatus() });
 };

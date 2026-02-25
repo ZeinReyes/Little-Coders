@@ -822,6 +822,14 @@ export default function DragBoardLesson() {
     if (!user?._id || lesson?.isAIReview) return;
     try {
       const token = localStorage.getItem("token");
+      if (questionHistory.length >= 2) {
+      await axios.post(
+        `http://localhost:5000/api/ai/record-session`,
+        { completedQuestions: questionHistory },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      console.log("📈 Session recorded for AI learning");
+    }
       await axios.post(
         `http://localhost:5000/api/progress/complete-assessment`,
         {
