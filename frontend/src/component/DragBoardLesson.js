@@ -66,7 +66,7 @@ export default function DragBoardLesson() {
 
   // ── AI REVIEW SESSION STATE (inline) ──
   const [aiReviewData, setAiReviewData] = useState(null);
-  const [aiReviewStep, setAiReviewStep] = useState("lesson"); // "lesson" | "activity" | "assessment"
+  const [aiReviewStep, setAiReviewStep] = useState("lesson");
   const [aiReviewLoading, setAiReviewLoading] = useState(false);
   const [aiReviewError, setAiReviewError] = useState(null);
   const [aiReviewRevealedHints, setAiReviewRevealedHints] = useState(0);
@@ -75,6 +75,9 @@ export default function DragBoardLesson() {
   const [activityAttempts, setActivityAttempts] = useState(0);
   const [currentActivityStartTime, setCurrentActivityStartTime] = useState(Date.now());
   const [revealedHints, setRevealedHints] = useState(0);
+
+  // ── AI DIFFICULTY STATE ──
+  const [questionHistory, setQuestionHistory] = useState([]);
 
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
@@ -94,7 +97,6 @@ export default function DragBoardLesson() {
       const qs = aiAssessment.questions || [];
       const pool = [...qs];
       const firstQuestion = pool.splice(0, 1)[0];
-      // ── FIX: store totalQuestions = full count (pool remaining + current) ──
       const totalQuestions = qs.length;
       setLesson({
         ...aiAssessment,
@@ -149,21 +151,23 @@ export default function DragBoardLesson() {
   // ── Initialize assessment from navigation state ──
   useEffect(() => {
     if (assessment && questions) {
-      const shuffledAll = [...questions].sort(() => Math.random() - 0.5);
-      const selectedFive = shuffledAll.slice(0, 5);
-      const pool = [...selectedFive];
-      const randomIndex = Math.floor(Math.random() * pool.length);
-      const firstQuestion = pool.splice(randomIndex, 1)[0];
-      // ── FIX: store totalQuestions = selectedFive.length (fixed at init) ──
-      const totalQuestions = selectedFive.length;
+      const allQuestions = [...questions];
+
+      const easyQuestions = allQuestions.filter(
+        (q) => (q.difficulty || "easy").toLowerCase() === "easy"
+      );
+      const startPool = easyQuestions.length > 0 ? easyQuestions : allQuestions;
+      const firstQuestion = startPool[Math.floor(Math.random() * startPool.length)];
+
+      const remainingPool = allQuestions.filter((q) => q._id !== firstQuestion._id);
 
       setLesson({
         ...assessment,
         type: "assessment",
-        questionsPool: pool,
+        questionsPool: remainingPool,
         currentQuestion: firstQuestion,
         answered: [],
-        totalQuestions,
+        totalQuestions: 5,
       });
 
       setAssessmentAttempts(0);
@@ -248,7 +252,70 @@ export default function DragBoardLesson() {
     }
   };
 
-  // ── Handle AI decision — now generates inline instead of navigating away ──
+  // ── AI DIFFICULTY: Ask AI which difficulty to show next ──
+  const fetchSuggestedDifficulty = async (updatedHistory, currentDifficulty, remaining) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `http://localhost:5000/api/ai/suggest-difficulty`,
+        {
+          history: updatedHistory,
+          currentDifficulty,
+          questionsRemaining: remaining,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const { suggestedDifficulty, confidence, reasoning } = res.data;
+
+      console.log(
+        `🎯 [AI Difficulty] Suggested: ${suggestedDifficulty} | Confidence: ${confidence}\n` +
+          `   Reasoning: ${reasoning}\n` +
+          `   History (${updatedHistory.length} questions):`,
+        updatedHistory
+      );
+
+      return suggestedDifficulty;
+    } catch (err) {
+      console.warn(
+        "⚠️ [AI Difficulty] Failed to get suggestion, keeping current difficulty.",
+        err.message
+      );
+      return currentDifficulty;
+    }
+  };
+
+  // ── Pick next question from full bank by difficulty, avoiding already-answered ones ──
+  const pickNextQuestion = (pool, preferredDifficulty, answeredIds = []) => {
+    if (!pool || pool.length === 0) return { question: null, remainingPool: [] };
+
+    const available = pool.filter((q) => !answeredIds.includes(q._id));
+    if (available.length === 0) return { question: null, remainingPool: [] };
+
+    const preferred = available.filter(
+      (q) => (q.difficulty || "Easy").toLowerCase() === preferredDifficulty.toLowerCase()
+    );
+
+    const chosen =
+      preferred.length > 0
+        ? preferred[Math.floor(Math.random() * preferred.length)]
+        : available[Math.floor(Math.random() * available.length)];
+
+    if (preferred.length > 0) {
+      console.log(
+        `✅ [AI Difficulty] Picked random "${preferredDifficulty}" question from ${preferred.length} available.`
+      );
+    } else {
+      console.log(
+        `⚠️ [AI Difficulty] No "${preferredDifficulty}" questions left — picking random from ${available.length} available.`
+      );
+    }
+
+    // Pool stays the same (full bank) — answered tracked via answeredIds
+    return { question: chosen, remainingPool: pool };
+  };
+
+  // ── Handle AI decision ──
   const handleAIDecision = async (choice) => {
     if (choice === "review") {
       setShowAIPrompt(false);
@@ -282,12 +349,11 @@ export default function DragBoardLesson() {
     }
   };
 
-  // ── Start AI Review Activity (loads into the existing dragboard) ──
+  // ── Start AI Review Activity ──
   const handleStartAIActivity = () => {
     const activity = aiReviewData?.reviewContent?.activity;
     if (!activity) return;
 
-    // ── Clear whiteboard before loading new activity ──
     const whiteboard = document.getElementById("whiteboard");
     if (whiteboard) {
       const blocks = whiteboard.querySelectorAll("[data-type]");
@@ -314,7 +380,6 @@ export default function DragBoardLesson() {
     if (!qs.length) return;
     const pool = [...qs];
     const firstQuestion = pool.splice(0, 1)[0];
-    // ── FIX: store totalQuestions at init ──
     const totalQuestions = qs.length;
     setShowAIReviewPanel(false);
     setLesson({
@@ -364,31 +429,48 @@ export default function DragBoardLesson() {
 
         const res =
           (await axios
-            .get(`http://localhost:5000/api/materials/lessons/${lessonId}/materials/${itemId}`, { headers })
+            .get(
+              `http://localhost:5000/api/materials/lessons/${lessonId}/materials/${itemId}`,
+              { headers }
+            )
             .then((r) => ({ ...r.data, type: "lesson" }))
             .catch(async () =>
               axios
-                .get(`http://localhost:5000/api/assessments/lessons/${lessonId}/assessments/${itemId}`, { headers })
+                .get(
+                  `http://localhost:5000/api/assessments/lessons/${lessonId}/assessments/${itemId}`,
+                  { headers }
+                )
                 .then((r) => {
                   const assessmentFetched = { ...r.data, _id: r.data.id, type: "assessment" };
+
                   if (assessmentFetched.questions?.length > 0) {
-                    const shuffled = [...assessmentFetched.questions]
-                      .sort(() => Math.random() - 0.5)
-                      .slice(0, 5);
-                    const pool = [...shuffled];
-                    const firstQuestion = pool.splice(0, 1)[0];
-                    // ── FIX: store totalQuestions at fetch time ──
-                    assessmentFetched.questionsPool = pool;
+                    const allQuestions = [...assessmentFetched.questions];
+
+                    const easyQuestions = allQuestions.filter(
+                      (q) => (q.difficulty || "easy").toLowerCase() === "easy"
+                    );
+                    const startPool =
+                      easyQuestions.length > 0 ? easyQuestions : allQuestions;
+                    const firstQuestion =
+                      startPool[Math.floor(Math.random() * startPool.length)];
+
+                    assessmentFetched.questionsPool = allQuestions.filter(
+                      (q) => q._id !== firstQuestion._id
+                    );
                     assessmentFetched.currentQuestion = firstQuestion;
                     assessmentFetched.answered = [];
-                    assessmentFetched.totalQuestions = shuffled.length;
+                    assessmentFetched.totalQuestions = 5;
                     delete assessmentFetched.questions;
                   }
+
                   return assessmentFetched;
                 })
                 .catch(() =>
                   axios
-                    .get(`http://localhost:5000/api/activities/lessons/${lessonId}/activities/${itemId}`, { headers })
+                    .get(
+                      `http://localhost:5000/api/activities/lessons/${lessonId}/activities/${itemId}`,
+                      { headers }
+                    )
                     .then((r) => ({ ...r.data, type: "activity" }))
                 )
             )) || null;
@@ -485,24 +567,82 @@ export default function DragBoardLesson() {
           playSuccessSound();
           setCurrentMissingTypes([]);
 
-          const nextPool = [...(lesson.questionsPool || [])];
-          if (nextPool.length > 0) {
-            const nextQuestion = nextPool.splice(0, 1)[0];
-            setLesson((prev) => ({
-              ...prev,
-              currentQuestion: nextQuestion,
-              questionsPool: nextPool,
-              answered: [...(prev.answered || []), question._id],
-              // totalQuestions stays unchanged — do NOT recalculate
-            }));
-            setAssessmentAttempts(0);
-            setRevealedHints(0);
+          // ── Record this question in history for AI ──
+          const questionDifficulty =
+            question.difficulty?.charAt(0).toUpperCase() +
+              question.difficulty?.slice(1).toLowerCase() || "Easy";
+
+          const updatedHistory = [
+            ...questionHistory,
+            {
+              questionId: question._id || `q-${Date.now()}`,
+              difficulty: questionDifficulty,
+              attemptsUsed: attempts,
+              solved: true,
+              hintsUsed: revealedHints,
+            },
+          ];
+          setQuestionHistory(updatedHistory);
+
+          // ── Track answered and check session limit ──
+          const updatedAnswered = [...(lesson.answered || []), question._id];
+          const questionsAnsweredCount = updatedAnswered.length;
+
+          if (questionsAnsweredCount < lesson.totalQuestions) {
+            // ── Ask AI what difficulty to show next ──
+            const suggestedDifficulty = await fetchSuggestedDifficulty(
+              updatedHistory,
+              questionDifficulty,
+              lesson.totalQuestions - questionsAnsweredCount
+            );
+
+            // ── Pick next question from full bank ──
+            const { question: nextQuestion } = pickNextQuestion(
+              lesson.questionsPool,
+              suggestedDifficulty,
+              updatedAnswered
+            );
+
+            if (nextQuestion) {
+              setLesson((prev) => ({
+                ...prev,
+                currentQuestion: nextQuestion,
+                // questionsPool stays unchanged — it's the full bank
+                answered: updatedAnswered,
+              }));
+              setAssessmentAttempts(0);
+              setRevealedHints(0);
+            } else {
+              // No more unique questions available — end session early
+              setCharacterImg(getRandomImage(congratsImages));
+              setShowCongratsModal(true);
+              markAssessmentCompleted(lesson._id || lesson.id);
+            }
           } else {
+            // Reached totalQuestions limit — session complete!
             setCharacterImg(getRandomImage(congratsImages));
             setShowCongratsModal(true);
-            markCompleted();
+            markAssessmentCompleted(lesson._id || lesson.id);
           }
         } else {
+          // ── Record failed attempt in history (only after max attempts) ──
+          if (attempts >= 3) {
+            const questionDifficulty =
+              question.difficulty?.charAt(0).toUpperCase() +
+                question.difficulty?.slice(1).toLowerCase() || "Easy";
+
+            setQuestionHistory((prev) => [
+              ...prev,
+              {
+                questionId: question._id || `q-${Date.now()}`,
+                difficulty: questionDifficulty,
+                attemptsUsed: attempts,
+                solved: false,
+                hintsUsed: revealedHints,
+              },
+            ]);
+          }
+
           playErrorSound();
           const notifText = [];
           if (question.expectedOutput && !result.passedOutput)
@@ -553,7 +693,9 @@ export default function DragBoardLesson() {
         setActivityAttempts((prev) => {
           const attempts = prev + 1;
           const missingTypes = result.missingNodes || [];
-          setCurrentMissingTypes((prevMissing) => [...new Set([...prevMissing, ...missingTypes])]);
+          setCurrentMissingTypes((prevMissing) => [
+            ...new Set([...prevMissing, ...missingTypes]),
+          ]);
 
           const notifText = [];
           if (lesson.expectedOutput && !result.passedOutput)
@@ -672,6 +814,26 @@ export default function DragBoardLesson() {
       });
     } catch (err) {
       console.error("❌ Error marking item completed:", err);
+    }
+  };
+
+  // ── Mark assessment as completed ──
+  const markAssessmentCompleted = async (assessmentId) => {
+    if (!user?._id || lesson?.isAIReview) return;
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(
+        `http://localhost:5000/api/progress/complete-assessment`,
+        {
+          userId: user._id,
+          lessonId,
+          assessmentId,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      console.log("✅ Assessment marked as completed");
+    } catch (err) {
+      console.error("❌ Error marking assessment completed:", err);
     }
   };
 
@@ -800,176 +962,520 @@ export default function DragBoardLesson() {
   const actionButtonText = isLesson ? "▶ Run Program" : "Submit";
 
   // ══════════════════════════════════════════════════════════
-  // AI REVIEW PANEL — shown inline over the dragboard
+  // AI REVIEW PANEL
   // ══════════════════════════════════════════════════════════
   if (showAIReviewPanel) {
-    if (aiReviewLoading) return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", fontFamily: "Comic Sans MS, cursive" }}>
-        <div style={{ background: "#fff", borderRadius: "24px", padding: "3rem", textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.1)", maxWidth: "500px" }}>
-          <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>🤖</div>
-          <h3 style={{ color: "#667eea" }}>AI is creating your personalized lesson...</h3>
-          <p style={{ color: "#888" }}>Teaching you about: {aiRecommendation?.missingTypes?.join(", ")} ✨</p>
-          <Spinner animation="border" variant="primary" />
-        </div>
-      </div>
-    );
-
-    if (aiReviewError) return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", fontFamily: "Comic Sans MS, cursive" }}>
-        <div style={{ background: "#fff", borderRadius: "24px", padding: "3rem", textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.1)", maxWidth: "500px" }}>
-          <div style={{ fontSize: "3rem" }}>😕</div>
-          <h3 style={{ color: "#e53935" }}>{aiReviewError}</h3>
-          <button
-            onClick={() => { setShowAIReviewPanel(false); setAiReviewError(null); }}
-            style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "#fff", border: "none", borderRadius: "24px", padding: "0.9rem 2rem", fontWeight: "bold", cursor: "pointer", fontSize: "1rem", fontFamily: "Comic Sans MS, cursive", marginTop: "1rem" }}
+    if (aiReviewLoading)
+      return (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "100vh",
+            fontFamily: "Comic Sans MS, cursive",
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "24px",
+              padding: "3rem",
+              textAlign: "center",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
+              maxWidth: "500px",
+            }}
           >
-            Go Back
-          </button>
+            <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>🤖</div>
+            <h3 style={{ color: "#667eea" }}>AI is creating your personalized lesson...</h3>
+            <p style={{ color: "#888" }}>
+              Teaching you about: {aiRecommendation?.missingTypes?.join(", ")} ✨
+            </p>
+            <Spinner animation="border" variant="primary" />
+          </div>
         </div>
-      </div>
-    );
+      );
 
-    const { reviewContent, currentLessonTitle, missingTypes: reviewMissingTypes } = aiReviewData || {};
+    if (aiReviewError)
+      return (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "100vh",
+            fontFamily: "Comic Sans MS, cursive",
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "24px",
+              padding: "3rem",
+              textAlign: "center",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
+              maxWidth: "500px",
+            }}
+          >
+            <div style={{ fontSize: "3rem" }}>😕</div>
+            <h3 style={{ color: "#e53935" }}>{aiReviewError}</h3>
+            <button
+              onClick={() => {
+                setShowAIReviewPanel(false);
+                setAiReviewError(null);
+              }}
+              style={{
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                color: "#fff",
+                border: "none",
+                borderRadius: "24px",
+                padding: "0.9rem 2rem",
+                fontWeight: "bold",
+                cursor: "pointer",
+                fontSize: "1rem",
+                fontFamily: "Comic Sans MS, cursive",
+                marginTop: "1rem",
+              }}
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
+      );
+
+    const { reviewContent, currentLessonTitle, missingTypes: reviewMissingTypes } =
+      aiReviewData || {};
     const { lessonMaterial, activity, assessmentQuestions } = reviewContent || {};
 
-    if (aiReviewStep === "lesson") return (
-      <div style={{ maxWidth: "760px", margin: "0 auto", padding: "1.5rem", fontFamily: "Comic Sans MS, cursive" }}>
-        <div style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", borderRadius: "20px", padding: "1.5rem", display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
-          <span style={{ fontSize: "2rem" }}>📚</span>
-          <div>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "rgba(255,255,255,0.8)" }}>AI Review Session</p>
-            <h2 style={{ margin: 0, color: "#fff" }}>{lessonMaterial?.title}</h2>
-          </div>
-        </div>
-
-        <div style={{ background: "#FFF3E0", border: "2px solid #FFE0B2", borderRadius: "12px", padding: "0.75rem 1rem", fontSize: "0.9rem", color: "#E65100", marginBottom: "1rem" }}>
-          🎯 Reviewing blocks: <strong>{reviewMissingTypes?.join(", ")}</strong> · From {currentLessonTitle}
-        </div>
-
-        <div style={{ background: "#fff", borderRadius: "20px", padding: "1.5rem", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", marginBottom: "1rem" }}>
-          <h3 style={{ color: "#667eea", marginBottom: "1rem" }}>📖 Let's Learn Together!</h3>
-          <div style={{ background: "#E8F5E9", borderRadius: "12px", padding: "1rem", border: "2px dashed #4CAF50", marginBottom: "1rem" }}>
-            <p style={{ margin: 0, fontWeight: "600", color: "#555" }}>{lessonMaterial?.overview}</p>
-          </div>
-          {lessonMaterial?.contents?.map((para, i) => (
-            <div key={i} style={{ background: "#F8F9FF", borderRadius: "12px", padding: "1rem", marginBottom: "0.75rem", border: "2px solid #E3F2FD", lineHeight: "1.7", color: "#333" }}>
-              {para}
-            </div>
-          ))}
-        </div>
-
-        <div style={{ background: "#E8F5E9", border: "2px solid #A5D6A7", borderRadius: "16px", padding: "1rem", marginBottom: "1.5rem" }}>
-          <h4 style={{ color: "#555", marginBottom: "0.5rem" }}>📝 What's next:</h4>
-          <p style={{ color: "#777", margin: 0 }}>1 practice activity + 1 mini assessment to test your understanding!</p>
-        </div>
-
-        <button
-          style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "#fff", border: "none", borderRadius: "24px", padding: "0.9rem 2rem", fontWeight: "bold", cursor: "pointer", fontSize: "1rem", fontFamily: "Comic Sans MS, cursive", width: "100%", marginBottom: "0.75rem" }}
-          onClick={() => setAiReviewStep("activity")}
+    if (aiReviewStep === "lesson")
+      return (
+        <div
+          style={{
+            maxWidth: "760px",
+            margin: "0 auto",
+            padding: "1.5rem",
+            fontFamily: "Comic Sans MS, cursive",
+          }}
         >
-          Let's Practice! 🚀
-        </button>
-
-        <button
-          style={{ background: "#eee", color: "#666", border: "2px solid #ccc", borderRadius: "24px", padding: "0.9rem 1.5rem", fontWeight: "bold", cursor: "pointer", fontSize: "0.95rem", fontFamily: "Comic Sans MS, cursive", width: "100%" }}
-          onClick={() => { setShowAIReviewPanel(false); setAiReviewData(null); }}
-        >
-          Back to Activity
-        </button>
-      </div>
-    );
-
-    if (aiReviewStep === "activity") return (
-      <div style={{ maxWidth: "760px", margin: "0 auto", padding: "1.5rem", fontFamily: "Comic Sans MS, cursive" }}>
-        <div style={{ background: "linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)", borderRadius: "20px", padding: "1.5rem", display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
-          <span style={{ fontSize: "2rem" }}>🏋️</span>
-          <div>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "rgba(255,255,255,0.8)" }}>Practice Activity</p>
-            <h2 style={{ margin: 0, color: "#fff" }}>{activity?.name}</h2>
-          </div>
-        </div>
-
-        <div style={{ background: "#fff", borderRadius: "20px", padding: "1.5rem", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", marginBottom: "1rem" }}>
-          <h4 style={{ color: "#4CAF50", marginBottom: "0.75rem" }}>📋 Your Mission</h4>
-          <div style={{ background: "#FFF9E6", borderRadius: "12px", padding: "1rem", border: "3px dashed #FFC107", color: "#333", marginBottom: "1rem" }}>
-            <p style={{ margin: 0 }}>{activity?.instructions}</p>
-          </div>
-          {activity?.expectedOutput && (
-            <div style={{ marginBottom: "1rem" }}>
-              <h5 style={{ color: "#E65100" }}>🎯 Expected Output:</h5>
-              <pre style={{ background: "#f4f4f4", padding: "12px", borderRadius: "8px", border: "2px dashed #FF9800", fontSize: "0.9rem", fontFamily: "monospace", color: "#333" }}>{activity.expectedOutput}</pre>
-            </div>
-          )}
-          {activity?.dataTypesRequired?.length > 0 && (
+          <div
+            style={{
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              borderRadius: "20px",
+              padding: "1.5rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "1rem",
+              marginBottom: "1rem",
+            }}
+          >
+            <span style={{ fontSize: "2rem" }}>📚</span>
             <div>
-              <h5 style={{ color: "#5c6bc0" }}>🧩 Blocks you'll need:</h5>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "0.5rem" }}>
-                {activity.dataTypesRequired.map((block, i) => (
-                  <span key={i} style={{ background: "#E3F2FD", border: "2px solid #90CAF9", borderRadius: "20px", padding: "4px 14px", fontSize: "0.85rem", color: "#1565C0", fontWeight: "600" }}>{block}</span>
-                ))}
-              </div>
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "rgba(255,255,255,0.8)" }}>
+                AI Review Session
+              </p>
+              <h2 style={{ margin: 0, color: "#fff" }}>{lessonMaterial?.title}</h2>
             </div>
-          )}
-        </div>
+          </div>
 
-        {activity?.hints?.length > 0 && (
-          <div style={{ background: "#E8F5E9", border: "3px solid #4CAF50", borderRadius: "16px", padding: "1rem", marginBottom: "1rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.75rem" }}>
-              <h5 style={{ margin: 0, color: "#2E7D32" }}>💚 Hints ({aiReviewRevealedHints}/{activity.hints.length} unlocked)</h5>
-              {aiReviewRevealedHints < activity.hints.length && (
-                <button
-                  style={{ background: "linear-gradient(135deg, #4CAF50, #66BB6A)", color: "#fff", border: "none", borderRadius: "20px", padding: "6px 14px", cursor: "pointer", fontFamily: "Comic Sans MS, cursive", fontWeight: "700", fontSize: "0.85rem" }}
-                  onClick={() => setAiReviewRevealedHints((p) => Math.min(p + 1, activity.hints.length))}
-                >
-                  Unlock Hint!
-                </button>
-              )}
+          <div
+            style={{
+              background: "#FFF3E0",
+              border: "2px solid #FFE0B2",
+              borderRadius: "12px",
+              padding: "0.75rem 1rem",
+              fontSize: "0.9rem",
+              color: "#E65100",
+              marginBottom: "1rem",
+            }}
+          >
+            🎯 Reviewing blocks: <strong>{reviewMissingTypes?.join(", ")}</strong> · From{" "}
+            {currentLessonTitle}
+          </div>
+
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "20px",
+              padding: "1.5rem",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+              marginBottom: "1rem",
+            }}
+          >
+            <h3 style={{ color: "#667eea", marginBottom: "1rem" }}>📖 Let's Learn Together!</h3>
+            <div
+              style={{
+                background: "#E8F5E9",
+                borderRadius: "12px",
+                padding: "1rem",
+                border: "2px dashed #4CAF50",
+                marginBottom: "1rem",
+              }}
+            >
+              <p style={{ margin: 0, fontWeight: "600", color: "#555" }}>
+                {lessonMaterial?.overview}
+              </p>
             </div>
-            {aiReviewRevealedHints > 0 && (
-              <ul style={{ paddingLeft: 0, listStyle: "none", marginBottom: 0 }}>
-                {activity.hints.slice(0, aiReviewRevealedHints).map((hint, i) => (
-                  <li key={i} style={{ background: "#fff", borderRadius: "8px", padding: "0.6rem 0.8rem", borderLeft: "4px solid #4CAF50", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.75rem", color: "#333" }}>
-                    <span style={{ background: "#4CAF50", color: "#fff", borderRadius: "50%", width: "22px", height: "22px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "0.8rem", flexShrink: 0 }}>{i + 1}</span>
-                    {hint}
-                  </li>
-                ))}
-              </ul>
+            {lessonMaterial?.contents?.map((para, i) => (
+              <div
+                key={i}
+                style={{
+                  background: "#F8F9FF",
+                  borderRadius: "12px",
+                  padding: "1rem",
+                  marginBottom: "0.75rem",
+                  border: "2px solid #E3F2FD",
+                  lineHeight: "1.7",
+                  color: "#333",
+                }}
+              >
+                {para}
+              </div>
+            ))}
+          </div>
+
+          <div
+            style={{
+              background: "#E8F5E9",
+              border: "2px solid #A5D6A7",
+              borderRadius: "16px",
+              padding: "1rem",
+              marginBottom: "1.5rem",
+            }}
+          >
+            <h4 style={{ color: "#555", marginBottom: "0.5rem" }}>📝 What's next:</h4>
+            <p style={{ color: "#777", margin: 0 }}>
+              1 practice activity + 1 mini assessment to test your understanding!
+            </p>
+          </div>
+
+          <button
+            style={{
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              color: "#fff",
+              border: "none",
+              borderRadius: "24px",
+              padding: "0.9rem 2rem",
+              fontWeight: "bold",
+              cursor: "pointer",
+              fontSize: "1rem",
+              fontFamily: "Comic Sans MS, cursive",
+              width: "100%",
+              marginBottom: "0.75rem",
+            }}
+            onClick={() => setAiReviewStep("activity")}
+          >
+            Let's Practice! 🚀
+          </button>
+
+          <button
+            style={{
+              background: "#eee",
+              color: "#666",
+              border: "2px solid #ccc",
+              borderRadius: "24px",
+              padding: "0.9rem 1.5rem",
+              fontWeight: "bold",
+              cursor: "pointer",
+              fontSize: "0.95rem",
+              fontFamily: "Comic Sans MS, cursive",
+              width: "100%",
+            }}
+            onClick={() => {
+              setShowAIReviewPanel(false);
+              setAiReviewData(null);
+            }}
+          >
+            Back to Activity
+          </button>
+        </div>
+      );
+
+    if (aiReviewStep === "activity")
+      return (
+        <div
+          style={{
+            maxWidth: "760px",
+            margin: "0 auto",
+            padding: "1.5rem",
+            fontFamily: "Comic Sans MS, cursive",
+          }}
+        >
+          <div
+            style={{
+              background: "linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)",
+              borderRadius: "20px",
+              padding: "1.5rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "1rem",
+              marginBottom: "1rem",
+            }}
+          >
+            <span style={{ fontSize: "2rem" }}>🏋️</span>
+            <div>
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "rgba(255,255,255,0.8)" }}>
+                Practice Activity
+              </p>
+              <h2 style={{ margin: 0, color: "#fff" }}>{activity?.name}</h2>
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "20px",
+              padding: "1.5rem",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+              marginBottom: "1rem",
+            }}
+          >
+            <h4 style={{ color: "#4CAF50", marginBottom: "0.75rem" }}>📋 Your Mission</h4>
+            <div
+              style={{
+                background: "#FFF9E6",
+                borderRadius: "12px",
+                padding: "1rem",
+                border: "3px dashed #FFC107",
+                color: "#333",
+                marginBottom: "1rem",
+              }}
+            >
+              <p style={{ margin: 0 }}>{activity?.instructions}</p>
+            </div>
+            {activity?.expectedOutput && (
+              <div style={{ marginBottom: "1rem" }}>
+                <h5 style={{ color: "#E65100" }}>🎯 Expected Output:</h5>
+                <pre
+                  style={{
+                    background: "#f4f4f4",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    border: "2px dashed #FF9800",
+                    fontSize: "0.9rem",
+                    fontFamily: "monospace",
+                    color: "#333",
+                  }}
+                >
+                  {activity.expectedOutput}
+                </pre>
+              </div>
+            )}
+            {activity?.dataTypesRequired?.length > 0 && (
+              <div>
+                <h5 style={{ color: "#5c6bc0" }}>🧩 Blocks you'll need:</h5>
+                <div
+                  style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "0.5rem" }}
+                >
+                  {activity.dataTypesRequired.map((block, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        background: "#E3F2FD",
+                        border: "2px solid #90CAF9",
+                        borderRadius: "20px",
+                        padding: "4px 14px",
+                        fontSize: "0.85rem",
+                        color: "#1565C0",
+                        fontWeight: "600",
+                      }}
+                    >
+                      {block}
+                    </span>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
-        )}
 
-        <div style={{ background: "#FFF8E1", border: "2px solid #FFE082", borderRadius: "12px", padding: "0.75rem", fontSize: "0.9rem", color: "#F57F17", marginBottom: "1rem" }}>
-          ⏱️ <strong>Time limit:</strong> {activity?.timeLimit} seconds ({Math.floor((activity?.timeLimit || 180) / 60)} minutes)
+          {activity?.hints?.length > 0 && (
+            <div
+              style={{
+                background: "#E8F5E9",
+                border: "3px solid #4CAF50",
+                borderRadius: "16px",
+                padding: "1rem",
+                marginBottom: "1rem",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "0.75rem",
+                }}
+              >
+                <h5 style={{ margin: 0, color: "#2E7D32" }}>
+                  💚 Hints ({aiReviewRevealedHints}/{activity.hints.length} unlocked)
+                </h5>
+                {aiReviewRevealedHints < activity.hints.length && (
+                  <button
+                    style={{
+                      background: "linear-gradient(135deg, #4CAF50, #66BB6A)",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "20px",
+                      padding: "6px 14px",
+                      cursor: "pointer",
+                      fontFamily: "Comic Sans MS, cursive",
+                      fontWeight: "700",
+                      fontSize: "0.85rem",
+                    }}
+                    onClick={() =>
+                      setAiReviewRevealedHints((p) => Math.min(p + 1, activity.hints.length))
+                    }
+                  >
+                    Unlock Hint!
+                  </button>
+                )}
+              </div>
+              {aiReviewRevealedHints > 0 && (
+                <ul style={{ paddingLeft: 0, listStyle: "none", marginBottom: 0 }}>
+                  {activity.hints.slice(0, aiReviewRevealedHints).map((hint, i) => (
+                    <li
+                      key={i}
+                      style={{
+                        background: "#fff",
+                        borderRadius: "8px",
+                        padding: "0.6rem 0.8rem",
+                        borderLeft: "4px solid #4CAF50",
+                        marginBottom: "0.5rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.75rem",
+                        color: "#333",
+                      }}
+                    >
+                      <span
+                        style={{
+                          background: "#4CAF50",
+                          color: "#fff",
+                          borderRadius: "50%",
+                          width: "22px",
+                          height: "22px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: "bold",
+                          fontSize: "0.8rem",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {i + 1}
+                      </span>
+                      {hint}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          <div
+            style={{
+              background: "#FFF8E1",
+              border: "2px solid #FFE082",
+              borderRadius: "12px",
+              padding: "0.75rem",
+              fontSize: "0.9rem",
+              color: "#F57F17",
+              marginBottom: "1rem",
+            }}
+          >
+            ⏱️ <strong>Time limit:</strong> {activity?.timeLimit} seconds (
+            {Math.floor((activity?.timeLimit || 180) / 60)} minutes)
+          </div>
+
+          <button
+            style={{
+              background: "linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)",
+              color: "#fff",
+              border: "none",
+              borderRadius: "24px",
+              padding: "0.9rem 2rem",
+              fontWeight: "bold",
+              cursor: "pointer",
+              fontSize: "1rem",
+              fontFamily: "Comic Sans MS, cursive",
+              width: "100%",
+              marginBottom: "0.75rem",
+            }}
+            onClick={() => {
+              setAiReviewRevealedHints(0);
+              handleStartAIActivity();
+            }}
+          >
+            Start Activity! 🎯
+          </button>
         </div>
-
-        <button
-          style={{ background: "linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)", color: "#fff", border: "none", borderRadius: "24px", padding: "0.9rem 2rem", fontWeight: "bold", cursor: "pointer", fontSize: "1rem", fontFamily: "Comic Sans MS, cursive", width: "100%", marginBottom: "0.75rem" }}
-          onClick={() => { setAiReviewRevealedHints(0); handleStartAIActivity(); }}
-        >
-          Start Activity! 🎯
-        </button>
-      </div>
-    );
+      );
 
     return (
-      <div style={{ maxWidth: "760px", margin: "0 auto", padding: "1.5rem", fontFamily: "Comic Sans MS, cursive" }}>
-        <div style={{ background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", borderRadius: "20px", padding: "1.5rem", display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+      <div
+        style={{
+          maxWidth: "760px",
+          margin: "0 auto",
+          padding: "1.5rem",
+          fontFamily: "Comic Sans MS, cursive",
+        }}
+      >
+        <div
+          style={{
+            background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+            borderRadius: "20px",
+            padding: "1.5rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "1rem",
+            marginBottom: "1rem",
+          }}
+        >
           <span style={{ fontSize: "2rem" }}>📝</span>
           <div>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "rgba(255,255,255,0.8)" }}>Mini Assessment</p>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "rgba(255,255,255,0.8)" }}>
+              Mini Assessment
+            </p>
             <h2 style={{ margin: 0, color: "#fff" }}>Let's Test Your Knowledge!</h2>
           </div>
         </div>
 
-        <div style={{ background: "#fff", borderRadius: "20px", padding: "1.5rem", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", marginBottom: "1rem" }}>
-          <h4 style={{ color: "#f5576c", marginBottom: "1rem" }}>🎯 Ready to show what you learned?</h4>
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: "20px",
+            padding: "1.5rem",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+            marginBottom: "1rem",
+          }}
+        >
+          <h4 style={{ color: "#f5576c", marginBottom: "1rem" }}>
+            🎯 Ready to show what you learned?
+          </h4>
           <p style={{ color: "#555", marginBottom: "1rem" }}>
-            You'll get <strong>{assessmentQuestions?.length} questions</strong> to test your understanding of {reviewMissingTypes?.join(", ")}.
+            You'll get <strong>{assessmentQuestions?.length} questions</strong> to test your
+            understanding of {reviewMissingTypes?.join(", ")}.
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             {assessmentQuestions?.map((q, i) => (
-              <div key={i} style={{ background: "#F8F9FF", border: "2px solid #E3F2FD", borderRadius: "12px", padding: "0.75rem" }}>
-                <div style={{ display: "inline-block", background: "#f093fb", color: "#fff", borderRadius: "20px", padding: "4px 12px", fontSize: "0.75rem", fontWeight: "bold" }}>
+              <div
+                key={i}
+                style={{
+                  background: "#F8F9FF",
+                  border: "2px solid #E3F2FD",
+                  borderRadius: "12px",
+                  padding: "0.75rem",
+                }}
+              >
+                <div
+                  style={{
+                    display: "inline-block",
+                    background: "#f093fb",
+                    color: "#fff",
+                    borderRadius: "20px",
+                    padding: "4px 12px",
+                    fontSize: "0.75rem",
+                    fontWeight: "bold",
+                  }}
+                >
                   Question {i + 1} - {q.difficulty}
                 </div>
                 <p style={{ margin: "0.5rem 0 0", fontSize: "0.9rem", color: "#555" }}>
@@ -981,14 +1487,37 @@ export default function DragBoardLesson() {
         </div>
 
         <button
-          style={{ background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", color: "#fff", border: "none", borderRadius: "24px", padding: "0.9rem 2rem", fontWeight: "bold", cursor: "pointer", fontSize: "1rem", fontFamily: "Comic Sans MS, cursive", width: "100%", marginBottom: "0.75rem" }}
+          style={{
+            background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+            color: "#fff",
+            border: "none",
+            borderRadius: "24px",
+            padding: "0.9rem 2rem",
+            fontWeight: "bold",
+            cursor: "pointer",
+            fontSize: "1rem",
+            fontFamily: "Comic Sans MS, cursive",
+            width: "100%",
+            marginBottom: "0.75rem",
+          }}
           onClick={handleStartAIAssessment}
         >
           Start Assessment! 📝
         </button>
 
         <button
-          style={{ background: "#eee", color: "#666", border: "2px solid #ccc", borderRadius: "24px", padding: "0.9rem 1.5rem", fontWeight: "bold", cursor: "pointer", fontSize: "0.95rem", fontFamily: "Comic Sans MS, cursive", width: "100%" }}
+          style={{
+            background: "#eee",
+            color: "#666",
+            border: "2px solid #ccc",
+            borderRadius: "24px",
+            padding: "0.9rem 1.5rem",
+            fontWeight: "bold",
+            cursor: "pointer",
+            fontSize: "0.95rem",
+            fontFamily: "Comic Sans MS, cursive",
+            width: "100%",
+          }}
           onClick={() => navigate(`/lessons/${lessonId}`)}
         >
           Skip & Go Back to Lesson
@@ -1002,28 +1531,115 @@ export default function DragBoardLesson() {
 
   return (
     <div className="dragboard-wrapper">
-
       {/* ══ AI PROMPT MODAL ══ */}
       {showAIPrompt && aiRecommendation && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", fontFamily: "'Comic Sans MS', cursive" }}>
-          <div style={{ background: "#fff", borderRadius: "24px", padding: "2.5rem", maxWidth: "550px", width: "100%", textAlign: "center", boxShadow: "0 12px 40px rgba(0,0,0,0.35)", border: "4px solid #FF9800" }}>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.75)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem",
+            fontFamily: "'Comic Sans MS', cursive",
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "24px",
+              padding: "2.5rem",
+              maxWidth: "550px",
+              width: "100%",
+              textAlign: "center",
+              boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
+              border: "4px solid #FF9800",
+            }}
+          >
             <div style={{ fontSize: "4rem", marginBottom: "0.5rem" }}>😓</div>
-            <h2 style={{ fontWeight: "bold", color: "#E65100", marginBottom: "0.5rem" }}>Need some help?</h2>
-            <p style={{ color: "#555", fontSize: "1.05rem", marginBottom: "1rem" }}>{aiRecommendation.message}</p>
-            <div style={{ background: "#FFF3E0", borderRadius: "12px", padding: "1rem", marginBottom: "1.5rem", border: "2px solid #FFE0B2" }}>
-              <p style={{ color: "#E65100", fontSize: "0.95rem", margin: 0, fontWeight: "600" }}>🧩 Blocks you're having trouble with:</p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center", marginTop: "0.75rem" }}>
+            <h2 style={{ fontWeight: "bold", color: "#E65100", marginBottom: "0.5rem" }}>
+              Need some help?
+            </h2>
+            <p style={{ color: "#555", fontSize: "1.05rem", marginBottom: "1rem" }}>
+              {aiRecommendation.message}
+            </p>
+            <div
+              style={{
+                background: "#FFF3E0",
+                borderRadius: "12px",
+                padding: "1rem",
+                marginBottom: "1.5rem",
+                border: "2px solid #FFE0B2",
+              }}
+            >
+              <p
+                style={{ color: "#E65100", fontSize: "0.95rem", margin: 0, fontWeight: "600" }}
+              >
+                🧩 Blocks you're having trouble with:
+              </p>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "8px",
+                  justifyContent: "center",
+                  marginTop: "0.75rem",
+                }}
+              >
                 {aiRecommendation.missingTypes?.map((type, i) => (
-                  <span key={i} style={{ background: "#FFE0B2", border: "2px solid #FF9800", borderRadius: "20px", padding: "4px 12px", fontSize: "0.85rem", color: "#E65100", fontWeight: "600" }}>{type}</span>
+                  <span
+                    key={i}
+                    style={{
+                      background: "#FFE0B2",
+                      border: "2px solid #FF9800",
+                      borderRadius: "20px",
+                      padding: "4px 12px",
+                      fontSize: "0.85rem",
+                      color: "#E65100",
+                      fontWeight: "600",
+                    }}
+                  >
+                    {type}
+                  </span>
                 ))}
               </div>
-              <p style={{ color: "#777", fontSize: "0.88rem", margin: "0.75rem 0 0" }}>Want me to create a quick lesson just for these blocks? 📚✨</p>
+              <p style={{ color: "#777", fontSize: "0.88rem", margin: "0.75rem 0 0" }}>
+                Want me to create a quick lesson just for these blocks? 📚✨
+              </p>
             </div>
             <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
-              <button onClick={() => handleAIDecision("review")} style={{ background: "linear-gradient(135deg, #FF9800 0%, #F57C00 100%)", color: "#fff", border: "none", borderRadius: "24px", padding: "0.9rem 2rem", fontWeight: "bold", cursor: "pointer", fontSize: "1rem", fontFamily: "inherit" }}>
+              <button
+                onClick={() => handleAIDecision("review")}
+                style={{
+                  background: "linear-gradient(135deg, #FF9800 0%, #F57C00 100%)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "24px",
+                  padding: "0.9rem 2rem",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  fontSize: "1rem",
+                  fontFamily: "inherit",
+                }}
+              >
                 Yes, help me learn! 🎓
               </button>
-              <button onClick={() => handleAIDecision("continue")} style={{ background: "#eee", color: "#555", border: "2px solid #ccc", borderRadius: "24px", padding: "0.9rem 2rem", fontWeight: "bold", cursor: "pointer", fontSize: "1rem", fontFamily: "inherit" }}>
+              <button
+                onClick={() => handleAIDecision("continue")}
+                style={{
+                  background: "#eee",
+                  color: "#555",
+                  border: "2px solid #ccc",
+                  borderRadius: "24px",
+                  padding: "0.9rem 2rem",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  fontSize: "1rem",
+                  fontFamily: "inherit",
+                }}
+              >
                 No, I'll keep trying
               </button>
             </div>
@@ -1033,43 +1649,195 @@ export default function DragBoardLesson() {
 
       {/* === Activity Instructions === */}
       {lesson.type === "activity" && (
-        <div className="activity-instructions mb-3" style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", borderRadius: "20px", padding: "1.5rem", boxShadow: "0 8px 16px rgba(102, 126, 234, 0.3)", border: "4px solid #ffffff" }}>
-          <div style={{ backgroundColor: "rgba(255,255,255,0.95)", borderRadius: "15px", padding: "1rem" }}>
+        <div
+          className="activity-instructions mb-3"
+          style={{
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            borderRadius: "20px",
+            padding: "1.5rem",
+            boxShadow: "0 8px 16px rgba(102, 126, 234, 0.3)",
+            border: "4px solid #ffffff",
+          }}
+        >
+          <div
+            style={{ backgroundColor: "rgba(255,255,255,0.95)", borderRadius: "15px", padding: "1rem" }}
+          >
             {lesson.isAIReview && (
-              <div style={{ background: "#FFF3E0", border: "2px solid #FF9800", borderRadius: "12px", padding: "0.5rem 1rem", marginBottom: "1rem", fontSize: "0.85rem", color: "#E65100", fontWeight: "600" }}>
+              <div
+                style={{
+                  background: "#FFF3E0",
+                  border: "2px solid #FF9800",
+                  borderRadius: "12px",
+                  padding: "0.5rem 1rem",
+                  marginBottom: "1rem",
+                  fontSize: "0.85rem",
+                  color: "#E65100",
+                  fontWeight: "600",
+                }}
+              >
                 🤖 AI Review Activity
               </div>
             )}
-            <h5 style={{ color: "#667eea", marginBottom: "1rem", fontSize: "1.4rem", fontWeight: "700", textAlign: "center", textTransform: "uppercase", letterSpacing: "1px" }}>Your Mission!</h5>
-            <div style={{ backgroundColor: "#FFF9E6", padding: "1rem", borderRadius: "12px", marginBottom: "1rem", border: "3px dashed #FFC107", color: "#333" }}>
+            <h5
+              style={{
+                color: "#667eea",
+                marginBottom: "1rem",
+                fontSize: "1.4rem",
+                fontWeight: "700",
+                textAlign: "center",
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+              }}
+            >
+              Your Mission!
+            </h5>
+            <div
+              style={{
+                backgroundColor: "#FFF9E6",
+                padding: "1rem",
+                borderRadius: "12px",
+                marginBottom: "1rem",
+                border: "3px dashed #FFC107",
+                color: "#333",
+              }}
+            >
               <div dangerouslySetInnerHTML={{ __html: lesson.instructions }} />
             </div>
             {lesson.hints?.length > 0 && (
-              <div style={{ backgroundColor: "#E8F5E9", padding: "1rem", borderRadius: "12px", marginBottom: "1rem", border: "3px solid #4CAF50" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-                  <h6 style={{ color: "#2E7D32", margin: 0, fontSize: "1.1rem", fontWeight: "700" }}>Need Help? ({revealedHints}/{lesson.hints.length} unlocked)</h6>
+              <div
+                style={{
+                  backgroundColor: "#E8F5E9",
+                  padding: "1rem",
+                  borderRadius: "12px",
+                  marginBottom: "1rem",
+                  border: "3px solid #4CAF50",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "0.75rem",
+                  }}
+                >
+                  <h6
+                    style={{ color: "#2E7D32", margin: 0, fontSize: "1.1rem", fontWeight: "700" }}
+                  >
+                    Need Help? ({revealedHints}/{lesson.hints.length} unlocked)
+                  </h6>
                   {revealedHints < lesson.hints.length && (
-                    <button onClick={() => setRevealedHints((prev) => Math.min(prev + 1, lesson.hints.length))} style={{ background: "linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)", color: "white", border: "none", borderRadius: "25px", padding: "8px 16px", fontSize: "0.9rem", cursor: "pointer", fontWeight: "700" }}>Unlock Hint!</button>
+                    <button
+                      onClick={() =>
+                        setRevealedHints((prev) => Math.min(prev + 1, lesson.hints.length))
+                      }
+                      style={{
+                        background: "linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "25px",
+                        padding: "8px 16px",
+                        fontSize: "0.9rem",
+                        cursor: "pointer",
+                        fontWeight: "700",
+                      }}
+                    >
+                      Unlock Hint!
+                    </button>
                   )}
                 </div>
                 {revealedHints > 0 ? (
-                  <ul style={{ marginBottom: 0, paddingLeft: 0, listStyleType: "none", color: "#333" }}>
+                  <ul
+                    style={{
+                      marginBottom: 0,
+                      paddingLeft: 0,
+                      listStyleType: "none",
+                      color: "#333",
+                    }}
+                  >
                     {lesson.hints.slice(0, revealedHints).map((hint, i) => (
-                      <li key={i} style={{ marginBottom: "0.75rem", padding: "0.75rem", backgroundColor: "#F1F8E9", borderRadius: "8px", borderLeft: "4px solid #4CAF50", display: "flex", alignItems: "flex-start" }}>
-                        <span style={{ backgroundColor: "#4CAF50", color: "white", borderRadius: "50%", width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "0.85rem", marginRight: "0.75rem", flexShrink: 0 }}>{i + 1}</span>
+                      <li
+                        key={i}
+                        style={{
+                          marginBottom: "0.75rem",
+                          padding: "0.75rem",
+                          backgroundColor: "#F1F8E9",
+                          borderRadius: "8px",
+                          borderLeft: "4px solid #4CAF50",
+                          display: "flex",
+                          alignItems: "flex-start",
+                        }}
+                      >
+                        <span
+                          style={{
+                            backgroundColor: "#4CAF50",
+                            color: "white",
+                            borderRadius: "50%",
+                            width: "24px",
+                            height: "24px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: "bold",
+                            fontSize: "0.85rem",
+                            marginRight: "0.75rem",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {i + 1}
+                        </span>
                         <span dangerouslySetInnerHTML={{ __html: hint }} />
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p style={{ color: "#666", fontStyle: "italic", marginBottom: 0, textAlign: "center" }}>Click "Unlock Hint!" to reveal helpful tips one by one!</p>
+                  <p
+                    style={{
+                      color: "#666",
+                      fontStyle: "italic",
+                      marginBottom: 0,
+                      textAlign: "center",
+                    }}
+                  >
+                    Click "Unlock Hint!" to reveal helpful tips one by one!
+                  </p>
                 )}
               </div>
             )}
             {lesson.expectedOutput && (
-              <div style={{ backgroundColor: "#FFF3E0", padding: "1rem", borderRadius: "12px", border: "3px solid #FF9800" }}>
-                <h6 style={{ color: "#E65100", marginBottom: "0.75rem", fontSize: "1.1rem", fontWeight: "700" }}>What You Should See:</h6>
-                <pre style={{ backgroundColor: "#ffffff", padding: "12px", borderRadius: "8px", marginBottom: 0, border: "2px dashed #FF9800", fontSize: "0.9rem", fontFamily: "monospace", color: "#333", overflowX: "auto" }}>{lesson.expectedOutput}</pre>
+              <div
+                style={{
+                  backgroundColor: "#FFF3E0",
+                  padding: "1rem",
+                  borderRadius: "12px",
+                  border: "3px solid #FF9800",
+                }}
+              >
+                <h6
+                  style={{
+                    color: "#E65100",
+                    marginBottom: "0.75rem",
+                    fontSize: "1.1rem",
+                    fontWeight: "700",
+                  }}
+                >
+                  What You Should See:
+                </h6>
+                <pre
+                  style={{
+                    backgroundColor: "#ffffff",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    marginBottom: 0,
+                    border: "2px dashed #FF9800",
+                    fontSize: "0.9rem",
+                    fontFamily: "monospace",
+                    color: "#333",
+                    overflowX: "auto",
+                  }}
+                >
+                  {lesson.expectedOutput}
+                </pre>
               </div>
             )}
           </div>
@@ -1078,17 +1846,67 @@ export default function DragBoardLesson() {
 
       {/* === Assessment Instructions === */}
       {lesson.type === "assessment" && lesson.currentQuestion && (
-        <div className="assessment-instructions mb-3" style={{ background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", borderRadius: "20px", padding: "1.5rem", boxShadow: "0 8px 16px rgba(240, 147, 251, 0.3)", border: "4px solid #ffffff" }}>
-          <div style={{ backgroundColor: "rgba(255,255,255,0.95)", borderRadius: "15px", padding: "1rem" }}>
+        <div
+          className="assessment-instructions mb-3"
+          style={{
+            background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+            borderRadius: "20px",
+            padding: "1.5rem",
+            boxShadow: "0 8px 16px rgba(240, 147, 251, 0.3)",
+            border: "4px solid #ffffff",
+          }}
+        >
+          <div
+            style={{ backgroundColor: "rgba(255,255,255,0.95)", borderRadius: "15px", padding: "1rem" }}
+          >
             {lesson.isAIReview && (
-              <div style={{ background: "#FFF3E0", border: "2px solid #FF9800", borderRadius: "12px", padding: "0.5rem 1rem", marginBottom: "1rem", fontSize: "0.85rem", color: "#E65100", fontWeight: "600" }}>
+              <div
+                style={{
+                  background: "#FFF3E0",
+                  border: "2px solid #FF9800",
+                  borderRadius: "12px",
+                  padding: "0.5rem 1rem",
+                  marginBottom: "1rem",
+                  fontSize: "0.85rem",
+                  color: "#E65100",
+                  fontWeight: "600",
+                }}
+              >
                 🤖 AI Review Assessment
               </div>
             )}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", paddingBottom: "0.75rem", borderBottom: "3px dashed #f5576c" }}>
-              <h5 style={{ color: "#f5576c", margin: 0, fontSize: "1.3rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "1px" }}>{lesson.title}</h5>
-              {/* ── FIX: use lesson.totalQuestions (set once at init) for the total ── */}
-              <div style={{ background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", padding: "8px 16px", borderRadius: "25px", fontSize: "0.9rem", fontWeight: "700", color: "#ffffff" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "1rem",
+                paddingBottom: "0.75rem",
+                borderBottom: "3px dashed #f5576c",
+              }}
+            >
+              <h5
+                style={{
+                  color: "#f5576c",
+                  margin: 0,
+                  fontSize: "1.3rem",
+                  fontWeight: "700",
+                  textTransform: "uppercase",
+                  letterSpacing: "1px",
+                }}
+              >
+                {lesson.title}
+              </h5>
+              <div
+                style={{
+                  background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+                  padding: "8px 16px",
+                  borderRadius: "25px",
+                  fontSize: "0.9rem",
+                  fontWeight: "700",
+                  color: "#ffffff",
+                }}
+              >
                 Question {(lesson.answered?.length || 0) + 1} of {lesson.totalQuestions || 1}
               </div>
             </div>
@@ -1096,35 +1914,158 @@ export default function DragBoardLesson() {
               const q = lesson.currentQuestion;
               return (
                 <div>
-                  <div style={{ backgroundColor: "#E3F2FD", padding: "1rem", borderRadius: "12px", marginBottom: "1rem", border: "3px dashed #2196F3", color: "#333" }}>
+                  <div
+                    style={{
+                      backgroundColor: "#E3F2FD",
+                      padding: "1rem",
+                      borderRadius: "12px",
+                      marginBottom: "1rem",
+                      border: "3px dashed #2196F3",
+                      color: "#333",
+                    }}
+                  >
                     <div dangerouslySetInnerHTML={{ __html: q.instructions }} />
                   </div>
                   {q.hints?.length > 0 && (
-                    <div style={{ backgroundColor: "#FFF9C4", padding: "1rem", borderRadius: "12px", marginBottom: "1rem", border: "3px solid #FFC107" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-                        <h6 style={{ color: "#F57F17", margin: 0, fontSize: "1.1rem", fontWeight: "700" }}>Need Help? ({revealedHints}/{q.hints.length} unlocked)</h6>
+                    <div
+                      style={{
+                        backgroundColor: "#FFF9C4",
+                        padding: "1rem",
+                        borderRadius: "12px",
+                        marginBottom: "1rem",
+                        border: "3px solid #FFC107",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: "0.75rem",
+                        }}
+                      >
+                        <h6
+                          style={{
+                            color: "#F57F17",
+                            margin: 0,
+                            fontSize: "1.1rem",
+                            fontWeight: "700",
+                          }}
+                        >
+                          Need Help? ({revealedHints}/{q.hints.length} unlocked)
+                        </h6>
                         {revealedHints < q.hints.length && (
-                          <button onClick={() => setRevealedHints((prev) => Math.min(prev + 1, q.hints.length))} style={{ background: "linear-gradient(135deg, #FFC107 0%, #FFD54F 100%)", color: "#333", border: "none", borderRadius: "25px", padding: "8px 16px", fontSize: "0.9rem", cursor: "pointer", fontWeight: "700" }}>Unlock Hint!</button>
+                          <button
+                            onClick={() =>
+                              setRevealedHints((prev) => Math.min(prev + 1, q.hints.length))
+                            }
+                            style={{
+                              background: "linear-gradient(135deg, #FFC107 0%, #FFD54F 100%)",
+                              color: "#333",
+                              border: "none",
+                              borderRadius: "25px",
+                              padding: "8px 16px",
+                              fontSize: "0.9rem",
+                              cursor: "pointer",
+                              fontWeight: "700",
+                            }}
+                          >
+                            Unlock Hint!
+                          </button>
                         )}
                       </div>
                       {revealedHints > 0 ? (
-                        <ul style={{ marginBottom: 0, paddingLeft: 0, listStyleType: "none", color: "#333" }}>
+                        <ul
+                          style={{
+                            marginBottom: 0,
+                            paddingLeft: 0,
+                            listStyleType: "none",
+                            color: "#333",
+                          }}
+                        >
                           {q.hints.slice(0, revealedHints).map((hint, i) => (
-                            <li key={i} style={{ marginBottom: "0.75rem", padding: "0.75rem", backgroundColor: "#FFFDE7", borderRadius: "8px", borderLeft: "4px solid #FFC107", display: "flex", alignItems: "flex-start" }}>
-                              <span style={{ backgroundColor: "#FFC107", color: "#333", borderRadius: "50%", width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "0.85rem", marginRight: "0.75rem", flexShrink: 0 }}>{i + 1}</span>
+                            <li
+                              key={i}
+                              style={{
+                                marginBottom: "0.75rem",
+                                padding: "0.75rem",
+                                backgroundColor: "#FFFDE7",
+                                borderRadius: "8px",
+                                borderLeft: "4px solid #FFC107",
+                                display: "flex",
+                                alignItems: "flex-start",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  backgroundColor: "#FFC107",
+                                  color: "#333",
+                                  borderRadius: "50%",
+                                  width: "24px",
+                                  height: "24px",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontWeight: "bold",
+                                  fontSize: "0.85rem",
+                                  marginRight: "0.75rem",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {i + 1}
+                              </span>
                               <span dangerouslySetInnerHTML={{ __html: hint }} />
                             </li>
                           ))}
                         </ul>
                       ) : (
-                        <p style={{ color: "#666", fontStyle: "italic", marginBottom: 0, textAlign: "center" }}>Click "Unlock Hint!" to reveal helpful tips one by one!</p>
+                        <p
+                          style={{
+                            color: "#666",
+                            fontStyle: "italic",
+                            marginBottom: 0,
+                            textAlign: "center",
+                          }}
+                        >
+                          Click "Unlock Hint!" to reveal helpful tips one by one!
+                        </p>
                       )}
                     </div>
                   )}
                   {q.expectedOutput && (
-                    <div style={{ backgroundColor: "#E1F5FE", padding: "1rem", borderRadius: "12px", border: "3px solid #03A9F4" }}>
-                      <h6 style={{ color: "#01579B", marginBottom: "0.75rem", fontSize: "1.1rem", fontWeight: "700" }}>What You Should See:</h6>
-                      <pre style={{ backgroundColor: "#ffffff", padding: "12px", borderRadius: "8px", marginBottom: 0, border: "2px dashed #03A9F4", fontSize: "0.9rem", fontFamily: "monospace", color: "#333", overflowX: "auto" }}>{q.expectedOutput}</pre>
+                    <div
+                      style={{
+                        backgroundColor: "#E1F5FE",
+                        padding: "1rem",
+                        borderRadius: "12px",
+                        border: "3px solid #03A9F4",
+                      }}
+                    >
+                      <h6
+                        style={{
+                          color: "#01579B",
+                          marginBottom: "0.75rem",
+                          fontSize: "1.1rem",
+                          fontWeight: "700",
+                        }}
+                      >
+                        What You Should See:
+                      </h6>
+                      <pre
+                        style={{
+                          backgroundColor: "#ffffff",
+                          padding: "12px",
+                          borderRadius: "8px",
+                          marginBottom: 0,
+                          border: "2px dashed #03A9F4",
+                          fontSize: "0.9rem",
+                          fontFamily: "monospace",
+                          color: "#333",
+                          overflowX: "auto",
+                        }}
+                      >
+                        {q.expectedOutput}
+                      </pre>
                     </div>
                   )}
                 </div>
@@ -1148,14 +2089,34 @@ export default function DragBoardLesson() {
             <img src="/assets/images/equalto.png" data-type="equal" draggable alt="Equal" />
             <img src="/assets/images/notequal.png" data-type="notequal" draggable alt="Not Equal" />
             <img src="/assets/images/lessthan.png" data-type="less" draggable alt="Less Than" />
-            <img src="/assets/images/lessthanequal.png" data-type="lessequal" draggable alt="Less or Equal" />
-            <img src="/assets/images/greaterthan.png" data-type="greater" draggable alt="Greater Than" />
-            <img src="/assets/images/greaterthanequal.png" data-type="greaterequal" draggable alt="Greater or Equal" />
+            <img
+              src="/assets/images/lessthanequal.png"
+              data-type="lessequal"
+              draggable
+              alt="Less or Equal"
+            />
+            <img
+              src="/assets/images/greaterthan.png"
+              data-type="greater"
+              draggable
+              alt="Greater Than"
+            />
+            <img
+              src="/assets/images/greaterthanequal.png"
+              data-type="greaterequal"
+              draggable
+              alt="Greater or Equal"
+            />
             <img src="/assets/images/if.png" data-type="if" draggable alt="If" />
             <img src="/assets/images/elif.png" data-type="elif" draggable alt="Elif" />
             <img src="/assets/images/else.png" data-type="else" draggable alt="Else" />
             <img src="/assets/images/while.png" data-type="while" draggable alt="While" />
-            <img src="/assets/images/do_while.png" data-type="do-while" draggable="true" alt="Do While Loop" />
+            <img
+              src="/assets/images/do_while.png"
+              data-type="do-while"
+              draggable="true"
+              alt="Do While Loop"
+            />
             <img src="/assets/images/for.png" data-type="for" draggable="true" alt="For Loop" />
           </div>
         </div>
@@ -1163,19 +2124,35 @@ export default function DragBoardLesson() {
         <div className="workspace">
           <div className="whiteboard-wrap">
             <div id="whiteboard" className="whiteboard">
-              <div id="trashCan" className="trash-can">🗑️</div>
+              <div id="trashCan" className="trash-can">
+                🗑️
+              </div>
             </div>
           </div>
         </div>
 
         <div className="right-panel">
           {(lesson.type === "activity" || lesson.type === "assessment") && (
-            <div style={{ fontSize: "1.3rem", fontWeight: "700", color: "#e53935", marginBottom: "1rem", textAlign: "center", padding: "0.75rem", backgroundColor: "#fff3e0", borderRadius: "12px", border: "3px solid #ff9800" }}>
+            <div
+              style={{
+                fontSize: "1.3rem",
+                fontWeight: "700",
+                color: "#e53935",
+                marginBottom: "1rem",
+                textAlign: "center",
+                padding: "0.75rem",
+                backgroundColor: "#fff3e0",
+                borderRadius: "12px",
+                border: "3px solid #ff9800",
+              }}
+            >
               ⏱ Time Left: {formatTime(timeLeft)}
             </div>
           )}
           <div className="code-panel">
-            <button id="runButton" className="run-button">{actionButtonText}</button>
+            <button id="runButton" className="run-button">
+              {actionButtonText}
+            </button>
             <div>Source Code (preview)</div>
             <pre id="codeArea">/* Build expressions on the whiteboard */</pre>
           </div>
@@ -1190,37 +2167,98 @@ export default function DragBoardLesson() {
 
       {/* === Lesson Modal === */}
       {isLesson && showLessonModal && (
-        <Modal style={{ position: "fixed", top: "70px" }} show={showLessonModal} backdrop="static" size="lg">
-          <Modal.Header><Modal.Title>{lesson.title}</Modal.Title></Modal.Header>
-          <Modal.Body key={lesson.currentContentIndex} style={{ maxHeight: "65vh", overflowY: "auto", padding: "1.5rem", backgroundColor: "#FFF8F2", fontFamily: "'Comic Sans MS', cursive" }}>
+        <Modal
+          style={{ position: "fixed", top: "70px" }}
+          show={showLessonModal}
+          backdrop="static"
+          size="lg"
+        >
+          <Modal.Header>
+            <Modal.Title>{lesson.title}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body
+            key={lesson.currentContentIndex}
+            style={{
+              maxHeight: "65vh",
+              overflowY: "auto",
+              padding: "1.5rem",
+              backgroundColor: "#FFF8F2",
+              fontFamily: "'Comic Sans MS', cursive",
+            }}
+          >
             <div className="typing-container">{renderLessonContent()}</div>
           </Modal.Body>
           <Modal.Footer className="d-flex justify-content-between">
-            <Button variant="secondary" onClick={handlePreviousContent} disabled={lesson.currentContentIndex === 0}>← Previous</Button>
+            <Button
+              variant="secondary"
+              onClick={handlePreviousContent}
+              disabled={lesson.currentContentIndex === 0}
+            >
+              ← Previous
+            </Button>
             <Button variant="primary" onClick={handleNextContent}>
-              {lesson.currentContentIndex >= lesson.contents.length ? "Finish Lesson" : "Next →"}
+              {lesson.currentContentIndex >= lesson.contents.length
+                ? "Finish Lesson"
+                : "Next →"}
             </Button>
           </Modal.Footer>
         </Modal>
       )}
 
       {/* === Activity Modal === */}
-      <Modal show={showActivityModal} style={{ position: "fixed", top: "140px" }} backdrop="static" size="lg">
-        <Modal.Header><Modal.Title>Activity</Modal.Title></Modal.Header>
-        <Modal.Body style={{ maxHeight: "65vh", overflowY: "auto", padding: "1.5rem", backgroundColor: "#FFF8F2", fontFamily: "'Comic Sans MS', cursive", textAlign: "center" }}>
+      <Modal
+        show={showActivityModal}
+        style={{ position: "fixed", top: "140px" }}
+        backdrop="static"
+        size="lg"
+      >
+        <Modal.Header>
+          <Modal.Title>Activity</Modal.Title>
+        </Modal.Header>
+        <Modal.Body
+          style={{
+            maxHeight: "65vh",
+            overflowY: "auto",
+            padding: "1.5rem",
+            backgroundColor: "#FFF8F2",
+            fontFamily: "'Comic Sans MS', cursive",
+            textAlign: "center",
+          }}
+        >
           <p className="typing-line">{activityText}</p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="primary" onClick={handleActivityNext}>{activitySlide === 0 ? "Next →" : "Proceed"}</Button>
+          <Button variant="primary" onClick={handleActivityNext}>
+            {activitySlide === 0 ? "Next →" : "Proceed"}
+          </Button>
         </Modal.Footer>
       </Modal>
 
       {/* === Congrats Modal === */}
-      <Modal style={{ position: "fixed", top: "40px" }} show={showCongratsModal} backdrop="static" size="lg">
-        <Modal.Header><Modal.Title>🎉 Congratulations!</Modal.Title></Modal.Header>
-        <Modal.Body style={{ maxHeight: "65vh", overflowY: "auto", padding: "1.5rem", backgroundColor: "#FFF8F2", fontFamily: "'Comic Sans MS', cursive", textAlign: "center" }}>
+      <Modal
+        style={{ position: "fixed", top: "40px" }}
+        show={showCongratsModal}
+        backdrop="static"
+        size="lg"
+      >
+        <Modal.Header>
+          <Modal.Title>🎉 Congratulations!</Modal.Title>
+        </Modal.Header>
+        <Modal.Body
+          style={{
+            maxHeight: "65vh",
+            overflowY: "auto",
+            padding: "1.5rem",
+            backgroundColor: "#FFF8F2",
+            fontFamily: "'Comic Sans MS', cursive",
+            textAlign: "center",
+          }}
+        >
           <h3>🎉 Well Done!</h3>
-          <p>You completed this {lesson?.type === "assessment" ? "assessment" : "activity"} successfully!</p>
+          <p>
+            You completed this{" "}
+            {lesson?.type === "assessment" ? "assessment" : "activity"} successfully!
+          </p>
           {lesson?.isAIReview && lesson?.type === "activity" && (
             <p style={{ color: "#667eea", fontWeight: "bold" }}>
               🌟 Great job on the review activity! Now let's test what you learned!
@@ -1228,7 +2266,8 @@ export default function DragBoardLesson() {
           )}
           {lesson?.isAIReview && lesson?.type === "assessment" && (
             <p style={{ color: "#4CAF50", fontWeight: "bold" }}>
-              🌟 Amazing! You've completed your AI review session! Ready to go back and try again?
+              🌟 Amazing! You've completed your AI review session! Ready to go back and try
+              again?
             </p>
           )}
         </Modal.Body>
@@ -1237,7 +2276,11 @@ export default function DragBoardLesson() {
             variant="primary"
             onClick={() => {
               setShowCongratsModal(false);
-              if (lesson?.isAIReview && lesson?.type === "activity" && aiReviewData?.reviewContent?.assessmentQuestions) {
+              if (
+                lesson?.isAIReview &&
+                lesson?.type === "activity" &&
+                aiReviewData?.reviewContent?.assessmentQuestions
+              ) {
                 setShowAIReviewPanel(true);
                 setAiReviewStep("assessment");
               } else if (lesson?.isAIReview && lesson?.type === "assessment") {
@@ -1247,7 +2290,9 @@ export default function DragBoardLesson() {
               }
             }}
           >
-            {lesson?.isAIReview && lesson?.type === "activity" && aiReviewData?.reviewContent?.assessmentQuestions
+            {lesson?.isAIReview &&
+            lesson?.type === "activity" &&
+            aiReviewData?.reviewContent?.assessmentQuestions
               ? "Continue to Assessment! 📝"
               : lesson?.isAIReview && lesson?.type === "assessment"
               ? "Back to Lesson! 🏠"
@@ -1258,31 +2303,91 @@ export default function DragBoardLesson() {
 
       {/* === Answer Modal === */}
       <Modal show={showAnswerModal} backdrop="static" size="lg" style={{ top: "100px" }}>
-        <Modal.Header><Modal.Title>Correct Answer</Modal.Title></Modal.Header>
-        <Modal.Body style={{ maxHeight: "65vh", overflowY: "auto", padding: "1.5rem", backgroundColor: "#FFF8F2", fontFamily: "'Comic Sans MS', cursive", textAlign: "center" }}>
+        <Modal.Header>
+          <Modal.Title>Correct Answer</Modal.Title>
+        </Modal.Header>
+        <Modal.Body
+          style={{
+            maxHeight: "65vh",
+            overflowY: "auto",
+            padding: "1.5rem",
+            backgroundColor: "#FFF8F2",
+            fontFamily: "'Comic Sans MS', cursive",
+            textAlign: "center",
+          }}
+        >
           <h5>Required Data Types:</h5>
-          <ul>{assessmentAnswer.dataTypesRequired?.map((dt, i) => <li key={i}>{dt}</li>)}</ul>
+          <ul>
+            {assessmentAnswer.dataTypesRequired?.map((dt, i) => (
+              <li key={i}>{dt}</li>
+            ))}
+          </ul>
           {assessmentAnswer.expectedOutput && (
             <>
               <h5>Expected Output:</h5>
-              <pre style={{ backgroundColor: "#f4f4f4", padding: "10px", borderRadius: "8px" }}>{assessmentAnswer.expectedOutput}</pre>
+              <pre style={{ backgroundColor: "#f4f4f4", padding: "10px", borderRadius: "8px" }}>
+                {assessmentAnswer.expectedOutput}
+              </pre>
             </>
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="primary" onClick={() => { setShowAnswerModal(false); navigate(`/lessons/${lessonId}`); }}>Continue</Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setShowAnswerModal(false);
+              navigate(`/lessons/${lessonId}`);
+            }}
+          >
+            Continue
+          </Button>
         </Modal.Footer>
       </Modal>
 
       {/* === Character === */}
-      {(showLessonModal || showActivityModal || showCongratsModal) && lesson?.type !== "assessment" && (
-        <div style={{ position: "fixed", bottom: "-50px", left: "20px", zIndex: 2000, pointerEvents: "none" }}>
-          <img src={characterImg} alt="Character" style={{ width: "420px", height: "auto", animation: "bounce 2s infinite ease-in-out", filter: "drop-shadow(3px 3px 8px rgba(0,0,0,0.3))" }} />
-        </div>
-      )}
+      {(showLessonModal || showActivityModal || showCongratsModal) &&
+        lesson?.type !== "assessment" && (
+          <div
+            style={{
+              position: "fixed",
+              bottom: "-50px",
+              left: "20px",
+              zIndex: 2000,
+              pointerEvents: "none",
+            }}
+          >
+            <img
+              src={characterImg}
+              alt="Character"
+              style={{
+                width: "420px",
+                height: "auto",
+                animation: "bounce 2s infinite ease-in-out",
+                filter: "drop-shadow(3px 3px 8px rgba(0,0,0,0.3))",
+              }}
+            />
+          </div>
+        )}
       {showCongratsModal && lesson?.type === "assessment" && (
-        <div style={{ position: "fixed", bottom: "-50px", left: "20px", zIndex: 2000, pointerEvents: "none" }}>
-          <img src={characterImg} alt="Character" style={{ width: "420px", height: "auto", animation: "bounce 2s infinite ease-in-out", filter: "drop-shadow(3px 3px 8px rgba(0,0,0,0.3))" }} />
+        <div
+          style={{
+            position: "fixed",
+            bottom: "-50px",
+            left: "20px",
+            zIndex: 2000,
+            pointerEvents: "none",
+          }}
+        >
+          <img
+            src={characterImg}
+            alt="Character"
+            style={{
+              width: "420px",
+              height: "auto",
+              animation: "bounce 2s infinite ease-in-out",
+              filter: "drop-shadow(3px 3px 8px rgba(0,0,0,0.3))",
+            }}
+          />
         </div>
       )}
 

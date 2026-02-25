@@ -4,13 +4,23 @@ import LessonMaterial from "../model/LessonMaterial.js";
 
 export const createLesson = async (req, res) => {
   try {
-    const { title, description, topic, order } = req.body;
+    const { title, description, topic } = req.body;
 
-    const lesson = new Lesson({ title, description, topic, order });
-    await lesson.save();
+    // 🔥 Find highest current order
+    const lastLesson = await Lesson.findOne().sort({ order: -1 });
+
+    const nextOrder = lastLesson ? lastLesson.order + 1 : 1;
+
+    const lesson = await Lesson.create({
+      title,
+      description,
+      topic,
+      order: nextOrder,
+    });
 
     res.status(201).json({ message: "Lesson added successfully", lesson });
   } catch (error) {
+    console.error("CREATE ERROR:", error);
     res.status(400).json({ error: error.message });
   }
 };

@@ -148,26 +148,37 @@ function LessonList() {
   }, [items]);
 
   const handleItemClick = async (item) => {
-    const itemId = item._id || item.id;
-    if (!itemId) return;
+  const itemId = item._id || item.id;
+  if (!itemId) return;
 
-    if (item.type === "assessment") {
+  if (item.type === "assessment") {
+    try {
       const token = localStorage.getItem("token");
+
       const res = await axios.get(
         `http://localhost:5000/api/assessments/${itemId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      const assessment = res.data;
-      const shuffled = [...assessment.questions].sort(() => Math.random() - 0.5);
-      const selected = shuffled.slice(0, 5);
 
+      const assessment = res.data;
+
+      // 🚀 DO NOT SLICE TO 5 HERE
+      // Send the FULL question bank
       navigate(`/lessons/${lessonId}/${itemId}`, {
-        state: { assessment, questions: selected },
+        state: {
+          assessment,
+          questions: assessment.questions, // full bank
+        },
       });
-    } else {
-      navigate(`/lessons/${lessonId}/${itemId}`);
+
+    } catch (err) {
+      console.error("Failed to load assessment:", err);
     }
-  };
+
+  } else {
+    navigate(`/lessons/${lessonId}/${itemId}`);
+  }
+};
 
   if (userLoading || loadingData)
     return (
