@@ -127,6 +127,10 @@ export const checkNeedsReview = async (req, res) => {
 // ─────────────────────────────────────────────
 export const generateReviewContent = async (req, res) => {
   try {
+    console.log("Incoming body:", req.body);
+
+    const lesson = await Lesson.findById(req.body.lessonId);
+    console.log("Lesson found:", lesson);
     console.log("🎓 [AI] Generating review content");
     const { userId, lessonId, missingTypes } = req.body;
 

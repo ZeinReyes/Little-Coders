@@ -47,3 +47,5 @@ mongoose
 
 // ✅ Start Server
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+console.log("🔑 OPENROUTER_API_KEY loaded:", process.env.OPENROUTER_API_KEY);
