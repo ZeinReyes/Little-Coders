@@ -7,6 +7,8 @@ import UserFooter from "../../component/userFooter";
 import TutorialModal from "../../component/TutorialModal";
 import { AuthContext } from "../../context/authContext";
 import LoadingScreen from "../../component/LoadingScreen";
+import { playLessonListSound, stopLessonListSound } from "../../utils/sfx";
+
 
 function ModuleList() {
   const { user, refreshUser, loading: userLoading } = useContext(AuthContext);
@@ -19,6 +21,19 @@ function ModuleList() {
   const [completedLessons, setCompletedLessons] = useState(new Set());
   const navigate = useNavigate();
 
+  useEffect(() => {
+        const unlockAudio = () => {
+          playLessonListSound(); // ✅ play lesson list music
+          window.removeEventListener("click", unlockAudio);
+        };
+      
+        window.addEventListener("click", unlockAudio);
+      
+        return () => {
+          window.removeEventListener("click", unlockAudio);
+          stopLessonListSound(); // ✅ stop lesson list music when leaving page
+        };
+      }, []);
   // Splash fade effect
   useEffect(() => {
     const timer = setTimeout(() => {

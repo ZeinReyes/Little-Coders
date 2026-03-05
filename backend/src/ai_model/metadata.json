@@ -1,8 +1,8 @@
 {
-  "version": 1,
-  "sampleCount": 60,
-  "realStudentSamples": 29,
-  "accuracy": "100.0%",
-  "trainedAt": "2026-02-25T07:09:52.131Z",
-  "newSessionsSinceRetrain": 9
+  "version": 2,
+  "sampleCount": 93,
+  "realStudentSamples": 33,
+  "accuracy": "97.8%",
+  "trainedAt": "2026-03-05T19:45:01.618Z",
+  "newSessionsSinceRetrain": 0
 }

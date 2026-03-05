@@ -6,6 +6,8 @@ import NavbarComponent from "../../component/userNavbar";
 import UserFooter from "../../component/userFooter";
 import TutorialModal from "../../component/TutorialModal";
 import LoadingScreen from "../../component/LoadingScreen"; // ✅ Added loading screen
+import { playHomePageSound, stopHomePageSound } from "../../utils/sfx";
+
 
 function HomePage() {
   const { user, refreshUser, loading: authLoading, isOnboardingIncomplete } =
@@ -34,6 +36,21 @@ function HomePage() {
   const handleGetStarted = () => {
     navigate(user ? "/module-list" : "/register");
   };
+
+  useEffect(() => {
+    const unlockAudio = () => {
+      playHomePageSound();
+      window.removeEventListener("click", unlockAudio);
+    };
+  
+    window.addEventListener("click", unlockAudio);
+  
+    return () => {
+      window.removeEventListener("click", unlockAudio);
+      stopHomePageSound();
+    };
+  }, []);
+  
 
   // ---------- STYLES ----------
   const pageStyle = {

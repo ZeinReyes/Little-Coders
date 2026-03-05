@@ -4,6 +4,8 @@ import axios from "axios";
 import { Button, Spinner, ProgressBar } from "react-bootstrap";
 import { AuthContext } from "../../context/authContext";
 import TutorialModal from "../../component/TutorialModal";
+import { playLessonListSound, stopLessonListSound } from "../../utils/sfx";
+
 
 /**
  * LessonStatusBar — shown on the LESSON row only.
@@ -89,6 +91,18 @@ function LessonList() {
 
   const { user, loading: userLoading, refreshUser, isOnboardingIncomplete } =
     useContext(AuthContext);
+
+  useEffect(() => {
+    const unlockAudio = () => {
+      playLessonListSound();
+      window.removeEventListener("click", unlockAudio);
+    };
+    window.addEventListener("click", unlockAudio);
+    return () => {
+      window.removeEventListener("click", unlockAudio);
+      stopLessonListSound();
+    };
+  }, []);
 
   useEffect(() => {
     if (!userLoading && isOnboardingIncomplete) setShowTutorial(true);
@@ -193,7 +207,13 @@ function LessonList() {
       lessons.forEach((lesson, i) => {
         const activities = activitiesByMaterial[lesson._id] || [];
 
-        if (lesson.isCompleted && i + 1 < lessons.length) {
+        // ── FIX: only unlock the next lesson when BOTH the lesson material
+        //    AND every one of its activities are completed ──
+        const allActivitiesDone =
+          activities.length === 0 ||
+          activities.every((a) => a.isCompleted);
+
+        if (lesson.isCompleted && allActivitiesDone && i + 1 < lessons.length) {
           unlocked.add(lessons[i + 1]._id);
         }
 
@@ -221,37 +241,30 @@ function LessonList() {
   }, [items]);
 
   const handleItemClick = async (item) => {
-  const itemId = item._id || item.id;
-  if (!itemId) return;
+    const itemId = item._id || item.id;
+    if (!itemId) return;
 
-  if (item.type === "assessment") {
-    try {
-      const token = localStorage.getItem("token");
-
-      const res = await axios.get(
-        `http://localhost:5000/api/assessments/${itemId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      const assessment = res.data;
-
-      // 🚀 DO NOT SLICE TO 5 HERE
-      // Send the FULL question bank
-      navigate(`/lessons/${lessonId}/${itemId}`, {
-        state: {
-          assessment,
-          questions: assessment.questions, // full bank
-        },
-      });
-
-    } catch (err) {
-      console.error("Failed to load assessment:", err);
+    if (item.type === "assessment") {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(
+          `http://localhost:5000/api/assessments/${itemId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const assessment = res.data;
+        navigate(`/lessons/${lessonId}/${itemId}`, {
+          state: {
+            assessment,
+            questions: assessment.questions,
+          },
+        });
+      } catch (err) {
+        console.error("Failed to load assessment:", err);
+      }
+    } else {
+      navigate(`/lessons/${lessonId}/${itemId}`);
     }
-
-  } else {
-    navigate(`/lessons/${lessonId}/${itemId}`);
-  }
-};
+  };
 
   if (userLoading || loadingData)
     return (
@@ -268,31 +281,19 @@ function LessonList() {
 
   const icons = {
     lesson: (
-      <img
-        src="/assets/images/book.png"
-        alt="Lesson"
-        style={{ width: "40px", height: "40px" }}
-      />
+      <img src="/assets/images/book.png" alt="Lesson" style={{ width: "40px", height: "40px" }} />
     ),
     activity: (
-      <img
-        src="/assets/images/task.png"
-        alt="Activity"
-        style={{ width: "40px", height: "40px" }}
-      />
+      <img src="/assets/images/task.png" alt="Activity" style={{ width: "40px", height: "40px" }} />
     ),
     assessment: (
-      <img
-        src="/assets/images/assessment.png"
-        alt="Assessment"
-        style={{ width: "40px", height: "40px" }}
-      />
+      <img src="/assets/images/assessment.png" alt="Assessment" style={{ width: "40px", height: "40px" }} />
     ),
   };
 
   const colors = {
-    lesson: { bg: "#FFF4C1", border: "#FBC02D", text: "#F57C00" },
-    activity: { bg: "#E3F2FD", border: "#42A5F5", text: "#1565C0" },
+    lesson:     { bg: "#FFF4C1", border: "#FBC02D", text: "#F57C00" },
+    activity:   { bg: "#E3F2FD", border: "#42A5F5", text: "#1565C0" },
     assessment: { bg: "#E8F5E9", border: "#81C784", text: "#2E7D32" },
   };
 
@@ -396,14 +397,7 @@ function LessonList() {
           boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            width: "100%",
-            gap: "0",
-          }}
-        >
+        <div style={{ display: "flex", flexDirection: "column", width: "100%", gap: "0" }}>
           <h3 className="my-3">Lessons</h3>
 
           {/* LESSONS + ACTIVITIES */}
@@ -447,28 +441,17 @@ function LessonList() {
                       (e.currentTarget.style.background = lessonStyle.bg)
                     }
                   >
-                    <div
-                      style={{ width: "55px", textAlign: "center", flexShrink: 0 }}
-                    >
+                    <div style={{ width: "55px", textAlign: "center", flexShrink: 0 }}>
                       {icons.lesson}
                       {!isUnlocked && (
-                        <span role="img" aria-label="lock">
-                          {" "}
-                          🔒{" "}
-                        </span>
+                        <span role="img" aria-label="lock"> 🔒 </span>
                       )}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div
-                        style={{
-                          fontSize: "1rem",
-                          fontWeight: "bold",
-                          color: lessonStyle.text,
-                        }}
-                      >
+                      <div style={{ fontSize: "1rem", fontWeight: "bold", color: lessonStyle.text }}>
                         Lesson: {lesson.title}
                       </div>
-                      {/* ── LESSON STATUS BAR (reflects activity completion too) ── */}
+                      {/* LESSON STATUS BAR (reflects activity completion too) */}
                       <LessonStatusBar
                         lessonCompleted={lesson.isCompleted}
                         activities={relatedActivities}
@@ -504,37 +487,17 @@ function LessonList() {
                           (e.currentTarget.style.background = actStyle.bg)
                         }
                       >
-                        <div
-                          style={{
-                            width: "45px",
-                            textAlign: "center",
-                            flexShrink: 0,
-                          }}
-                        >
+                        <div style={{ width: "45px", textAlign: "center", flexShrink: 0 }}>
                           {icons.activity}
                           {!isUnlocked && (
-                            <span role="img" aria-label="lock">
-                              {" "}
-                              🔒{" "}
-                            </span>
+                            <span role="img" aria-label="lock"> 🔒 </span>
                           )}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              fontSize: "0.95rem",
-                              fontWeight: "bold",
-                              color: actStyle.text,
-                            }}
-                          >
+                          <div style={{ fontSize: "0.95rem", fontWeight: "bold", color: actStyle.text }}>
                             Activity: {activity.name}
                           </div>
-                          <div
-                            style={{
-                              fontSize: "0.85rem",
-                              color: activity.isCompleted ? "#4CAF50" : "#9E9E9E",
-                            }}
-                          >
+                          <div style={{ fontSize: "0.85rem", color: activity.isCompleted ? "#4CAF50" : "#9E9E9E" }}>
                             {activity.isCompleted ? "Completed" : "Tap to begin"}
                           </div>
                         </div>
@@ -576,33 +539,17 @@ function LessonList() {
                   (e.currentTarget.style.background = style.bg)
                 }
               >
-                <div
-                  style={{ width: "50px", textAlign: "center", flexShrink: 0 }}
-                >
+                <div style={{ width: "50px", textAlign: "center", flexShrink: 0 }}>
                   {icons.assessment}
                   {!isUnlocked && (
-                    <span role="img" aria-label="lock">
-                      {" "}
-                      🔒{" "}
-                    </span>
+                    <span role="img" aria-label="lock"> 🔒 </span>
                   )}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      fontSize: "1rem",
-                      fontWeight: "bold",
-                      color: style.text,
-                    }}
-                  >
+                  <div style={{ fontSize: "1rem", fontWeight: "bold", color: style.text }}>
                     Assessment: {item.title}
                   </div>
-                  <div
-                    style={{
-                      fontSize: "0.85rem",
-                      color: item.isCompleted ? "#4CAF50" : "#9E9E9E",
-                    }}
-                  >
+                  <div style={{ fontSize: "0.85rem", color: item.isCompleted ? "#4CAF50" : "#9E9E9E" }}>
                     {item.isCompleted ? "Completed" : "Tap to begin"}
                   </div>
                 </div>

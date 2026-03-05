@@ -4,6 +4,18 @@ onBoardingSound.volume = 0.3;
 onBoardingSound.preload = 'auto';
 onBoardingSound.loop = true;
 
+// --- Home Page sound ---
+const homePageSound = new Audio('/assets/sounds/homePage.mp3');
+homePageSound.volume = 0.3;
+homePageSound.preload = 'auto';
+homePageSound.loop = true;
+
+// --- Lesson List sound ---
+const lessonListSound = new Audio('/assets/sounds/lessonlist.mp3');
+lessonListSound.volume = 0.3;
+lessonListSound.preload = 'auto';
+lessonListSound.loop = true;
+
 // --- Activity sound ---
 const activitySound = new Audio('/assets/sounds/activity.mp3');
 activitySound.volume = 0.3;
@@ -51,24 +63,36 @@ const variableSound = new Audio('/assets/sounds/variablesound.mp3');
 variableSound.volume = 0.6;
 variableSound.preload = 'auto';
 
-// --- Helper for instant replay ---
+
 function playSound(audio) {
   try {
     audio.currentTime = 0;
-    audio.play();
+
+    const playPromise = audio.play();
+
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        console.warn("Playback prevented:", err);
+      });
+    }
   } catch (err) {
-    console.warn('Sound playback blocked:', err);
+    console.warn("Sound playback blocked:", err);
   }
 }
 
+
 function stopSound(audio) {
   try {
-    audio.pause();
+    if (!audio.paused) {
+      audio.pause();
+    }
     audio.currentTime = 0;
   } catch (err) {
-    console.warn('Sound stop blocked:', err);
+    console.warn("Sound stop blocked:", err);
   }
 }
+
+
 
 // --- Exported functions ---
 export function playOnBoardingSound() {
@@ -77,6 +101,22 @@ export function playOnBoardingSound() {
 
 export function stopOnBoardingSound() {
   stopSound(onBoardingSound);
+}
+
+export function playHomePageSound() {
+  playSound(homePageSound);
+}
+
+export function stopHomePageSound() {
+  stopSound(homePageSound);
+}
+
+export function playLessonListSound() {
+  playSound(lessonListSound);
+}
+
+export function stopLessonListSound() {
+  stopSound(lessonListSound);
 }
 
 export function playActivitySound() {
