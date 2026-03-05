@@ -74,7 +74,6 @@ const safeParseJSON = (raw) => {
 
 // ─────────────────────────────────────────────
 // RULE-BASED: Check if user needs review
-// Returns the MISSING block types (not concepts)
 // ─────────────────────────────────────────────
 export const checkNeedsReview = async (req, res) => {
   try {
@@ -85,15 +84,13 @@ export const checkNeedsReview = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // Parse missingTypes if it's a string
     let parsedMissingTypes = [];
     if (missingTypes) {
-      parsedMissingTypes = typeof missingTypes === 'string' 
-        ? JSON.parse(missingTypes) 
+      parsedMissingTypes = typeof missingTypes === "string"
+        ? JSON.parse(missingTypes)
         : missingTypes;
     }
 
-    // ✅ RULE: If currentFailures >= 2, user needs review
     const needsReview = currentFailures >= 2;
 
     if (!needsReview) {
@@ -103,16 +100,14 @@ export const checkNeedsReview = async (req, res) => {
       });
     }
 
-    // ✅ User needs review — return the missing block types
     const uniqueMissingTypes = [...new Set(parsedMissingTypes)];
-    
     console.log(`⚠️ User failed ${currentFailures} times, missing types:`, uniqueMissingTypes);
 
     return res.status(200).json({
       needsReview: true,
       currentFailures,
       missingTypes: uniqueMissingTypes,
-      message: `You've tried ${currentFailures} times. These blocks are giving you trouble: ${uniqueMissingTypes.join(', ')}. Want a quick review lesson? 📚`,
+      message: `You've tried ${currentFailures} times. Want a quick review? 📚`,
     });
 
   } catch (err) {
@@ -123,14 +118,10 @@ export const checkNeedsReview = async (req, res) => {
 
 // ─────────────────────────────────────────────
 // AI GENERATION: Create review lesson + activity + assessment
-// Based on the specific missing block types
+// Short, child-friendly content for ages 8-12
 // ─────────────────────────────────────────────
 export const generateReviewContent = async (req, res) => {
   try {
-    console.log("Incoming body:", req.body);
-
-    const lesson = await Lesson.findById(req.body.lessonId);
-    console.log("Lesson found:", lesson);
     console.log("🎓 [AI] Generating review content");
     const { userId, lessonId, missingTypes } = req.body;
 
@@ -144,173 +135,154 @@ export const generateReviewContent = async (req, res) => {
     }
 
     const blockTypeNames = {
-      print: "Print statements",
-      variable: "Variables",
-      add: "Addition",
-      subtract: "Subtraction",
-      multiply: "Multiplication",
-      divide: "Division",
-      equal: "Equal comparison",
-      notequal: "Not equal comparison",
-      less: "Less than",
-      lessequal: "Less than or equal",
-      greater: "Greater than",
-      greaterequal: "Greater than or equal",
-      if: "If statements",
-      elif: "Elif statements",
-      else: "Else statements",
-      while: "While loops",
-      for: "For loops",
-      "do-while": "Do-while loops",
+      print:        "Print",
+      variable:     "Variables",
+      add:          "Addition",
+      subtract:     "Subtraction",
+      multiply:     "Multiplication",
+      divide:       "Division",
+      equal:        "Equal (==)",
+      notequal:     "Not Equal (!=)",
+      less:         "Less Than (<)",
+      lessequal:    "Less Than or Equal (<=)",
+      greater:      "Greater Than (>)",
+      greaterequal: "Greater Than or Equal (>=)",
+      if:           "If statements",
+      elif:         "Elif statements",
+      else:         "Else statements",
+      while:        "While loops",
+      for:          "For loops",
+      "do-while":   "Do-while loops",
     };
 
     const missingConcepts = missingTypes.map(t => blockTypeNames[t] || t).join(", ");
-
     console.log(`📚 Generating review for: ${missingConcepts}`);
 
-    // ── Ask AI to generate personalized review lesson ──
+    // ── Tighter prompt — shorter output, child-friendly language ──
     const systemPrompt =
-      "You are an expert kids coding teacher for Little Coders, a drag-and-drop Python coding platform. " +
-      "You create simple, fun, personalized review lessons that target specific coding concepts kids struggled with. " +
-      "Keep explanations VERY simple (grade 3-5 level), fun, encouraging, with emojis. " +
-      "Always respond with ONLY valid JSON. No markdown, no code blocks, no extra text.";
+      "You are a fun coding teacher for kids aged 8-12 on Little Coders, a drag-and-drop Python platform. " +
+      "Write SHORT, simple, encouraging content. Use emojis. No big words. No long paragraphs. " +
+      "Each explanation must be 1-2 sentences max. Be like a friendly older sibling, not a textbook. " +
+      "Respond with ONLY valid JSON. No markdown, no code blocks, no extra text.";
 
     const userPrompt = `
-A student is working on "${currentLesson.title}" but is having trouble with these specific blocks:
-${missingConcepts}
+A student is stuck on "${currentLesson.title}" and struggling with: ${missingConcepts}.
 
-Create a SHORT personalized review lesson to help them understand these concepts.
+Write a SHORT review lesson for them. Keep it simple and fun.
 
-Respond with ONLY this JSON:
+Return ONLY this JSON (no extra text):
 {
   "lessonMaterial": {
-    "title": "short catchy title (e.g., 'Let's Master Print Blocks!')",
-    "overview": "1-2 sentences explaining what we'll learn",
+    "title": "Short catchy title with emoji (max 6 words)",
+    "overview": "One sentence. What we'll learn. Use an emoji.",
     "contents": [
-      "First paragraph explaining the concept simply with examples and emojis",
-      "Second paragraph with a simple example or tip"
+      "One simple sentence explaining the concept with a fun example. Max 2 sentences. Use emojis.",
+      "One helpful tip or trick. Max 2 sentences. Use emojis."
     ]
   },
   "activity": {
-    "name": "activity name (e.g., 'Practice Using Print')",
-    "instructions": "Clear simple instruction for this practice activity with emoji",
-    "hints": ["hint 1", "hint 2", "hint 3"],
-    "expectedOutput": "exactly what the output should look like",
-    "dataTypesRequired": ["list of required block types from the missing types"],
+    "name": "Activity name (max 5 words)",
+    "instructions": "One clear sentence telling the student exactly what to do. Use an emoji.",
+    "hints": ["Short hint 1", "Short hint 2"],
+    "expectedOutput": "exact fixed output string e.g. Hello! or 5",
+    "dataTypesRequired": ${JSON.stringify(missingTypes)},
     "difficulty": "easy",
     "timeLimit": 180
   },
   "assessmentQuestions": [
     {
-      "instructions": "assessment question 1 instructions with emoji",
-      "hints": ["hint 1", "hint 2"],
-      "expectedOutput": "expected output",
-      "dataTypesRequired": ["required blocks"],
+      "instructions": "One sentence. Clear task. Emoji. Matches expectedOutput exactly.",
+      "hints": ["Short hint 1"],
+      "expectedOutput": "exact fixed output string",
+      "dataTypesRequired": ${JSON.stringify(missingTypes.slice(0, 1))},
       "difficulty": "Easy"
     },
     {
-      "instructions": "assessment question 2 instructions with emoji",
-      "hints": ["hint 1", "hint 2"],
-      "expectedOutput": "expected output",
-      "dataTypesRequired": ["required blocks"],
+      "instructions": "One sentence. Slightly harder task. Emoji. Matches expectedOutput exactly.",
+      "hints": ["Short hint 1"],
+      "expectedOutput": "exact fixed output string",
+      "dataTypesRequired": ${JSON.stringify(missingTypes)},
       "difficulty": "Medium"
     }
   ]
 }
 
-CRITICAL RULES:
-- lessonMaterial.contents must be an array of 2 strings (paragraphs)
-- Each paragraph should be 2-4 sentences, simple language, with emojis
-- activity.dataTypesRequired MUST ONLY include these valid types: ${missingTypes.join(", ")}
-- assessmentQuestions must have exactly 2 questions
-- dataTypesRequired arrays must ONLY use these types: print, variable, add, subtract, multiply, divide, equal, notequal, less, lessequal, greater, greaterequal, if, elif, else, while, for, do-while
-- Keep everything simple and fun for kids ages 8-12
-- NEVER ask the student to print their name, favorite phrase, or anything personal.
-- NEVER use placeholders like "your name" or "your favorite phrase".
-- expectedOutput must always be a fixed literal string like "Hello, World!" or "5".
-- The instructions must clearly match the exact expectedOutput.
-- activity.timeLimit should be 180 seconds (3 minutes)
-- Use lots of encouraging language and emojis!`;
+RULES:
+- contents: exactly 2 strings, max 2 sentences each
+- assessmentQuestions: exactly 2 items
+- dataTypesRequired: only use these → ${missingTypes.join(", ")}
+- expectedOutput: always a fixed literal string, never "your name" or placeholders
+- instructions must match expectedOutput exactly
+- NO long paragraphs. Keep everything SHORT.`;
 
     let reviewData;
     try {
-      const raw  = await callOpenRouter(systemPrompt, userPrompt, 2000);
+      const raw  = await callOpenRouter(systemPrompt, userPrompt, 1200);
       reviewData = safeParseJSON(raw);
       console.log("✅ AI generated review content");
     } catch (err) {
-      console.warn("⚠️  AI generation failed, using structured fallback");
-      
-      // Fallback with basic content based on missing types
+      console.warn("⚠️  AI generation failed, using fallback");
+
       const primaryType = missingTypes[0];
       const conceptName = blockTypeNames[primaryType] || primaryType;
-      
+
+      // Short, child-friendly fallback
       reviewData = {
         lessonMaterial: {
-          title: `Let's Review ${conceptName}! 🎯`,
-          overview: `Having trouble with ${conceptName}? No worries! Let's practice together and make it super easy! 🌟`,
+          title: `Let's Try ${conceptName} Again! 🎯`,
+          overview: `Let's figure out ${conceptName.toLowerCase()} together — it's easier than you think! 🌟`,
           contents: [
-            `${conceptName} can be tricky at first, but once you get the hang of it, it's actually really fun! 🎉 Think of it like building with LEGO blocks - each piece has its own special purpose. When you use ${conceptName.toLowerCase()}, you're telling the computer exactly what to do, step by step! 🤖`,
-            `Here's a helpful tip: Always take your time and read the instructions carefully. If you get stuck, that's totally okay! Even the best programmers take time to think through their code. Remember, every mistake is a chance to learn something new! 💪✨`
-          ]
+            `The ${conceptName.toLowerCase()} block tells the computer what to do. Think of it like giving instructions to a robot! 🤖`,
+            `Tip: drag the ${primaryType} block onto the whiteboard first, then check the expected output below. You've got this! 💪`,
+          ],
         },
         activity: {
           name: `Practice ${conceptName}`,
-          instructions: `Let's practice using ${conceptName.toLowerCase()}! Drag the blocks to create a program that uses ${conceptName.toLowerCase()}. Take your time and try your best! 🚀`,
+          instructions: `Use the ${primaryType} block to create the output shown below! 🚀`,
           hints: [
-            `Remember to use the ${primaryType} block!`,
-            `Read the expected output carefully - that's what your program should create!`,
-            `Take it step by step - one block at a time! 🧩`
+            `Drag the ${primaryType} block onto the whiteboard.`,
+            `Check the expected output — your program should match it exactly!`,
           ],
           expectedOutput: primaryType === "print" ? "Hello!" : "5",
           dataTypesRequired: [primaryType],
           difficulty: "easy",
-          timeLimit: 180
+          timeLimit: 180,
         },
         assessmentQuestions: [
           {
-            instructions: `Show me you can use ${conceptName.toLowerCase()}! Create a simple program using the ${primaryType} block. 🎯`,
-            hints: [
-              `Use the ${primaryType} block`,
-              `Check the expected output below!`
-            ],
+            instructions: `Use the ${primaryType} block to make the output below! 🎯`,
+            hints: [`Use the ${primaryType} block!`],
             expectedOutput: primaryType === "print" ? "Great job!" : "10",
             dataTypesRequired: [primaryType],
-            difficulty: "Easy"
+            difficulty: "Easy",
           },
           {
-            instructions: `Now let's try something a bit more challenging! Use ${conceptName.toLowerCase()} to create the output shown below. 💪`,
-            hints: [
-              `You'll need to use the ${primaryType} block`,
-              `Take your time and read carefully!`
-            ],
+            instructions: `Can you do it again? Make the output below using ${conceptName.toLowerCase()}! 💪`,
+            hints: [`You need the ${primaryType} block.`],
             expectedOutput: primaryType === "print" ? "I can code!" : "15",
             dataTypesRequired: [primaryType],
-            difficulty: "Medium"
-          }
-        ]
+            difficulty: "Medium",
+          },
+        ],
       };
     }
 
-    // ── Return the generated review content ──
     res.status(200).json({
-      currentLessonId: lessonId,
+      currentLessonId:    lessonId,
       currentLessonTitle: currentLesson.title,
       missingTypes,
       reviewContent: {
-        lessonMaterial: reviewData.lessonMaterial,
-        activity: reviewData.activity,
+        lessonMaterial:      reviewData.lessonMaterial,
+        activity:            reviewData.activity,
         assessmentQuestions: reviewData.assessmentQuestions,
       },
       generatedBy: "ai",
-      message: "Review content generated successfully! 🎉"
+      message: "Review content generated! 🎉",
     });
 
   } catch (err) {
     console.error("🔥 Generate review content error:", err);
-    res.status(500).json({ 
-      message: "Failed to generate review content", 
-      error: err.message 
-    });
+    res.status(500).json({ message: "Failed to generate review content", error: err.message });
   }
 };
 

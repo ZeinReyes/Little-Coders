@@ -1,26 +1,6 @@
 import React from "react";
 import { Spinner } from "react-bootstrap";
 
-/**
- * AIReviewPanel
- * Full-page panel rendered instead of the main drag-board when the user
- * accepts an AI review session. Walks through three steps:
- *   "lesson"  → read the AI-generated mini lesson
- *   "activity"→ preview the activity before starting it
- *   (default) → assessment overview before starting it
- *
- * Props:
- *  - loading / error / errorReset
- *  - aiReviewData        : { reviewContent, currentLessonTitle, missingTypes }
- *  - aiReviewStep        : "lesson" | "activity" | "assessment"
- *  - setAiReviewStep
- *  - aiReviewRevealedHints / setAiReviewRevealedHints
- *  - aiRecommendation    : { missingTypes }
- *  - onStartActivity()
- *  - onStartAssessment()
- *  - onBackToActivity()
- *  - onSkip()            : navigate back to lesson list
- */
 export default function AIReviewPanel({
   loading,
   error,
@@ -40,10 +20,12 @@ export default function AIReviewPanel({
   if (loading) {
     return (
       <CenterCard>
-        <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>🤖</div>
-        <h3 style={{ color: "#667eea" }}>AI is creating your personalized lesson...</h3>
-        <p style={{ color: "#888" }}>
-          Teaching you about: {aiRecommendation?.missingTypes?.join(", ")} ✨
+        <div style={{ fontSize: "3.5rem", marginBottom: "0.5rem" }}>🤖</div>
+        <h3 style={{ color: "#667eea", fontSize: "1.2rem", marginBottom: "0.5rem" }}>
+          Getting your lesson ready...
+        </h3>
+        <p style={{ color: "#aaa", fontSize: "0.9rem", marginBottom: "1rem" }}>
+          Working on: <strong>{aiRecommendation?.missingTypes?.join(", ")}</strong>
         </p>
         <Spinner animation="border" variant="primary" />
       </CenterCard>
@@ -55,341 +37,192 @@ export default function AIReviewPanel({
     return (
       <CenterCard>
         <div style={{ fontSize: "3rem" }}>😕</div>
-        <h3 style={{ color: "#e53935" }}>{error}</h3>
-        <PanelButton
-          gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-          onClick={errorReset}
-        >
+        <h3 style={{ color: "#e53935", fontSize: "1.1rem", marginBottom: "1rem" }}>{error}</h3>
+        <Btn gradient="linear-gradient(135deg, #667eea, #764ba2)" onClick={errorReset}>
           Go Back
-        </PanelButton>
+        </Btn>
       </CenterCard>
     );
   }
 
-  const { reviewContent, currentLessonTitle, missingTypes: reviewMissingTypes } =
-    aiReviewData || {};
+  const { reviewContent, currentLessonTitle, missingTypes: reviewMissingTypes } = aiReviewData || {};
   const { lessonMaterial, activity, assessmentQuestions } = reviewContent || {};
 
   // ── Step: Lesson ──
   if (aiReviewStep === "lesson") {
     return (
-      <PanelWrapper>
-        <GradientHeader gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" icon="📚">
-          <small style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.85rem" }}>
-            AI Review Session
-          </small>
-          <h2 style={{ margin: 0, color: "#fff" }}>{lessonMaterial?.title}</h2>
-        </GradientHeader>
+      <Wrap>
+        {/* Header */}
+        <Header gradient="linear-gradient(135deg, #667eea, #764ba2)" icon="📚">
+          <Chip>AI Review</Chip>
+          <h2 style={{ margin: 0, color: "#fff", fontSize: "1.3rem" }}>{lessonMaterial?.title}</h2>
+        </Header>
 
-        <InfoBanner color="#E65100" bg="#FFF3E0" border="#FFE0B2">
-          🎯 Reviewing blocks: <strong>{reviewMissingTypes?.join(", ")}</strong> · From{" "}
-          {currentLessonTitle}
-        </InfoBanner>
+        {/* Topic pill */}
+        <Pill color="#5c35cc" bg="#ede9ff">
+          🎯 Practising: <strong>{reviewMissingTypes?.join(", ")}</strong>
+        </Pill>
 
+        {/* Overview */}
         <Card>
-          <h3 style={{ color: "#667eea", marginBottom: "1rem" }}>📖 Let's Learn Together!</h3>
-          <div
-            style={{
-              background: "#E8F5E9",
-              borderRadius: "12px",
-              padding: "1rem",
-              border: "2px dashed #4CAF50",
-              marginBottom: "1rem",
-            }}
-          >
-            <p style={{ margin: 0, fontWeight: "600", color: "#555" }}>
-              {lessonMaterial?.overview}
-            </p>
-          </div>
-          {lessonMaterial?.contents?.map((para, i) => (
-            <div
-              key={i}
-              style={{
-                background: "#F8F9FF",
-                borderRadius: "12px",
-                padding: "1rem",
-                marginBottom: "0.75rem",
-                border: "2px solid #E3F2FD",
-                lineHeight: "1.7",
-                color: "#333",
-              }}
-            >
-              {para}
-            </div>
-          ))}
+          <SectionLabel color="#667eea">📖 What we'll learn</SectionLabel>
+          <OverviewBox>{lessonMaterial?.overview}</OverviewBox>
         </Card>
 
-        <InfoBanner color="#555" bg="#E8F5E9" border="#A5D6A7">
-          <h4 style={{ color: "#555", marginBottom: "0.5rem" }}>📝 What's next:</h4>
-          <p style={{ color: "#777", margin: 0 }}>
-            1 practice activity + 1 mini assessment to test your understanding!
-          </p>
-        </InfoBanner>
+        {/* Content paragraphs — max 2, keep them short */}
+        {lessonMaterial?.contents?.slice(0, 2).map((para, i) => (
+          <Card key={i} style={{ padding: "1rem 1.25rem" }}>
+            <p style={{ margin: 0, color: "#444", lineHeight: "1.65", fontSize: "0.95rem" }}>
+              {para}
+            </p>
+          </Card>
+        ))}
 
-        <PanelButton
-          gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-          onClick={() => setAiReviewStep("activity")}
-          fullWidth
-        >
+        {/* What's next */}
+        <Pill color="#2e7d32" bg="#e8f5e9">
+          ✅ Next: 1 practice activity + 1 quick quiz
+        </Pill>
+
+        <Btn gradient="linear-gradient(135deg, #667eea, #764ba2)" onClick={() => setAiReviewStep("activity")} full>
           Let's Practice! 🚀
-        </PanelButton>
-
-        <PanelButton
-          style={{ background: "#eee", color: "#666", border: "2px solid #ccc", marginTop: "0.75rem" }}
-          onClick={onBackToActivity}
-          fullWidth
-        >
-          Back to Activity
-        </PanelButton>
-      </PanelWrapper>
+        </Btn>
+        <Btn ghost onClick={onBackToActivity} full>
+          ← Back to Activity
+        </Btn>
+      </Wrap>
     );
   }
 
   // ── Step: Activity Preview ──
   if (aiReviewStep === "activity") {
     return (
-      <PanelWrapper>
-        <GradientHeader gradient="linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)" icon="🏋️">
-          <small style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.85rem" }}>
-            Practice Activity
-          </small>
-          <h2 style={{ margin: 0, color: "#fff" }}>{activity?.name}</h2>
-        </GradientHeader>
+      <Wrap>
+        <Header gradient="linear-gradient(135deg, #4CAF50, #66BB6A)" icon="🏋️">
+          <Chip>Practice Time</Chip>
+          <h2 style={{ margin: 0, color: "#fff", fontSize: "1.3rem" }}>{activity?.name}</h2>
+        </Header>
 
+        {/* Mission */}
         <Card>
-          <h4 style={{ color: "#4CAF50", marginBottom: "0.75rem" }}>📋 Your Mission</h4>
-          <div
-            style={{
-              background: "#FFF9E6",
-              borderRadius: "12px",
-              padding: "1rem",
-              border: "3px dashed #FFC107",
-              color: "#333",
-              marginBottom: "1rem",
-            }}
-          >
-            <p style={{ margin: 0 }}>{activity?.instructions}</p>
-          </div>
+          <SectionLabel color="#4CAF50">📋 Your Mission</SectionLabel>
+          <MissionBox>{activity?.instructions}</MissionBox>
 
           {activity?.expectedOutput && (
-            <div style={{ marginBottom: "1rem" }}>
-              <h5 style={{ color: "#E65100" }}>🎯 Expected Output:</h5>
-              <pre
-                style={{
-                  background: "#f4f4f4",
-                  padding: "12px",
-                  borderRadius: "8px",
-                  border: "2px dashed #FF9800",
-                  fontSize: "0.9rem",
-                  fontFamily: "monospace",
-                  color: "#333",
-                }}
-              >
-                {activity.expectedOutput}
-              </pre>
+            <div style={{ marginTop: "0.75rem" }}>
+              <SectionLabel color="#e65100">🎯 Expected Output</SectionLabel>
+              <pre style={preStyle}>{activity.expectedOutput}</pre>
             </div>
           )}
 
           {activity?.dataTypesRequired?.length > 0 && (
-            <div>
-              <h5 style={{ color: "#5c6bc0" }}>🧩 Blocks you'll need:</h5>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "0.5rem" }}>
-                {activity.dataTypesRequired.map((block, i) => (
-                  <span
-                    key={i}
-                    style={{
-                      background: "#E3F2FD",
-                      border: "2px solid #90CAF9",
-                      borderRadius: "20px",
-                      padding: "4px 14px",
-                      fontSize: "0.85rem",
-                      color: "#1565C0",
-                      fontWeight: "600",
-                    }}
-                  >
-                    {block}
-                  </span>
+            <div style={{ marginTop: "0.75rem" }}>
+              <SectionLabel color="#5c6bc0">🧩 Blocks you'll need</SectionLabel>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "0.4rem" }}>
+                {activity.dataTypesRequired.map((b, i) => (
+                  <BlockTag key={i}>{b}</BlockTag>
                 ))}
               </div>
             </div>
           )}
         </Card>
 
-        {/* Hints section */}
+        {/* Hints */}
         {activity?.hints?.length > 0 && (
-          <div
-            style={{
-              background: "#E8F5E9",
-              border: "3px solid #4CAF50",
-              borderRadius: "16px",
-              padding: "1rem",
-              marginBottom: "1rem",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.75rem" }}>
-              <h5 style={{ margin: 0, color: "#2E7D32" }}>
-                💚 Hints ({aiReviewRevealedHints}/{activity.hints.length} unlocked)
-              </h5>
+          <Card style={{ background: "#f0fff4", border: "2px solid #a5d6a7" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+              <SectionLabel color="#2e7d32" style={{ margin: 0 }}>
+                💡 Hints ({aiReviewRevealedHints}/{activity.hints.length})
+              </SectionLabel>
               {aiReviewRevealedHints < activity.hints.length && (
-                <button
-                  style={{
-                    background: "linear-gradient(135deg, #4CAF50, #66BB6A)",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "20px",
-                    padding: "6px 14px",
-                    cursor: "pointer",
-                    fontFamily: "Comic Sans MS, cursive",
-                    fontWeight: "700",
-                    fontSize: "0.85rem",
-                  }}
-                  onClick={() =>
-                    setAiReviewRevealedHints((p) => Math.min(p + 1, activity.hints.length))
-                  }
-                >
-                  Unlock Hint!
-                </button>
+                <HintBtn onClick={() => setAiReviewRevealedHints(p => Math.min(p + 1, activity.hints.length))}>
+                  Show hint
+                </HintBtn>
               )}
             </div>
             {aiReviewRevealedHints > 0 && (
-              <ul style={{ paddingLeft: 0, listStyle: "none", marginBottom: 0 }}>
+              <ul style={{ paddingLeft: 0, listStyle: "none", margin: 0 }}>
                 {activity.hints.slice(0, aiReviewRevealedHints).map((hint, i) => (
-                  <li
-                    key={i}
-                    style={{
-                      background: "#fff",
-                      borderRadius: "8px",
-                      padding: "0.6rem 0.8rem",
-                      borderLeft: "4px solid #4CAF50",
-                      marginBottom: "0.5rem",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.75rem",
-                      color: "#333",
-                    }}
-                  >
-                    <span
-                      style={{
-                        background: "#4CAF50",
-                        color: "#fff",
-                        borderRadius: "50%",
-                        width: "22px",
-                        height: "22px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: "bold",
-                        fontSize: "0.8rem",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {i + 1}
-                    </span>
-                    {hint}
-                  </li>
+                  <HintItem key={i} num={i + 1}>{hint}</HintItem>
                 ))}
               </ul>
             )}
-          </div>
+          </Card>
         )}
 
-        <InfoBanner color="#F57F17" bg="#FFF8E1" border="#FFE082">
-          ⏱️ <strong>Time limit:</strong> {activity?.timeLimit} seconds (
-          {Math.floor((activity?.timeLimit || 180) / 60)} minutes)
-        </InfoBanner>
+        <Pill color="#f57f17" bg="#fff8e1">
+          ⏱️ Time: {Math.floor((activity?.timeLimit || 180) / 60)} minutes
+        </Pill>
 
-        <PanelButton
-          gradient="linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)"
-          onClick={() => { setAiReviewRevealedHints(0); onStartActivity(); }}
-          fullWidth
-        >
+        <Btn gradient="linear-gradient(135deg, #4CAF50, #66BB6A)" onClick={() => { setAiReviewRevealedHints(0); onStartActivity(); }} full>
           Start Activity! 🎯
-        </PanelButton>
-      </PanelWrapper>
+        </Btn>
+      </Wrap>
     );
   }
 
-  // ── Step: Assessment overview ──
+  // ── Step: Assessment ──
   return (
-    <PanelWrapper>
-      <GradientHeader gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" icon="📝">
-        <small style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.85rem" }}>
-          Mini Assessment
-        </small>
-        <h2 style={{ margin: 0, color: "#fff" }}>Let's Test Your Knowledge!</h2>
-      </GradientHeader>
+    <Wrap>
+      <Header gradient="linear-gradient(135deg, #f093fb, #f5576c)" icon="📝">
+        <Chip>Mini Quiz</Chip>
+        <h2 style={{ margin: 0, color: "#fff", fontSize: "1.3rem" }}>Time to show what you know!</h2>
+      </Header>
 
       <Card>
-        <h4 style={{ color: "#f5576c", marginBottom: "1rem" }}>
-          🎯 Ready to show what you learned?
-        </h4>
-        <p style={{ color: "#555", marginBottom: "1rem" }}>
-          You'll get <strong>{assessmentQuestions?.length} questions</strong> to test your
-          understanding of {reviewMissingTypes?.join(", ")}.
+        <SectionLabel color="#f5576c">🎯 Quick Quiz</SectionLabel>
+        <p style={{ color: "#555", fontSize: "0.95rem", marginBottom: "1rem" }}>
+          <strong>{assessmentQuestions?.length} questions</strong> about{" "}
+          {reviewMissingTypes?.join(", ")}. You've got this! 💪
         </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
           {assessmentQuestions?.map((q, i) => (
-            <div
-              key={i}
-              style={{
-                background: "#F8F9FF",
-                border: "2px solid #E3F2FD",
-                borderRadius: "12px",
-                padding: "0.75rem",
-              }}
-            >
-              <div
-                style={{
-                  display: "inline-block",
-                  background: "#f093fb",
-                  color: "#fff",
-                  borderRadius: "20px",
-                  padding: "4px 12px",
-                  fontSize: "0.75rem",
-                  fontWeight: "bold",
-                }}
-              >
-                Question {i + 1} - {q.difficulty}
-              </div>
-              <p style={{ margin: "0.5rem 0 0", fontSize: "0.9rem", color: "#555" }}>
-                {q.instructions?.slice(0, 80)}...
-              </p>
-            </div>
+            <QuizCard key={i} num={i + 1} difficulty={q.difficulty} text={q.instructions} />
           ))}
         </div>
       </Card>
 
-      <PanelButton
-        gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
-        onClick={onStartAssessment}
-        fullWidth
-      >
-        Start Assessment! 📝
-      </PanelButton>
-
-      <PanelButton
-        style={{ background: "#eee", color: "#666", border: "2px solid #ccc", marginTop: "0.75rem" }}
-        onClick={onSkip}
-        fullWidth
-      >
-        Skip & Go Back to Lesson
-      </PanelButton>
-    </PanelWrapper>
+      <Btn gradient="linear-gradient(135deg, #f093fb, #f5576c)" onClick={onStartAssessment} full>
+        Start Quiz! 📝
+      </Btn>
+      <Btn ghost onClick={onSkip} full>
+        Skip & go back
+      </Btn>
+    </Wrap>
   );
 }
 
-// ── Small layout helpers ──────────────────────────────────────────────────────
+// ── Sub-components ────────────────────────────────────────────────────────────
 
-function PanelWrapper({ children }) {
+function QuizCard({ num, difficulty, text }) {
+  const diffColor = difficulty === "Easy" ? "#4caf50" : difficulty === "Medium" ? "#ff9800" : "#f44336";
   return (
-    <div
-      style={{
-        maxWidth: "760px",
-        margin: "0 auto",
-        padding: "1.5rem",
-        fontFamily: "Comic Sans MS, cursive",
-      }}
-    >
+    <div style={{ background: "#f8f9ff", border: "2px solid #e3f2fd", borderRadius: "12px", padding: "0.7rem 1rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "0.3rem" }}>
+        <span style={{ background: "#f093fb", color: "#fff", borderRadius: "50%", width: "22px", height: "22px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "0.75rem", flexShrink: 0 }}>{num}</span>
+        <span style={{ background: diffColor + "22", color: diffColor, borderRadius: "20px", padding: "2px 10px", fontSize: "0.75rem", fontWeight: "700" }}>{difficulty}</span>
+      </div>
+      <p style={{ margin: 0, fontSize: "0.88rem", color: "#555" }}>{text?.slice(0, 90)}{text?.length > 90 ? "..." : ""}</p>
+    </div>
+  );
+}
+
+function HintItem({ num, children }) {
+  return (
+    <li style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", background: "#fff", borderRadius: "8px", padding: "0.5rem 0.75rem", borderLeft: "4px solid #4CAF50", marginBottom: "0.4rem" }}>
+      <span style={{ background: "#4CAF50", color: "#fff", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "0.75rem", flexShrink: 0, marginTop: "1px" }}>{num}</span>
+      <span style={{ color: "#333", fontSize: "0.9rem" }}>{children}</span>
+    </li>
+  );
+}
+
+// ── Layout primitives ─────────────────────────────────────────────────────────
+
+const fontFamily = "'Comic Sans MS', cursive";
+
+function Wrap({ children }) {
+  return (
+    <div style={{ maxWidth: "680px", margin: "0 auto", padding: "1.25rem", fontFamily }}>
       {children}
     </div>
   );
@@ -397,104 +230,118 @@ function PanelWrapper({ children }) {
 
 function CenterCard({ children }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100vh",
-        fontFamily: "Comic Sans MS, cursive",
-      }}
-    >
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: "24px",
-          padding: "3rem",
-          textAlign: "center",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-          maxWidth: "500px",
-        }}
-      >
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", fontFamily }}>
+      <div style={{ background: "#fff", borderRadius: "24px", padding: "2.5rem", textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.1)", maxWidth: "440px" }}>
         {children}
       </div>
     </div>
   );
 }
 
-function GradientHeader({ gradient, icon, children }) {
+function Header({ gradient, icon, children }) {
   return (
-    <div
-      style={{
-        background: gradient,
-        borderRadius: "20px",
-        padding: "1.5rem",
-        display: "flex",
-        alignItems: "center",
-        gap: "1rem",
-        marginBottom: "1rem",
-      }}
-    >
-      <span style={{ fontSize: "2rem" }}>{icon}</span>
+    <div style={{ background: gradient, borderRadius: "18px", padding: "1.25rem 1.5rem", display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.85rem" }}>
+      <span style={{ fontSize: "1.8rem" }}>{icon}</span>
       <div>{children}</div>
     </div>
   );
 }
 
-function Card({ children }) {
+function Chip({ children }) {
   return (
-    <div
-      style={{
-        background: "#fff",
-        borderRadius: "20px",
-        padding: "1.5rem",
-        boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
-        marginBottom: "1rem",
-      }}
-    >
+    <span style={{ background: "rgba(255,255,255,0.25)", color: "#fff", borderRadius: "20px", padding: "2px 10px", fontSize: "0.75rem", fontWeight: "700", display: "inline-block", marginBottom: "4px" }}>
+      {children}
+    </span>
+  );
+}
+
+function Card({ children, style = {} }) {
+  return (
+    <div style={{ background: "#fff", borderRadius: "16px", padding: "1.25rem", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", marginBottom: "0.85rem", ...style }}>
       {children}
     </div>
   );
 }
 
-function InfoBanner({ children, color, bg, border }) {
+function Pill({ children, color, bg }) {
   return (
-    <div
-      style={{
-        background: bg || "#FFF3E0",
-        border: `2px solid ${border || "#FFE0B2"}`,
-        borderRadius: "12px",
-        padding: "0.75rem 1rem",
-        fontSize: "0.9rem",
-        color: color || "#E65100",
-        marginBottom: "1rem",
-      }}
-    >
+    <div style={{ background: bg || "#ede9ff", border: `2px solid ${color}33`, borderRadius: "10px", padding: "0.6rem 1rem", fontSize: "0.88rem", color, marginBottom: "0.85rem", fontWeight: "600" }}>
       {children}
     </div>
   );
 }
 
-function PanelButton({ children, gradient, onClick, fullWidth, style = {} }) {
+function SectionLabel({ children, color, style = {} }) {
+  return (
+    <p style={{ margin: "0 0 0.4rem", fontWeight: "700", fontSize: "0.85rem", color, textTransform: "uppercase", letterSpacing: "0.04em", ...style }}>
+      {children}
+    </p>
+  );
+}
+
+function OverviewBox({ children }) {
+  return (
+    <div style={{ background: "#e8f5e9", borderRadius: "10px", padding: "0.75rem 1rem", border: "2px dashed #4CAF50", color: "#333", fontSize: "0.95rem", lineHeight: "1.6" }}>
+      {children}
+    </div>
+  );
+}
+
+function MissionBox({ children }) {
+  return (
+    <div style={{ background: "#fff9e6", borderRadius: "10px", padding: "0.75rem 1rem", border: "3px dashed #FFC107", color: "#333", fontSize: "0.95rem", lineHeight: "1.6" }}>
+      {children}
+    </div>
+  );
+}
+
+function BlockTag({ children }) {
+  return (
+    <span style={{ background: "#e3f2fd", border: "2px solid #90caf9", borderRadius: "20px", padding: "3px 12px", fontSize: "0.82rem", color: "#1565c0", fontWeight: "700" }}>
+      {children}
+    </span>
+  );
+}
+
+function HintBtn({ onClick, children }) {
+  return (
+    <button onClick={onClick} style={{ background: "linear-gradient(135deg, #4CAF50, #66BB6A)", color: "#fff", border: "none", borderRadius: "20px", padding: "5px 12px", cursor: "pointer", fontFamily, fontWeight: "700", fontSize: "0.82rem" }}>
+      {children}
+    </button>
+  );
+}
+
+function Btn({ children, gradient, onClick, full, ghost }) {
   return (
     <button
       onClick={onClick}
       style={{
-        background: gradient || "#eee",
-        color: gradient ? "#fff" : "#666",
-        border: "none",
-        borderRadius: "24px",
-        padding: "0.9rem 2rem",
+        background: ghost ? "transparent" : (gradient || "#eee"),
+        color: ghost ? "#999" : (gradient ? "#fff" : "#666"),
+        border: ghost ? "2px solid #ddd" : "none",
+        borderRadius: "22px",
+        padding: "0.8rem 1.75rem",
         fontWeight: "bold",
         cursor: "pointer",
-        fontSize: "1rem",
-        fontFamily: "Comic Sans MS, cursive",
-        width: fullWidth ? "100%" : "auto",
-        marginBottom: fullWidth ? "0.75rem" : 0,
-        ...style,
+        fontSize: "0.95rem",
+        fontFamily,
+        width: full ? "100%" : "auto",
+        marginBottom: "0.6rem",
+        display: "block",
       }}
     >
       {children}
     </button>
   );
 }
+
+const preStyle = {
+  background: "#f4f4f4",
+  padding: "10px 14px",
+  borderRadius: "8px",
+  border: "2px dashed #FF9800",
+  fontSize: "0.88rem",
+  fontFamily: "monospace",
+  color: "#333",
+  margin: 0,
+};
