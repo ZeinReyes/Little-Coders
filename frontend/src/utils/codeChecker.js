@@ -95,7 +95,12 @@ _stderr_value = _stderr.getvalue()
  * Normalize strings for comparison
  */
 function normalizeString(str) {
-  return str.replace(/\s+/g, " ").trim();
+  return str
+    .replace(/\r\n/g, "\n")   // normalize Windows line endings
+    .split("\n")               // split into lines
+    .map((line) => line.trim()) // trim each line individually
+    .join("\n")                // rejoin with newlines preserved
+    .trim();                   // trim the whole string
 }
 
 /**
