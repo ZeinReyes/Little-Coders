@@ -7,7 +7,12 @@ const UserSchema = new mongoose.Schema({
   resetPasswordToken: String,
   resetPasswordExpiry: Date,
   role: { type: String, enum: ['admin', 'user'], default: 'user' },
-  hasCompletedOnboarding: { type: Boolean, default: false }
+  hasCompletedOnboarding: { type: Boolean, default: false },
+
+  // ── Email verification ──
+  isVerified: { type: Boolean, default: false },
+  verificationToken: String,
+  verificationExpiry: Date,
 
 }, { timestamps: true });
 

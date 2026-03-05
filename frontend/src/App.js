@@ -7,6 +7,7 @@ import Login from "./page/authentication/loginPage";
 import Register from "./page/authentication/registerPage";
 import ForgotPassword from "./page/authentication/forgotPasswordPage";
 import ResetPassword from "./page/authentication/resetPasswordPage";
+import VerifyEmail from "./page/authentication/verifyEmailPage";
 
 // User
 import HomePage from "./page/user/homePage";
@@ -67,6 +68,7 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
+      <Route path="/verify-email/:token" element={<VerifyEmail />} />
 
       {/* 🟢 Home is now public — accessible by everyone */}
       <Route path="/contact" element={<ContactPage />} />
