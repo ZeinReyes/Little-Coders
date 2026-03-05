@@ -5,6 +5,79 @@ import { Button, Spinner, ProgressBar } from "react-bootstrap";
 import { AuthContext } from "../../context/authContext";
 import TutorialModal from "../../component/TutorialModal";
 
+/**
+ * LessonStatusBar — shown on the LESSON row only.
+ * Tracks both the lesson material AND its child activities.
+ * - Locked/not started  → "Tap to begin"
+ * - In progress         → animated bar showing X/Y activities done + real %
+ * - All done            → green Completed
+ */
+function LessonStatusBar({ lessonCompleted, activities, isUnlocked, color }) {
+  const totalActivities = activities.length;
+  const completedActivities = activities.filter((a) => a.isCompleted).length;
+  const allActivitiesDone = totalActivities === 0 || completedActivities === totalActivities;
+  const fullyDone = lessonCompleted && allActivitiesDone;
+
+  // percent = lesson step + each activity step
+  const totalSteps = 1 + totalActivities;
+  const completedSteps = (lessonCompleted ? 1 : 0) + completedActivities;
+  const percent = Math.round((completedSteps / totalSteps) * 100);
+
+  if (!isUnlocked) {
+    return (
+      <span style={{ fontSize: "0.85rem", color: "#9E9E9E" }}>
+        Tap to begin
+      </span>
+    );
+  }
+
+  if (fullyDone) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+        <span style={{ fontSize: "0.78rem", color: "#4CAF50", fontWeight: "bold" }}>
+          ✅ Completed
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: "5px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px", width: "160px" }}>
+        <span style={{ fontSize: "0.75rem", color: color, fontWeight: "bold" }}>
+          🔓 In Progress
+        </span>
+        <span style={{ fontSize: "0.72rem", color: "#9E9E9E" }}>{percent}%</span>
+      </div>
+      <div
+        style={{
+          height: "7px",
+          borderRadius: "10px",
+          backgroundColor: "#e0e0e0",
+          overflow: "hidden",
+          width: "160px",
+        }}
+      >
+        <div
+          style={{
+            width: percent > 0 ? `${percent}%` : "8%",
+            height: "100%",
+            borderRadius: "10px",
+            background: `linear-gradient(90deg, ${color}, ${color}88)`,
+            transition: "width 0.4s ease",
+            animation: percent === 0 ? "pulseBar 1.8s ease-in-out infinite" : "none",
+          }}
+        />
+      </div>
+      {totalActivities > 0 && (
+        <span style={{ fontSize: "0.7rem", color: "#9E9E9E", marginTop: "2px", display: "block" }}>
+          {completedActivities}/{totalActivities} activities done
+        </span>
+      )}
+    </div>
+  );
+}
+
 function LessonList() {
   const { lessonId } = useParams();
   const [module, setModule] = useState(null);
@@ -238,6 +311,14 @@ function LessonList() {
         paddingBottom: "10px",
       }}
     >
+      {/* Pulse animation for in-progress bar */}
+      <style>{`
+        @keyframes pulseBar {
+          0%, 100% { opacity: 1; width: 15%; }
+          50%       { opacity: 0.6; width: 30%; }
+        }
+      `}</style>
+
       {showTutorial && (
         <TutorialModal
           show={showTutorial}
@@ -377,7 +458,7 @@ function LessonList() {
                         </span>
                       )}
                     </div>
-                    <div>
+                    <div style={{ flex: 1 }}>
                       <div
                         style={{
                           fontSize: "1rem",
@@ -387,14 +468,13 @@ function LessonList() {
                       >
                         Lesson: {lesson.title}
                       </div>
-                      <div
-                        style={{
-                          fontSize: "0.85rem",
-                          color: lesson.isCompleted ? "#4CAF50" : "#9E9E9E",
-                        }}
-                      >
-                        {lesson.isCompleted ? "Completed" : "Tap to begin"}
-                      </div>
+                      {/* ── LESSON STATUS BAR (reflects activity completion too) ── */}
+                      <LessonStatusBar
+                        lessonCompleted={lesson.isCompleted}
+                        activities={relatedActivities}
+                        isUnlocked={isUnlocked}
+                        color={lessonStyle.text}
+                      />
                     </div>
                   </div>
 
@@ -439,7 +519,7 @@ function LessonList() {
                             </span>
                           )}
                         </div>
-                        <div>
+                        <div style={{ flex: 1 }}>
                           <div
                             style={{
                               fontSize: "0.95rem",
@@ -507,7 +587,7 @@ function LessonList() {
                     </span>
                   )}
                 </div>
-                <div>
+                <div style={{ flex: 1 }}>
                   <div
                     style={{
                       fontSize: "1rem",
