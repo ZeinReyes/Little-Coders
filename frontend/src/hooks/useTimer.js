@@ -1,22 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
-/**
- * useTimer
- * Counts down from `initialSeconds`. Calls `onTimeUp` when it hits 0.
- * Resets automatically whenever `resetKey` changes.
- */
 export function useTimer({ initialSeconds = 300, onTimeUp, resetKey }) {
   const [timeLeft, setTimeLeft] = useState(initialSeconds);
   const [started, setStarted] = useState(false);
+  const [stopped, setStopped] = useState(false);
 
   // Reset when the lesson / question changes
   useEffect(() => {
     setTimeLeft(initialSeconds);
     setStarted(true);
+    setStopped(false); // ← un-stop on new question/lesson
   }, [resetKey, initialSeconds]);
 
   useEffect(() => {
-    if (!started) return;
+    if (!started || stopped) return; // ← pause when stopped
 
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
@@ -30,7 +27,10 @@ export function useTimer({ initialSeconds = 300, onTimeUp, resetKey }) {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [started, resetKey]);
+  }, [started, stopped, resetKey]);
+
+  const stopTimer  = useCallback(() => setStopped(true),  []);
+  const startTimer = useCallback(() => setStopped(false), []);
 
   const formatTime = (seconds) => {
     const m = String(Math.floor(seconds / 60)).padStart(2, "0");
@@ -38,5 +38,5 @@ export function useTimer({ initialSeconds = 300, onTimeUp, resetKey }) {
     return `${m}:${s}`;
   };
 
-  return { timeLeft, formatted: formatTime(timeLeft) };
+  return { timeLeft, formatted: formatTime(timeLeft), stopTimer, startTimer };
 }

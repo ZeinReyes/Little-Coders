@@ -8,8 +8,11 @@ import { AuthContext } from "../context/authContext";
  *  - The "do you need help?" AI prompt
  *  - Fetching & displaying the AI-generated review lesson/activity/assessment
  *  - Handlers to kick off each phase of the review session
+ *
+ * onShowReview — called the moment the review panel opens so the parent
+ *                can stop the timer (passed in from DragBoardLesson).
  */
-export function useAIReview({ lessonId, currentMissingTypes }) {
+export function useAIReview({ lessonId, currentMissingTypes, onShowReview }) {
   const { user } = useContext(AuthContext);
 
   // ── Prompt state ──
@@ -64,6 +67,9 @@ export function useAIReview({ lessonId, currentMissingTypes }) {
       setAiReviewLoading(true);
       setAiReviewError(null);
 
+      // ── Stop the timer the moment the review panel opens ──
+      onShowReview?.();
+
       try {
         const userId = user?._id || user?.id;
         const token = localStorage.getItem("token");
@@ -90,13 +96,11 @@ export function useAIReview({ lessonId, currentMissingTypes }) {
   };
 
   return {
-    // prompt
     aiRecommendation,
     showAIPrompt,
     loadingAI,
     checkIfNeedsReview,
     handleAIDecision,
-    // review panel
     aiReviewData,
     setAiReviewData,
     aiReviewStep,

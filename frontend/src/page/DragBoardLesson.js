@@ -110,6 +110,20 @@ export default function DragBoardLesson() {
     markAssessmentCompleted,
   } = useAssessmentLogic({ lessonId, user });
 
+
+    // ── Timer ──
+  const timerResetKey = `${lesson?._id}-${lesson?.currentQuestion?._id}`;
+  const { formatted: timerFormatted, stopTimer  } = useTimer({
+    initialSeconds: lesson?.timeLimit || 300,
+    resetKey: timerResetKey,
+    onTimeUp: () => {
+      playErrorSound();
+      if (lessonRef.current?.type === "assessment" || lessonRef.current?.type === "activity") {
+        setShowAnswerModal(true);
+      }
+      stopActivitySound();
+    },
+  });
   // ── AI review ──
   const {
     aiRecommendation,
@@ -127,7 +141,7 @@ export default function DragBoardLesson() {
     setShowAIReviewPanel,
     aiReviewRevealedHints,
     setAiReviewRevealedHints,
-  } = useAIReview({ lessonId, currentMissingTypes });
+  } = useAIReview({ lessonId, currentMissingTypes, onShowReview: stopTimer });
 
   // ══════════════════════════════════════════════════════════════════════════════
   // ── Refs — declared before any early returns (Rules of Hooks) ──
@@ -152,20 +166,6 @@ export default function DragBoardLesson() {
   useEffect(() => { currentMissingTypesRef.current = currentMissingTypes; },           [currentMissingTypes]);
   useEffect(() => { questionHistoryRef.current = questionHistory; },                   [questionHistory]);
   useEffect(() => { lessonStartTimeRef.current = lessonStartTime; },                   [lessonStartTime]);
-
-  // ── Timer ──
-  const timerResetKey = `${lesson?._id}-${lesson?.currentQuestion?._id}`;
-  const { formatted: timerFormatted } = useTimer({
-    initialSeconds: lesson?.timeLimit || 300,
-    resetKey: timerResetKey,
-    onTimeUp: () => {
-      playErrorSound();
-      if (lessonRef.current?.type === "assessment" || lessonRef.current?.type === "activity") {
-        setShowAnswerModal(true);
-      }
-      stopActivitySound();
-    },
-  });
 
   // ── Reset state when a new activity starts ──
   useEffect(() => {
@@ -318,6 +318,7 @@ export default function DragBoardLesson() {
 
         if (result.passedAll) {
           playSuccessSound();
+          stopTimer();
           setCurrentMissingTypes([]);
           currentMissingTypesRef.current = [];
 
@@ -452,6 +453,7 @@ export default function DragBoardLesson() {
 
         if (result.passedAll) {
           playSuccessSound();
+          stopTimer();
           if (!currentLesson.isAIReview)
             markCompleted({ lessonType: "activity", lessonStartTime: lessonStartTimeRef.current });
           stopActivitySound();
