@@ -14,7 +14,7 @@ import LessonPlayer from "./page/user/lessonPlayer";
 import ModuleList from "./page/user/moduleList";
 import LessonList from "./page/user/lessonList";
 import DragBoard from "./component/DragBoard";
-import DragBoardLesson from "./component/DragBoardLesson";
+import DragBoardLesson from "./page/DragBoardLesson";
 import ContactPage from "./page/user/contactPage";
 import EditProfile from "./page/user/editProfile";
 import AIReviewSession from "./page/user/aiReviewSession";

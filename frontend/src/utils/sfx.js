@@ -1,8 +1,9 @@
-// --- Activity sound ---
-const onBoardingSound = new Audio('/assets/sounds/activity.mp3');
+// --- Onboarding sound ---
+const onBoardingSound = new Audio('/assets/sounds/onboarding.mp3');
 onBoardingSound.volume = 0.3;
 onBoardingSound.preload = 'auto';
 onBoardingSound.loop = true;
+
 // --- Activity sound ---
 const activitySound = new Audio('/assets/sounds/activity.mp3');
 activitySound.volume = 0.3;
@@ -70,6 +71,14 @@ function stopSound(audio) {
 }
 
 // --- Exported functions ---
+export function playOnBoardingSound() {
+  playSound(onBoardingSound);
+}
+
+export function stopOnBoardingSound() {
+  stopSound(onBoardingSound);
+}
+
 export function playActivitySound() {
   playSound(activitySound);
 }
@@ -112,12 +121,4 @@ export function playSuccessSound() {
 
 export function playVariableSound() {
   playSound(variableSound);
-}
-
-export function playonBoardingSound() {
-  playSound(onBoardingSound);
-}
-
-export function stoponBoardingSound() {
-  stopSound(onBoardingSound);
 }
