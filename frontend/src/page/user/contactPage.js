@@ -40,7 +40,7 @@ function ContactPage() {
     };
 
     try {
-      const res = await axios.post("http://localhost:5000/api/contact", payload);
+      const res = await axios.post("https://little-coders-backend.onrender.com/api/contact", payload);
       if (res.status === 200) {
         setStatus("✅ Message sent successfully!");
         setForm({ firstName: "", lastName: "", email: "", message: "" });

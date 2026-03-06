@@ -17,7 +17,7 @@ export function useAssessmentLogic({ lessonId, user }) {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.post(
-        `http://localhost:5000/api/ai/suggest-difficulty`,
+        `https://little-coders-backend.onrender.com/api/ai/suggest-difficulty`,
         {
           history: updatedHistory,
           currentDifficulty,
@@ -77,7 +77,7 @@ export function useAssessmentLogic({ lessonId, user }) {
       const history = currentHistory || questionHistory;
       if (history.length >= 2) {
         await axios.post(
-          `http://localhost:5000/api/ai/record-session`,
+          `https://little-coders-backend.onrender.com/api/ai/record-session`,
           { completedQuestions: history },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -85,7 +85,7 @@ export function useAssessmentLogic({ lessonId, user }) {
       }
 
       await axios.post(
-        `http://localhost:5000/api/progress/complete-assessment`,
+        `https://little-coders-backend.onrender.com/api/progress/complete-assessment`,
         { userId: user._id, lessonId, assessmentId },
         { headers: { Authorization: `Bearer ${token}` } }
       );

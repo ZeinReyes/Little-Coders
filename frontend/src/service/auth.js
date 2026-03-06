@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API = 'http://localhost:5000/api/auth';
+const API = 'https://little-coders-backend.onrender.com/api/auth';
 
 export const login = async ({ email, password }) => {
     const response = await axios.post(`${API}/login`, { email, password });

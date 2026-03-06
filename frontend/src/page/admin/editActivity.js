@@ -31,7 +31,7 @@ function EditActivity() {
     fetchActivity();
   }, []);
 
-  const API_BASE = "http://localhost:5000/api";
+  const API_BASE = "https://little-coders-backend.onrender.com/api";
 
   const fetchActivity = async () => {
     try {
@@ -105,7 +105,7 @@ function EditActivity() {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `http://localhost:5000/api/activities/${id}`,
+        `https://little-coders-backend.onrender.com/api/activities/${id}`,
         activity,
         { headers: { Authorization: `Bearer ${token}` } }
       );

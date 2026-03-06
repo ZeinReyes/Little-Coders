@@ -38,7 +38,7 @@ export function useAIReview({ lessonId, currentMissingTypes, onShowReview }) {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.post(
-        `http://localhost:5000/api/ai/check-review`,
+        `https://little-coders-backend.onrender.com/api/ai/check-review`,
         {
           userId,
           lessonId,
@@ -74,7 +74,7 @@ export function useAIReview({ lessonId, currentMissingTypes, onShowReview }) {
         const userId = user?._id || user?.id;
         const token = localStorage.getItem("token");
         const res = await axios.post(
-          `http://localhost:5000/api/ai/generate-review`,
+          `https://little-coders-backend.onrender.com/api/ai/generate-review`,
           {
             userId,
             lessonId,

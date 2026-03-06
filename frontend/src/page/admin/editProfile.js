@@ -27,7 +27,7 @@ function EditProfile() {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          `http://localhost:5000/api/users/${userId}`,
+          `https://little-coders-backend.onrender.com/api/users/${userId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -55,7 +55,7 @@ function EditProfile() {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.put(
-        `http://localhost:5000/api/users/${userId}`,
+        `https://little-coders-backend.onrender.com/api/users/${userId}`,
         formData,
         { headers: { Authorization: `Bearer ${token}` } }
       );

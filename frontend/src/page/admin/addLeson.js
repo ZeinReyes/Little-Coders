@@ -21,7 +21,7 @@ function AddLesson() {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        "http://localhost:5000/api/lessons",
+        "https://little-coders-backend.onrender.com/api/lessons",
         { title, description, topic }, // send single topic
         {
           headers: { Authorization: `Bearer ${token}` },

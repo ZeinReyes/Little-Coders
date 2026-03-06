@@ -75,7 +75,7 @@ function LessonsList() {
   const [openMenu, setOpenMenu] = useState(null);
 
   const navigate = useNavigate();
-  const API_BASE = "http://localhost:5000/api";
+  const API_BASE = "https://little-coders-backend.onrender.com/api";
 
   useEffect(() => {
     fetchLessons();

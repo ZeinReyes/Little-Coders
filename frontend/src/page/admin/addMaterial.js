@@ -51,7 +51,7 @@ export default function AddMaterial() {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        `http://localhost:5000/api/materials/lessons/${id}/materials`,
+        `https://little-coders-backend.onrender.com/api/materials/lessons/${id}/materials`,
         { title: title.trim(), overview, contents },
         { headers: { Authorization: `Bearer ${token}` } }
       );

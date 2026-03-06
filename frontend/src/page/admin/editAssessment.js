@@ -25,7 +25,7 @@ const EditAssessment = () => {
     const fetchLessons = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:5000/api/lessons", {
+        const res = await axios.get("https://little-coders-backend.onrender.com/api/lessons", {
           headers: { Authorization: `Bearer ${token}` },
         });
         setLessons(res.data);
@@ -40,7 +40,7 @@ const EditAssessment = () => {
     const fetchAssessment = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get(`http://localhost:5000/api/assessments/${id}`, {
+        const res = await axios.get(`https://little-coders-backend.onrender.com/api/assessments/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -149,7 +149,7 @@ const EditAssessment = () => {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.put(`http://localhost:5000/api/assessments/${id}`, formData, {
+      const res = await axios.put(`https://little-coders-backend.onrender.com/api/assessments/${id}`, formData, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

@@ -18,7 +18,7 @@ function AddUser() {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        "http://localhost:5000/api/users",
+        "https://little-coders-backend.onrender.com/api/users",
         { name, email, password, role },
         {
           headers: { Authorization: `Bearer ${token}` },

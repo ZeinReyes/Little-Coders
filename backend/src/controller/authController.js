@@ -54,7 +54,7 @@ export const register = async (req, res) => {
 
     // Send email in a separate try/catch so a failure doesn't block registration
     try {
-      const verifyLink = `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/auth/verify-email/${verificationToken}`;
+      const verifyLink = `${process.env.BACKEND_URL || 'https://little-coders-backend.onrender.com'}/api/auth/verify-email/${verificationToken}`;
       await getTransporter().sendMail({
         from: '"Little Coders" <noreply@littlecoders.com>',
         to: email,

@@ -4,8 +4,8 @@ import { Button, Spinner, Card, Collapse, Form, Badge } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { PencilSquare } from "react-bootstrap-icons";
 
-const API_BASE = "http://localhost:5000/api/assessments";
-const LESSON_API = "http://localhost:5000/api/lessons";
+const API_BASE = "https://little-coders-backend.onrender.com/api/assessments";
+const LESSON_API = "https://little-coders-backend.onrender.com/api/lessons";
 
 const ManageAssessment = () => {
   const [assessments, setAssessments] = useState([]);
