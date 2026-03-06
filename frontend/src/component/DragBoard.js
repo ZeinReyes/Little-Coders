@@ -144,7 +144,8 @@ export default function DragBoard() {
             <img src="/assets/images/add.png" data-type="add" draggable="true" alt="Add" />
             <img src="/assets/images/subtract.png" data-type="subtract" draggable="true" alt="Subtract" />
             <img src="/assets/images/divide.png" data-type="divide" draggable="true" alt="Divide" />
-            <img src="/assets/images/equalto.png" data-type="equal" draggable="true" alt="Equal ==" />
+            <img src="/assets/images/equal.png" data-type="equal" draggable="true" alt="Equal ==" />
+            <img src="/assets/images/equalto.png" data-type="equalto" draggable="true" alt="Equal ==" />
             <img src="/assets/images/notequal.png" data-type="notequal" draggable="true" alt="Not Equal !=" />
             <img src="/assets/images/lessthan.png" data-type="less" draggable="true" alt="Less Than <" />
             <img src="/assets/images/lessthanequal.png" data-type="lessequal" draggable="true" alt="Less or Equal <=" />

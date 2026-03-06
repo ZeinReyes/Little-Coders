@@ -14,6 +14,7 @@ export function createElement(type, whiteboard, codeArea, dimOverlay) {
     case 'multiply':
     case 'divide':
     case 'equal':
+    case 'equalto':
     case 'notequal':
     case 'less':
     case 'lessequal':
