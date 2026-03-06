@@ -9,7 +9,6 @@ import { AuthContext } from "../../context/authContext";
 import LoadingScreen from "../../component/LoadingScreen";
 import { playLessonListSound, stopLessonListSound } from "../../utils/sfx";
 
-
 function ModuleList() {
   const { user, refreshUser, loading: userLoading } = useContext(AuthContext);
   const [modules, setModules] = useState([]);
@@ -22,18 +21,17 @@ function ModuleList() {
   const navigate = useNavigate();
 
   useEffect(() => {
-        const unlockAudio = () => {
-          playLessonListSound(); // ✅ play lesson list music
-          window.removeEventListener("click", unlockAudio);
-        };
-      
-        window.addEventListener("click", unlockAudio);
-      
-        return () => {
-          window.removeEventListener("click", unlockAudio);
-          stopLessonListSound(); // ✅ stop lesson list music when leaving page
-        };
-      }, []);
+    const unlockAudio = () => {
+      playLessonListSound();
+      window.removeEventListener("click", unlockAudio);
+    };
+    window.addEventListener("click", unlockAudio);
+    return () => {
+      window.removeEventListener("click", unlockAudio);
+      stopLessonListSound();
+    };
+  }, []);
+
   // Splash fade effect
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -50,28 +48,38 @@ function ModuleList() {
     }
   }, [user, userLoading]);
 
-  // Fetch modules from backend
+  // ── Shared fetch helper ──────────────────────────────────────────────────────
+  const fetchModulesAndStatus = async () => {
+    if (!user?._id) return;
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get("http://localhost:5000/api/lessons", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const sortedModules = res.data.sort((a, b) => (a.order || 0) - (b.order || 0));
+      setModules(sortedModules);
+      await checkUnlockAndCompletionStatus(sortedModules, user._id, token);
+    } catch (err) {
+      console.error("Error fetching modules:", err);
+    } finally {
+      setLoadingModules(false);
+    }
+  };
+
+  // Fetch on mount / user change
   useEffect(() => {
-    const fetchModules = async () => {
-      try {
-        if (!user?._id) return;
-        const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:5000/api/lessons", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+    fetchModulesAndStatus();
+  }, [user]);
 
-        const sortedModules = res.data.sort((a, b) => (a.order || 0) - (b.order || 0));
-        setModules(sortedModules);
-
-        await checkUnlockAndCompletionStatus(sortedModules, user._id, token);
-      } catch (err) {
-        console.error("Error fetching modules:", err);
-      } finally {
-        setLoadingModules(false);
-      }
+  // ✅ FIX: Re-fetch when the user navigates back to this page (window regains
+  //         focus). Without this, the module list shows stale unlock data from
+  //         before the lesson was completed because the component doesn't remount.
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchModulesAndStatus();
     };
-
-    fetchModules();
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, [user]);
 
   const checkUnlockAndCompletionStatus = async (lessons, userId, token) => {
@@ -79,6 +87,7 @@ function ModuleList() {
       const unlocked = new Set();
       const completed = new Set();
 
+      // First lesson is always unlocked
       if (lessons.length > 0) {
         unlocked.add(lessons[0]._id);
       }
@@ -117,15 +126,11 @@ function ModuleList() {
       ]);
 
       unlockResults.forEach((result) => {
-        if (result.isUnlocked) {
-          unlocked.add(result.lessonId);
-        }
+        if (result.isUnlocked) unlocked.add(result.lessonId);
       });
 
       progressResults.forEach((result) => {
-        if (result.isCompleted) {
-          completed.add(result.lessonId);
-        }
+        if (result.isCompleted) completed.add(result.lessonId);
       });
 
       setUnlockedLessons(unlocked);

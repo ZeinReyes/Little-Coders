@@ -18,15 +18,14 @@ function extractExpression(node) {
   if (node.tagName === "INPUT") {
     let val = node.value.trim();
     console.log("💬 [extractExpression] INPUT value:", val);
-    if (!val) return ""; // skip empty
+    if (!val) return "";
 
-    // 🧹 Strip outer quotes if they exist
     if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
       val = val.slice(1, -1);
     }
 
-    if (!isNaN(val)) return val; // numeric stays numeric
-    return val; // ✅ always return clean raw value
+    if (!isNaN(val)) return val;
+    return val;
   }
 
   // ---------------- Dataset Value ----------------
@@ -34,12 +33,11 @@ function extractExpression(node) {
     let val = node.dataset.value.trim();
     console.log("💾 [extractExpression] Dataset value:", val);
 
-    // 🧹 Always remove wrapping quotes
     if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
       val = val.slice(1, -1);
     }
 
-    return val; // ✅ always return raw clean value
+    return val;
   }
 
   // ---------------- Operator Node ----------------
@@ -50,10 +48,8 @@ function extractExpression(node) {
   if (isOperatorNode) {
     console.log("🧮 [extractExpression] Detected operator node:", node);
 
-    // try dataset.op first, otherwise find operator symbol from text (support multi-char ops)
     let op = node.dataset.op?.trim() || "";
 
-    // ✅ Map logical names (like 'add') to actual symbols
     const opMap = {
       add: "+",
       subtract: "-",
@@ -67,19 +63,15 @@ function extractExpression(node) {
       greaterequal: ">=",
     };
 
-    // ✅ If dataset.op matches one of those keys, use the mapped symbol
     if (opMap[op]) {
       op = opMap[op];
     } else if (!/[+\-*/<>=]/.test(op)) {
-      // fallback: try detecting symbol from text
       const match = node.textContent.match(/==|!=|<=|>=|[+\-*/<>=]/);
       op = match ? match[0] : "+";
     }
 
     console.log("🧠 [extractExpression] Detected operator:", op);
 
-    // Many operator elements are structured like: [slot-left][icon-wrapper][slot-right]
-    // filter only slots, inputs, or nested operator nodes (skip icon wrappers)
     const children = Array.from(node.children).filter((child) =>
       child.classList?.contains("slot") ||
       child.tagName === "INPUT" ||
@@ -103,7 +95,6 @@ function extractExpression(node) {
         ? `(${rightRaw})`
         : rightRaw;
 
-    // Skip empties to avoid introducing zeros or stray spaces
     const combined = [leftExpr, rightExpr].filter(Boolean).join(` ${op} `).trim();
     console.log("✅ [extractExpression] Combined:", combined);
     return combined;
@@ -164,6 +155,14 @@ function createModal(contentBuilder) {
   document.body.appendChild(overlay);
 }
 
+// ---------------- Helper: clear slot contents ----------------
+function clearSlot(slot) {
+  // Remove any previously dropped node children
+  Array.from(slot.children).forEach(c => c.remove());
+  delete slot.dataset.value;
+  delete slot.dataset.nodeType;
+}
+
 // ---------------- Print Node ----------------
 export function createPrintNode(whiteboard, codeArea, dimOverlay) {
   playPrintSound();
@@ -203,10 +202,8 @@ export function createPrintNode(whiteboard, codeArea, dimOverlay) {
     let draggedNode = null;
 
     if (_dragSource) {
-      // Came from board
       draggedNode = _dragSource;
     } else {
-      // Came from palette — create a fresh element (if you support that)
       const nodeId = e.dataTransfer.getData("text/plain");
       draggedNode = document.getElementById(nodeId);
     }
@@ -215,19 +212,36 @@ export function createPrintNode(whiteboard, codeArea, dimOverlay) {
 
     console.log("📥 [print-node] dropped node:", draggedNode, "_dragSource:", !!_dragSource);
 
-    // Extract expression and save it
+    // ✅ Clear any previously stored node or value
+    clearSlot(paperSlot);
+
+    // ✅ Clone the dropped node and place it directly inside the slot
+    // hidden — preserves full DOM structure for codeGen without showing it visually
+    const cloned = draggedNode.cloneNode(true);
+    cloned.style.display = "none";
+
+    // ✅ Also store dataset.value as a fallback string expression
     const expr = extractExpression(draggedNode).trim();
     console.log("📦 [print-node] extracted expr:", expr);
-
     if (expr) {
       paperSlot.dataset.value = expr;
-      paperSlot.textContent = "View printer content";
-      paperSlot.classList.remove("empty");
-    } else {
-      delete paperSlot.dataset.value;
-      paperSlot.textContent = "[ Empty printer ]";
-      paperSlot.classList.add("empty");
     }
+
+    // ✅ Store the data-type of what was dropped for codeChecker
+    const nodeType = draggedNode.dataset?.type || draggedNode.dataset?.op || "";
+    if (nodeType) {
+      paperSlot.dataset.nodeType = nodeType;
+    }
+
+    // Show label so user knows something is inside
+    const label = document.createElement("span");
+    label.className = "print-slot-label";
+    label.textContent = "View printer content";
+
+    paperSlot.textContent = "";
+    paperSlot.appendChild(cloned);
+    paperSlot.appendChild(label);
+    paperSlot.classList.remove("empty");
 
     if (_dragSource) {
       deleteElement(draggedNode);
@@ -248,6 +262,7 @@ export function createPrintNode(whiteboard, codeArea, dimOverlay) {
       const input = document.createElement("input");
       input.type = "text";
       input.className = "print-modal-input";
+      // Show the current value — either from a dropped node's expression or typed text
       input.value = paperSlot.dataset.value || "";
       body.appendChild(input);
 
@@ -261,12 +276,16 @@ export function createPrintNode(whiteboard, codeArea, dimOverlay) {
       saveBtn.className = "print-modal-btn primary";
       saveBtn.onclick = () => {
         paperText = input.value.trim();
+
+        // When saving manually, clear any previously dropped node
+        clearSlot(paperSlot);
+        Array.from(paperSlot.children).forEach(c => c.remove());
+
         if (paperText) {
           paperSlot.dataset.value = paperText;
           paperSlot.textContent = "View printer content";
           paperSlot.classList.remove("empty");
         } else {
-          delete paperSlot.dataset.value;
           paperSlot.textContent = "[ Empty printer ]";
           paperSlot.classList.add("empty");
         }

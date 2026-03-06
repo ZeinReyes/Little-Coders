@@ -10,21 +10,17 @@ const dataTypeOptions = [
 ];
 
 const EditAssessment = () => {
-  const { id } = useParams(); // from route (assessment id)
+  const { id } = useParams();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    title: "",
-    lessonId: "",
-    timeLimit: 30, // ✅ added default time limit
-    questions: [],
+    title: "", lessonId: "", timeLimit: 30, questions: [],
   });
 
   const [lessons, setLessons] = useState([]);
   const [message, setMessage] = useState("");
-  const [expandedQuestions, setExpandedQuestions] = useState([]); // open questions
+  const [expandedQuestions, setExpandedQuestions] = useState([]);
 
-  // ✅ Fetch all lessons
   useEffect(() => {
     const fetchLessons = async () => {
       try {
@@ -40,7 +36,6 @@ const EditAssessment = () => {
     fetchLessons();
   }, []);
 
-  // ✅ Fetch assessment to edit
   useEffect(() => {
     const fetchAssessment = async () => {
       try {
@@ -50,40 +45,43 @@ const EditAssessment = () => {
         });
 
         const a = res.data?.data || res.data || {};
+
+        // ✅ Normalize dataTypesRequired — handle old string[] format from DB gracefully
+        const normalizedQuestions = (Array.isArray(a.questions) ? a.questions : []).map((q) => ({
+          ...q,
+          dataTypesRequired: (q.dataTypesRequired || []).map((d) =>
+            typeof d === "string" ? { type: d, min: 1 } : d
+          ),
+        }));
+
         setFormData({
           title: a.title || "",
           lessonId: a.lessonId?._id || a.lessonId || "",
-          timeLimit: a.timeLimit || 30, // ✅ set time limit from backend
-          questions: Array.isArray(a.questions) ? a.questions : [],
+          timeLimit: a.timeLimit || 30,
+          questions: normalizedQuestions,
         });
 
-        // expand all questions by default
-        setExpandedQuestions(
-          Array.isArray(a.questions) ? a.questions.map((_, i) => i) : []
-        );
+        setExpandedQuestions(normalizedQuestions.map((_, i) => i));
       } catch (err) {
         console.error("Error fetching assessment:", err.response?.data || err.message);
-        setMessage("❌ Failed to load assessment details. Please check your connection or ID.");
+        setMessage("❌ Failed to load assessment details.");
       }
     };
 
     if (id) fetchAssessment();
   }, [id]);
 
-  // ✅ Handle main input change
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  // ✅ Handle question field change
   const handleQuestionChange = (index, field, value) => {
     const updated = [...formData.questions];
     updated[index][field] = value;
     setFormData({ ...formData, questions: updated });
   };
 
-  // ✅ Handle hint changes
   const handleHintChange = (qIndex, hIndex, value) => {
     const updated = [...formData.questions];
     updated[qIndex].hints[hIndex] = value;
@@ -103,21 +101,14 @@ const EditAssessment = () => {
   };
 
   const addQuestion = () => {
-    const newQuestion = {
-      instructions: "",
-      hints: [""],
-      expectedOutput: "",
-      difficulty: "Easy",
-      dataTypesRequired: [],
-    };
+    const newQuestion = { instructions: "", hints: [""], expectedOutput: "", difficulty: "Easy", dataTypesRequired: [] };
     const newQuestions = [...formData.questions, newQuestion];
     setFormData({ ...formData, questions: newQuestions });
     setExpandedQuestions([...expandedQuestions, newQuestions.length - 1]);
   };
 
   const deleteQuestion = (index) => {
-    const newQuestions = formData.questions.filter((_, i) => i !== index);
-    setFormData({ ...formData, questions: newQuestions });
+    setFormData({ ...formData, questions: formData.questions.filter((_, i) => i !== index) });
     setExpandedQuestions(expandedQuestions.filter((i) => i !== index));
   };
 
@@ -127,16 +118,26 @@ const EditAssessment = () => {
     );
   };
 
-  const handleDataTypeChange = (qIndex, type) => {
+  // ✅ Toggle type for a question
+  const handleDataTypeToggle = (qIndex, type) => {
     const updated = [...formData.questions];
     const current = updated[qIndex].dataTypesRequired;
-    updated[qIndex].dataTypesRequired = current.includes(type)
-      ? current.filter((t) => t !== type)
-      : [...current, type];
+    const exists = current.find((d) => d.type === type);
+    updated[qIndex].dataTypesRequired = exists
+      ? current.filter((d) => d.type !== type)
+      : [...current, { type, min: 1 }];
     setFormData({ ...formData, questions: updated });
   };
 
-  // ✅ Submit (update)
+  // ✅ Update min for a type in a question
+  const handleMinChange = (qIndex, type, value) => {
+    const updated = [...formData.questions];
+    updated[qIndex].dataTypesRequired = updated[qIndex].dataTypesRequired.map((d) =>
+      d.type === type ? { ...d, min: Math.max(1, parseInt(value) || 1) } : d
+    );
+    setFormData({ ...formData, questions: updated });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
@@ -148,11 +149,9 @@ const EditAssessment = () => {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.put(
-        `http://localhost:5000/api/assessments/${id}`,
-        formData,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await axios.put(`http://localhost:5000/api/assessments/${id}`, formData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       setMessage(`✅ ${res.data.message || "Assessment updated successfully!"}`);
       setTimeout(() => navigate("/admin/manage-assessment"), 1500);
@@ -167,206 +166,122 @@ const EditAssessment = () => {
       <h2 className="text-center mb-4">Edit Assessment</h2>
 
       {message && (
-        <p
-          style={{
-            textAlign: "center",
-            color: message.startsWith("✅") ? "green" : "red",
-            fontWeight: "bold",
-          }}
-        >
+        <p style={{ textAlign: "center", color: message.startsWith("✅") ? "green" : "red", fontWeight: "bold" }}>
           {message}
         </p>
       )}
 
-      <form
-        onSubmit={handleSubmit}
-        className="p-4 bg-light rounded shadow-sm"
-      >
-        {/* Assessment Title */}
+      <form onSubmit={handleSubmit} className="p-4 bg-light rounded shadow-sm">
         <div className="mb-3">
           <label className="form-label">Assessment Title</label>
-          <input
-            type="text"
-            name="title"
-            className="form-control"
-            value={formData.title}
-            onChange={handleChange}
-            required
-          />
+          <input type="text" name="title" className="form-control" value={formData.title} onChange={handleChange} required />
         </div>
 
-        {/* Lesson Dropdown */}
         <div className="mb-3">
           <label className="form-label">Select Lesson</label>
-          <select
-            name="lessonId"
-            value={formData.lessonId}
-            onChange={handleChange}
-            className="form-select"
-            required
-          >
+          <select name="lessonId" value={formData.lessonId} onChange={handleChange} className="form-select" required>
             <option value="">Select a lesson</option>
             {lessons.map((lesson) => (
-              <option key={lesson._id} value={lesson._id}>
-                {lesson.title}
-              </option>
+              <option key={lesson._id} value={lesson._id}>{lesson.title}</option>
             ))}
           </select>
         </div>
 
-        {/* Time Limit */}
         <div className="mb-3">
           <label className="form-label">Time Limit (seconds)</label>
-          <input
-            type="number"
-            name="timeLimit"
-            className="form-control"
-            value={formData.timeLimit}
-            min={30}
-            onChange={handleChange}
-            required
-          />
+          <input type="number" name="timeLimit" className="form-control" value={formData.timeLimit} min={30} onChange={handleChange} required />
         </div>
 
-        {/* Questions Section */}
         <h5 className="mt-4 mb-3">Questions</h5>
 
         {formData.questions.map((question, qIndex) => (
           <div key={qIndex} className="border rounded mb-3 bg-white shadow-sm">
-            {/* Header */}
             <div
               className="d-flex justify-content-between align-items-center p-3 bg-primary text-white"
               style={{ cursor: "pointer" }}
               onClick={() => toggleQuestion(qIndex)}
             >
               <strong>Question {qIndex + 1}</strong>
-              <Button
-                variant="light"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteQuestion(qIndex);
-                }}
-              >
-                Delete
-              </Button>
+              <Button variant="light" size="sm" onClick={(e) => { e.stopPropagation(); deleteQuestion(qIndex); }}>Delete</Button>
             </div>
 
             <Collapse in={expandedQuestions.includes(qIndex)}>
-              <div>
-                <div className="p-3">
-                  {/* Instructions */}
-                  <div className="mb-3">
-                    <label className="form-label">Instructions</label>
-                    <textarea
-                      className="form-control"
-                      rows="2"
-                      value={question.instructions}
-                      onChange={(e) =>
-                        handleQuestionChange(qIndex, "instructions", e.target.value)
-                      }
-                      required
-                    />
-                  </div>
+              <div className="p-3">
+                <div className="mb-3">
+                  <label className="form-label">Instructions</label>
+                  <textarea className="form-control" rows="2" value={question.instructions}
+                    onChange={(e) => handleQuestionChange(qIndex, "instructions", e.target.value)} required />
+                </div>
 
-                  {/* Hints */}
-                  <div className="mb-3">
-                    <label className="form-label">Hints</label>
-                    {question.hints.map((hint, hIndex) => (
-                      <div
-                        key={hIndex}
-                        className="d-flex align-items-center mb-2 gap-2"
-                      >
-                        <input
-                          type="text"
-                          className="form-control"
-                          value={hint}
-                          onChange={(e) =>
-                            handleHintChange(qIndex, hIndex, e.target.value)
-                          }
-                          placeholder={`Hint ${hIndex + 1}`}
-                        />
-                        <Button
-                          variant="outline-danger"
-                          size="sm"
-                          onClick={() => deleteHint(qIndex, hIndex)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => addHint(qIndex)}
-                    >
-                      ➕ Add Hint
-                    </button>
-                  </div>
-
-                  {/* Expected Output */}
-                  <div className="mb-3">
-                    <label className="form-label">Expected Output</label>
-                    <textarea
-                      className="form-control"
-                      rows="2"
-                      value={question.expectedOutput}
-                      onChange={(e) =>
-                        handleQuestionChange(qIndex, "expectedOutput", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  {/* Data Types */}
-                  <div className="mb-3">
-                    <label className="form-label">Data Types Required</label>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-                      {dataTypeOptions.map((type) => (
-                        <label key={type}>
-                          <input
-                            type="checkbox"
-                            checked={question.dataTypesRequired.includes(type)}
-                            onChange={() => handleDataTypeChange(qIndex, type)}
-                            style={{ marginRight: "5px" }}
-                          />
-                          {type}
-                        </label>
-                      ))}
+                <div className="mb-3">
+                  <label className="form-label">Hints</label>
+                  {question.hints.map((hint, hIndex) => (
+                    <div key={hIndex} className="d-flex align-items-center mb-2 gap-2">
+                      <input type="text" className="form-control" value={hint} placeholder={`Hint ${hIndex + 1}`}
+                        onChange={(e) => handleHintChange(qIndex, hIndex, e.target.value)} />
+                      <Button variant="outline-danger" size="sm" onClick={() => deleteHint(qIndex, hIndex)}>Delete</Button>
                     </div>
-                  </div>
+                  ))}
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => addHint(qIndex)}>➕ Add Hint</button>
+                </div>
 
-                  {/* Difficulty */}
-                  <div className="mb-3">
-                    <label className="form-label">Difficulty</label>
-                    <select
-                      className="form-select"
-                      value={question.difficulty}
-                      onChange={(e) =>
-                        handleQuestionChange(qIndex, "difficulty", e.target.value)
-                      }
-                    >
-                      <option value="Easy">Easy</option>
-                      <option value="Medium">Medium</option>
-                      <option value="Hard">Hard</option>
-                    </select>
+                <div className="mb-3">
+                  <label className="form-label">Expected Output</label>
+                  <textarea className="form-control" rows="2" value={question.expectedOutput}
+                    onChange={(e) => handleQuestionChange(qIndex, "expectedOutput", e.target.value)} />
+                </div>
+
+                {/* ✅ Data Types with min inputs */}
+                <div className="mb-3">
+                  <label className="form-label">Data Types Required</label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                    {dataTypeOptions.map((type) => {
+                      const entry = question.dataTypesRequired.find((d) => d.type === type);
+                      const isChecked = !!entry;
+                      return (
+                        <div
+                          key={type}
+                          style={{
+                            display: "flex", alignItems: "center", gap: "6px",
+                            background: isChecked ? "#e8f4ff" : "#f8f9fa",
+                            border: isChecked ? "1px solid #90c8ff" : "1px solid #dee2e6",
+                            borderRadius: "8px", padding: "4px 10px",
+                          }}
+                        >
+                          <input type="checkbox" checked={isChecked} onChange={() => handleDataTypeToggle(qIndex, type)} style={{ marginRight: "4px" }} />
+                          <span>{type}</span>
+                          {isChecked && (
+                            <div style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "6px" }}>
+                              <span style={{ fontSize: "12px", color: "#555" }}>min:</span>
+                              <input
+                                type="number" min={1} value={entry.min}
+                                onChange={(e) => handleMinChange(qIndex, type, e.target.value)}
+                                style={{ width: "48px", padding: "2px 4px", fontSize: "13px", borderRadius: "4px", border: "1px solid #ccc" }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Difficulty</label>
+                  <select className="form-select" value={question.difficulty}
+                    onChange={(e) => handleQuestionChange(qIndex, "difficulty", e.target.value)}>
+                    <option value="Easy">Easy</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Hard">Hard</option>
+                  </select>
                 </div>
               </div>
             </Collapse>
           </div>
         ))}
 
-        <button
-          type="button"
-          className="btn btn-outline-primary mb-4"
-          onClick={addQuestion}
-        >
-          ➕ Add Another Question
-        </button>
-
-        <button type="submit" className="btn btn-primary w-100">
-          💾 Update Assessment
-        </button>
+        <button type="button" className="btn btn-outline-primary mb-4" onClick={addQuestion}>➕ Add Another Question</button>
+        <button type="submit" className="btn btn-primary w-100">💾 Update Assessment</button>
       </form>
     </div>
   );

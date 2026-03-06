@@ -4,6 +4,41 @@ import LessonActivity from "../model/LessonActivity.js";
 import Assessment from "../model/Assessment.js";
 import Lesson from "../model/Lesson.js";
 
+// ── Shared helper: recalculate progress percentages and isLessonCompleted ──────
+async function recalculateProgress(progress, lessonId) {
+  const totalMaterials   = await LessonMaterial.countDocuments({ lessonId });
+  const totalActivities  = await LessonActivity.countDocuments({ lessonId });
+  const totalAssessments = await Assessment.countDocuments({ lessonId });
+
+  const completedMaterialsCount = progress.completedMaterials.length;
+
+  // Deduplicate by activityId — multiple correct attempts on the same
+  // activity were previously counted more than once, causing the total
+  // to exceed totalActivities and breaking the isLessonCompleted check.
+  const correctActivityIds = new Set(
+    progress.activityAttempts
+      .filter(a => a.correct)
+      .map(a => a.activityId.toString())
+  );
+  const completedActivitiesCount = correctActivityIds.size;
+
+  const completedAssessmentsCount = progress.completedAssessments?.length || 0;
+
+  const totalItems     = totalMaterials + totalActivities + totalAssessments;
+  const completedItems = completedMaterialsCount + completedActivitiesCount + completedAssessmentsCount;
+
+  progress.progressPercentage = totalItems > 0
+    ? Math.min((completedItems / totalItems) * 100, 100)
+    : 0;
+
+  progress.isLessonCompleted =
+    completedMaterialsCount   === totalMaterials   &&
+    completedActivitiesCount  === totalActivities  &&
+    completedAssessmentsCount === totalAssessments;
+
+  return progress;
+}
+
 // --- Check if an item is unlocked (prerequisite system) ---
 export const checkItemUnlocked = async (req, res) => {
   try {
@@ -15,29 +50,25 @@ export const checkItemUnlocked = async (req, res) => {
 
     let isUnlocked = false;
 
-    // --- Check if a lesson is unlocked ---
-if (itemType === "lesson") {
-  const allLessons = await Lesson.find().sort({ order: 1 });
+    // 1️⃣ CHECK IF LESSON IS UNLOCKED
+    if (itemType === "lesson") {
+      const allLessons = await Lesson.find().sort({ order: 1 });
+      const lessonIds = allLessons.map(l => l._id.toString());
+      const currentIndex = lessonIds.indexOf(itemId.toString());
 
-  // Ensure IDs are strings for comparison
-  const lessonIds = allLessons.map(l => l._id.toString());
-  const currentIndex = lessonIds.indexOf(itemId.toString());
+      if (currentIndex === 0) {
+        isUnlocked = true;
+      } else if (currentIndex > 0) {
+        const previousLessonId = lessonIds[currentIndex - 1];
+        const previousProgress = await UserLessonProgress.findOne({
+          userId,
+          lessonId: previousLessonId,
+        });
+        isUnlocked = previousProgress?.isLessonCompleted || false;
+      }
 
-  // ✅ First lesson always unlocked
-  if (currentIndex === 0) {
-    isUnlocked = true;
-  } else if (currentIndex > 0) {
-    const previousLessonId = lessonIds[currentIndex - 1];
-    const previousProgress = await UserLessonProgress.findOne({
-      userId,
-      lessonId: previousLessonId,
-    });
-
-    isUnlocked = previousProgress?.isLessonCompleted || false;
-  }
-
-  return res.status(200).json({ isUnlocked });
-}
+      return res.status(200).json({ isUnlocked });
+    }
 
     // 2️⃣ CHECK IF MATERIAL IS UNLOCKED
     if (itemType === "material") {
@@ -49,33 +80,30 @@ if (itemType === "lesson") {
       const currentMaterialIndex = allMaterials.findIndex(m => m._id.toString() === itemId);
 
       if (currentMaterialIndex === 0) {
-        // First material is always unlocked
         isUnlocked = true;
       } else if (currentMaterialIndex > 0) {
-        // Check if previous material AND all its activities are completed
         const previousMaterial = allMaterials[currentMaterialIndex - 1];
         const progress = await UserLessonProgress.findOne({ userId, lessonId });
 
         if (!progress) {
           isUnlocked = false;
         } else {
-          // Check if previous material is completed
           const materialCompleted = progress.completedMaterials.some(
             m => m.toString() === previousMaterial._id.toString()
           );
 
-          // Check if all activities of previous material are completed
           const previousMaterialActivities = await LessonActivity.find({
             materialId: previousMaterial._id,
           }).sort({ order: 1 });
 
           const allActivitiesCompleted = previousMaterialActivities.every(activity =>
-            progress.completedActivities.some(
-              a => a.toString() === activity._id.toString()
+            progress.activityAttempts.some(
+              a => a.activityId.toString() === activity._id.toString() && a.correct
             )
           );
 
-          isUnlocked = materialCompleted && (previousMaterialActivities.length === 0 || allActivitiesCompleted);
+          isUnlocked = materialCompleted &&
+            (previousMaterialActivities.length === 0 || allActivitiesCompleted);
         }
       }
 
@@ -90,7 +118,6 @@ if (itemType === "lesson") {
 
       const progress = await UserLessonProgress.findOne({ userId, lessonId });
 
-      // Check if parent material is completed
       const materialCompleted = progress?.completedMaterials.some(
         m => m.toString() === materialId.toString()
       );
@@ -98,22 +125,16 @@ if (itemType === "lesson") {
       if (!materialCompleted) {
         isUnlocked = false;
       } else {
-        // Get all activities for this material
         const allActivities = await LessonActivity.find({ materialId }).sort({ order: 1 });
         const currentActivityIndex = allActivities.findIndex(a => a._id.toString() === itemId);
 
         if (currentActivityIndex === 0) {
-          // First activity is unlocked if material is completed
           isUnlocked = true;
         } else if (currentActivityIndex > 0) {
-          // Check if previous activity is completed correctly
           const previousActivity = allActivities[currentActivityIndex - 1];
-          
-          // Check if previous activity was completed correctly
           const previousActivityAttempt = progress?.activityAttempts.find(
             a => a.activityId.toString() === previousActivity._id.toString()
           );
-
           isUnlocked = previousActivityAttempt?.correct || false;
         }
       }
@@ -127,21 +148,18 @@ if (itemType === "lesson") {
         return res.status(400).json({ message: "lessonId is required for assessments" });
       }
 
-      // Check if all materials and activities in the lesson are completed
       const allMaterials = await LessonMaterial.find({ lessonId });
       const progress = await UserLessonProgress.findOne({ userId, lessonId });
 
       if (!progress) {
         isUnlocked = false;
       } else {
-        // Check all materials completed
         const allMaterialsCompleted = allMaterials.every(material =>
           progress.completedMaterials.some(
             m => m.toString() === material._id.toString()
           )
         );
 
-        // Check all activities completed correctly
         const allActivities = await LessonActivity.find({
           materialId: { $in: allMaterials.map(m => m._id) },
         });
@@ -176,14 +194,13 @@ export const getUnlockedItems = async (req, res) => {
 
     const progress = await UserLessonProgress.findOne({ userId, lessonId });
     const allMaterials = await LessonMaterial.find({ lessonId }).sort({ order: 1 });
-    
+
     const unlockedMaterials = [];
     const unlockedActivities = [];
 
     for (let i = 0; i < allMaterials.length; i++) {
       const material = allMaterials[i];
-      
-      // Check if material is unlocked
+
       if (i === 0) {
         unlockedMaterials.push(material._id);
       } else {
@@ -193,6 +210,7 @@ export const getUnlockedItems = async (req, res) => {
         );
 
         const previousActivities = await LessonActivity.find({ materialId: previousMaterial._id });
+
         const allPreviousActivitiesCompleted = previousActivities.every(activity =>
           progress?.activityAttempts.some(
             a => a.activityId.toString() === activity._id.toString() && a.correct
@@ -204,7 +222,6 @@ export const getUnlockedItems = async (req, res) => {
         }
       }
 
-      // Check activities for this material
       const materialActivities = await LessonActivity.find({ materialId: material._id }).sort({ order: 1 });
       const materialCompleted = progress?.completedMaterials.some(
         m => m.toString() === material._id.toString()
@@ -213,7 +230,7 @@ export const getUnlockedItems = async (req, res) => {
       if (materialCompleted) {
         for (let j = 0; j < materialActivities.length; j++) {
           const activity = materialActivities[j];
-          
+
           if (j === 0) {
             unlockedActivities.push(activity._id);
           } else {
@@ -230,10 +247,7 @@ export const getUnlockedItems = async (req, res) => {
       }
     }
 
-    res.status(200).json({
-      unlockedMaterials,
-      unlockedActivities,
-    });
+    res.status(200).json({ unlockedMaterials, unlockedActivities });
   } catch (err) {
     console.error("Error fetching unlocked items:", err);
     res.status(500).json({ message: "Error fetching unlocked items", error: err.message });
@@ -249,8 +263,8 @@ export const markMaterialCompleted = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const userIdStr = userId.toString();
-    const lessonIdStr = lessonId.toString();
+    const userIdStr     = userId.toString();
+    const lessonIdStr   = lessonId.toString();
     const materialIdStr = materialId.toString();
 
     let progress = await UserLessonProgress.findOne({
@@ -267,16 +281,12 @@ export const markMaterialCompleted = async (req, res) => {
       });
     }
 
-    // ✅ Add to completedMaterials
-    if (!progress.completedMaterials.some(
-      m => m.toString() === materialIdStr
-    )) {
+    if (!progress.completedMaterials.some(m => m.toString() === materialIdStr)) {
       progress.completedMaterials.push(materialIdStr);
     }
 
-    // ✅ Update or Insert Material Time
     const existingTimeIndex = progress.materialTime.findIndex(
-      (m) => m.materialId.toString() === materialIdStr
+      m => m.materialId.toString() === materialIdStr
     );
 
     if (existingTimeIndex >= 0) {
@@ -290,38 +300,16 @@ export const markMaterialCompleted = async (req, res) => {
       });
     }
 
-    // --- Recalculate Progress ---
-    const totalMaterials = await LessonMaterial.countDocuments({ lessonId });
-    const totalActivities = await LessonActivity.countDocuments({ lessonId });
-
-    const completedMaterialsCount = progress.completedMaterials.length;
-    const completedActivitiesCount = progress.activityAttempts.filter(a => a.correct).length;
-
-    const totalItems = totalMaterials + totalActivities;
-    const completedItems = completedMaterialsCount + completedActivitiesCount;
-
-    progress.progressPercentage =
-      totalItems > 0
-        ? Math.min((completedItems / totalItems) * 100, 100)
-        : 0;
-
-    progress.isLessonCompleted =
-      completedMaterialsCount === totalMaterials &&
-      completedActivitiesCount === totalActivities;
-
+    progress = await recalculateProgress(progress, lessonIdStr);
     await progress.save();
 
     res.status(200).json({
       message: "Material marked as completed and time recorded",
       progress,
     });
-
   } catch (err) {
     console.error("❌ Error updating material progress:", err);
-    res.status(500).json({
-      message: "Error updating material progress",
-      error: err.message,
-    });
+    res.status(500).json({ message: "Error updating material progress", error: err.message });
   }
 };
 
@@ -332,19 +320,13 @@ export const markActivityCompleted = async (req, res) => {
     if (!userId || !lessonId || !activityId)
       return res.status(400).json({ message: "Missing required fields" });
 
-    const progress = await UserLessonProgress.findOneAndUpdate(
+    let progress = await UserLessonProgress.findOneAndUpdate(
       { userId, lessonId },
       { $addToSet: { completedActivities: activityId } },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
-    const totalMaterials = await LessonMaterial.countDocuments({ lessonId });
-    const totalActivities = await LessonActivity.countDocuments({ lessonId });
-    const totalItems = totalMaterials + totalActivities;
-    const completedCount = progress.completedMaterials.length + progress.completedActivities.length;
-
-    progress.progressPercentage = totalItems > 0 ? Math.min((completedCount / totalItems) * 100, 100) : 0;
-    progress.isLessonCompleted = progress.progressPercentage === 100;
+    progress = await recalculateProgress(progress, lessonId);
     await progress.save();
 
     res.status(200).json({ message: "Activity marked as completed", progress });
@@ -355,26 +337,30 @@ export const markActivityCompleted = async (req, res) => {
 };
 
 // --- Mark assessment completed ---
+// ✅ Assessment is the final gate of a lesson. When this is called, we add it
+//    to completedAssessments, then FORCE isLessonCompleted = true and
+//    progressPercentage = 100 — bypassing any count mismatch edge cases so
+//    the next module always unlocks correctly.
 export const markAssessmentCompleted = async (req, res) => {
   try {
     const { userId, lessonId, assessmentId } = req.body;
     if (!userId || !lessonId || !assessmentId)
       return res.status(400).json({ message: "Missing required fields" });
 
-    const progress = await UserLessonProgress.findOneAndUpdate(
+    let progress = await UserLessonProgress.findOneAndUpdate(
       { userId, lessonId },
       { $addToSet: { completedAssessments: assessmentId } },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
-    const totalMaterials = await LessonMaterial.countDocuments({ lessonId });
-    const totalActivities = await LessonActivity.countDocuments({ lessonId });
-    const totalAssessments = await Assessment.countDocuments({ lessonId });
-    const totalItems = totalMaterials + totalActivities + totalAssessments;
-    const completedCount = progress.completedMaterials.length + progress.completedActivities.length + progress.completedAssessments.length;
+    // Recalculate percentages normally first
+    progress = await recalculateProgress(progress, lessonId);
 
-    progress.progressPercentage = totalItems > 0 ? Math.min((completedCount / totalItems) * 100, 100) : 0;
-    progress.isLessonCompleted = progress.progressPercentage === 100;
+    // ✅ Force lesson completed — the assessment is the final step, so passing
+    //    it means the whole lesson is done. This is the single source of truth.
+    progress.isLessonCompleted = true;
+    progress.progressPercentage = 100;
+
     await progress.save();
 
     res.status(200).json({ message: "Assessment marked as completed", progress });
@@ -384,17 +370,18 @@ export const markAssessmentCompleted = async (req, res) => {
   }
 };
 
+// --- Mark assessment attempt ---
 export const markAssessmentAttempt = async (req, res) => {
   try {
-    const { 
-      userId, 
-      lessonId, 
-      assessmentId, 
-      questionId, 
-      timeSeconds, 
-      totalAttempts, 
-      correct, 
-      difficulty 
+    const {
+      userId,
+      lessonId,
+      assessmentId,
+      questionId,
+      timeSeconds,
+      totalAttempts,
+      correct,
+      difficulty,
     } = req.body;
 
     if (!userId || !lessonId || !assessmentId || !questionId) {
@@ -407,7 +394,7 @@ export const markAssessmentAttempt = async (req, res) => {
     }
 
     const existingIndex = progress.assessmentAttempts.findIndex(
-      (a) =>
+      a =>
         a.assessmentId.toString() === assessmentId &&
         a.questionId.toString() === questionId
     );
@@ -415,20 +402,20 @@ export const markAssessmentAttempt = async (req, res) => {
     const attemptData = {
       assessmentId,
       questionId,
-      timeSeconds: timeSeconds ?? 0,
+      timeSeconds:   timeSeconds   ?? 0,
       totalAttempts: totalAttempts ?? 1,
-      correct: correct ?? false,
-      difficulty: difficulty || "easy",
-      attemptedAt: new Date(),
+      correct:       correct       ?? false,
+      difficulty:    difficulty    || "easy",
+      attemptedAt:   new Date(),
     };
 
     if (existingIndex >= 0) {
-      const existingAttempt = progress.assessmentAttempts[existingIndex];
-      existingAttempt.totalAttempts += 1;
-      existingAttempt.timeSeconds += attemptData.timeSeconds;
-      existingAttempt.correct = existingAttempt.correct || correct;
-      existingAttempt.difficulty = difficulty || existingAttempt.difficulty;
-      existingAttempt.attemptedAt = new Date();
+      const existing = progress.assessmentAttempts[existingIndex];
+      existing.totalAttempts += 1;
+      existing.timeSeconds   += attemptData.timeSeconds;
+      existing.correct        = existing.correct || correct;
+      existing.difficulty     = difficulty || existing.difficulty;
+      existing.attemptedAt    = new Date();
     } else {
       progress.assessmentAttempts.push(attemptData);
     }
@@ -438,18 +425,16 @@ export const markAssessmentAttempt = async (req, res) => {
     res.status(200).json({
       message: "Assessment attempt recorded successfully",
       progress,
-      completed: correct === true,
+      completed:        correct === true,
       redirectToLesson: correct === true,
-    });    
+    });
   } catch (err) {
     console.error("❌ Error recording assessment attempt:", err);
-    res.status(500).json({
-      message: "Error recording assessment attempt",
-      error: err.message,
-    });
+    res.status(500).json({ message: "Error recording assessment attempt", error: err.message });
   }
 };
 
+// --- Mark activity attempt ---
 export const markActivityAttempt = async (req, res) => {
   try {
     const { userId, lessonId, activityId, timeSeconds, totalAttempts, correct } = req.body;
@@ -458,34 +443,41 @@ export const markActivityAttempt = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const userIdStr = userId.toString();
-    const lessonIdStr = lessonId.toString();
+    const userIdStr     = userId.toString();
+    const lessonIdStr   = lessonId.toString();
     const activityIdStr = activityId.toString();
 
-    let progress = await UserLessonProgress.findOne({ userId: userIdStr, lessonId: lessonIdStr });
+    let progress = await UserLessonProgress.findOne({
+      userId: userIdStr,
+      lessonId: lessonIdStr,
+    });
 
     if (!progress) {
-      progress = new UserLessonProgress({ userId: userIdStr, lessonId: lessonIdStr, activityAttempts: [] });
+      progress = new UserLessonProgress({
+        userId: userIdStr,
+        lessonId: lessonIdStr,
+        activityAttempts: [],
+      });
     }
 
     const existingIndex = progress.activityAttempts.findIndex(
-      (a) => a.activityId.toString() === activityIdStr
+      a => a.activityId.toString() === activityIdStr
     );
 
     const attemptData = {
-      activityId: activityIdStr,
-      timeSeconds: timeSeconds ?? 0,
+      activityId:    activityIdStr,
+      timeSeconds:   timeSeconds   ?? 0,
       totalAttempts: totalAttempts ?? 1,
-      correct: correct ?? false,
-      attemptedAt: new Date(),
+      correct:       correct       ?? false,
+      attemptedAt:   new Date(),
     };
 
     if (existingIndex >= 0) {
-      const existingAttempt = progress.activityAttempts[existingIndex];
-      existingAttempt.totalAttempts += 1;
-      existingAttempt.timeSeconds += attemptData.timeSeconds;
-      existingAttempt.correct = existingAttempt.correct || correct;
-      existingAttempt.attemptedAt = new Date();
+      const existing = progress.activityAttempts[existingIndex];
+      existing.totalAttempts += 1;
+      existing.timeSeconds   += attemptData.timeSeconds;
+      existing.correct        = existing.correct || correct;
+      existing.attemptedAt    = new Date();
     } else {
       progress.activityAttempts.push(attemptData);
     }
@@ -493,17 +485,14 @@ export const markActivityAttempt = async (req, res) => {
     await progress.save();
 
     res.status(200).json({
-      message: "Activity attempt updated successfully",
+      message:          "Activity attempt updated successfully",
       progress,
-      completed: correct === true,
+      completed:        correct === true,
       redirectToLesson: correct === true,
     });
   } catch (err) {
     console.error("❌ Error recording activity attempt:", err);
-    res.status(500).json({
-      message: "Error recording activity attempt",
-      error: err.message,
-    });
+    res.status(500).json({ message: "Error recording activity attempt", error: err.message });
   }
 };
 
@@ -515,11 +504,13 @@ export const getLessonProgress = async (req, res) => {
       return res.status(400).json({ message: "Missing userId or lessonId" });
 
     const progress = await UserLessonProgress.findOne({ userId, lessonId })
-      .populate("completedMaterials", "title order")
-      .populate("completedActivities", "name order")
+      .populate("completedMaterials",   "title order")
+      .populate("completedActivities",  "name order")
       .populate("completedAssessments", "title difficulty");
 
-    if (!progress) return res.status(200).json({ message: "No progress yet", progress: null });
+    if (!progress)
+      return res.status(200).json({ message: "No progress yet", progress: null });
+
     res.status(200).json(progress);
   } catch (err) {
     console.error(err);

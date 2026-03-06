@@ -12,7 +12,7 @@ const dataTypeOptions = [
 ];
 
 function AddActivity() {
-  const { id } = useParams(); // id = LessonMaterial ID
+  const { id } = useParams();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
@@ -21,6 +21,7 @@ function AddActivity() {
     hints: [""],
     difficulty: "easy",
     expectedOutput: "",
+    // ✅ Now an array of { type, min } objects instead of plain strings
     dataTypesRequired: [],
   });
 
@@ -48,19 +49,23 @@ function AddActivity() {
     });
   };
 
-  const handleDataTypeChange = (type) => {
+  // ✅ Toggle a data type — adds { type, min: 1 } or removes it
+  const handleDataTypeToggle = (type) => {
     const current = [...formData.dataTypesRequired];
-    if (current.includes(type)) {
-      setFormData({
-        ...formData,
-        dataTypesRequired: current.filter((t) => t !== type),
-      });
+    const exists = current.find((d) => d.type === type);
+    if (exists) {
+      setFormData({ ...formData, dataTypesRequired: current.filter((d) => d.type !== type) });
     } else {
-      setFormData({
-        ...formData,
-        dataTypesRequired: [...current, type],
-      });
+      setFormData({ ...formData, dataTypesRequired: [...current, { type, min: 1 }] });
     }
+  };
+
+  // ✅ Update the min value for a specific type
+  const handleMinChange = (type, value) => {
+    const updated = formData.dataTypesRequired.map((d) =>
+      d.type === type ? { ...d, min: Math.max(1, parseInt(value) || 1) } : d
+    );
+    setFormData({ ...formData, dataTypesRequired: updated });
   };
 
   const isInvalid =
@@ -76,14 +81,12 @@ function AddActivity() {
 
     try {
       const token = localStorage.getItem("token");
-
       await axios.post(
         `http://localhost:5000/api/activities/materials/${id}/activities`,
         formData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      navigate(-1); // go back to previous page (lesson view)
+      navigate(-1);
     } catch (err) {
       console.error("Error adding activity:", err);
       alert("Failed to add activity. Check console for details.");
@@ -102,9 +105,7 @@ function AddActivity() {
               <Form.Control
                 type="text"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Enter activity name"
                 required
               />
@@ -116,30 +117,26 @@ function AddActivity() {
               <ReactQuill
                 theme="snow"
                 value={formData.instructions}
-                onChange={(val) =>
-                  setFormData({ ...formData, instructions: val })
-                }
+                onChange={(val) => setFormData({ ...formData, instructions: val })}
               />
               <small className={countWords(formData.instructions) > 70 ? "text-danger" : "text-muted"}>
                 Word count: {countWords(formData.instructions)} / 70
               </small>
             </Form.Group>
 
+            {/* Time Limit */}
             <div className="mb-3">
-          <label className="form-label">Time Limit (seconds)</label>
-          <input
-  type="number"
-  name="timeLimit"
-  className="form-control"
-  value={formData.timeLimit}
-  min={30}
-  required
-  onChange={(e) =>
-    setFormData({ ...formData, timeLimit: parseInt(e.target.value) })
-  }
-/>
-
-        </div>
+              <label className="form-label">Time Limit (seconds)</label>
+              <input
+                type="number"
+                name="timeLimit"
+                className="form-control"
+                value={formData.timeLimit}
+                min={30}
+                required
+                onChange={(e) => setFormData({ ...formData, timeLimit: parseInt(e.target.value) })}
+              />
+            </div>
 
             {/* Hints */}
             <div className="d-flex justify-content-between align-items-center mb-2">
@@ -159,11 +156,7 @@ function AddActivity() {
                 <div className="d-flex justify-content-between align-items-center mb-2">
                   <span className="fw-bold">Hint {index + 1}</span>
                   {formData.hints.length > 1 && (
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      onClick={() => removeHintBox(index)}
-                    >
+                    <Button variant="outline-danger" size="sm" onClick={() => removeHintBox(index)}>
                       Remove
                     </Button>
                   )}
@@ -186,10 +179,8 @@ function AddActivity() {
                 as="textarea"
                 rows={6}
                 value={formData.expectedOutput}
-                onChange={(e) =>
-                  setFormData({ ...formData, expectedOutput: e.target.value })
-                }
-                placeholder="Enter expected output (can include images/text)"
+                onChange={(e) => setFormData({ ...formData, expectedOutput: e.target.value })}
+                placeholder="Enter expected output"
                 style={{ fontFamily: "Arial, sans-serif", whiteSpace: "pre-wrap" }}
               />
             </Form.Group>
@@ -198,17 +189,45 @@ function AddActivity() {
             <Form.Group className="mb-3">
               <Form.Label className="fw-bold">Data Types Required</Form.Label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-                {dataTypeOptions.map((type) => (
-                  <label key={type} style={{ display: "flex", alignItems: "center" }}>
-                    <input
-                      type="checkbox"
-                      checked={formData.dataTypesRequired.includes(type)}
-                      onChange={() => handleDataTypeChange(type)}
-                      style={{ marginRight: "5px" }}
-                    />
-                    {type}
-                  </label>
-                ))}
+                {dataTypeOptions.map((type) => {
+                  const entry = formData.dataTypesRequired.find((d) => d.type === type);
+                  const isChecked = !!entry;
+                  return (
+                    <div
+                      key={type}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        background: isChecked ? "#e8f4ff" : "#f8f9fa",
+                        border: isChecked ? "1px solid #90c8ff" : "1px solid #dee2e6",
+                        borderRadius: "8px",
+                        padding: "4px 10px",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleDataTypeToggle(type)}
+                        style={{ marginRight: "4px" }}
+                      />
+                      <span>{type}</span>
+                      {/* ✅ Show min input only when checked */}
+                      {isChecked && (
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "6px" }}>
+                          <span style={{ fontSize: "12px", color: "#555" }}>min:</span>
+                          <input
+                            type="number"
+                            min={1}
+                            value={entry.min}
+                            onChange={(e) => handleMinChange(type, e.target.value)}
+                            style={{ width: "48px", padding: "2px 4px", fontSize: "13px", borderRadius: "4px", border: "1px solid #ccc" }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </Form.Group>
 
@@ -217,9 +236,7 @@ function AddActivity() {
               <Form.Label className="fw-bold">Difficulty</Form.Label>
               <Form.Select
                 value={formData.difficulty}
-                onChange={(e) =>
-                  setFormData({ ...formData, difficulty: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
               >
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
@@ -229,15 +246,8 @@ function AddActivity() {
 
             {/* Buttons */}
             <div className="d-flex justify-content-end gap-2">
-              <Button
-                variant="outline-secondary"
-                onClick={() => navigate(-1)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" variant="primary" disabled={isInvalid}>
-                Save Activity
-              </Button>
+              <Button variant="outline-secondary" onClick={() => navigate(-1)}>Cancel</Button>
+              <Button type="submit" variant="primary" disabled={isInvalid}>Save Activity</Button>
             </div>
           </Form>
         </Card.Body>

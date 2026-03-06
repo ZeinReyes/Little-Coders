@@ -110,10 +110,9 @@ export default function DragBoardLesson() {
     markAssessmentCompleted,
   } = useAssessmentLogic({ lessonId, user });
 
-
-    // ── Timer ──
+  // ── Timer ──
   const timerResetKey = `${lesson?._id}-${lesson?.currentQuestion?._id}`;
-  const { formatted: timerFormatted, stopTimer  } = useTimer({
+  const { formatted: timerFormatted, stopTimer } = useTimer({
     initialSeconds: lesson?.timeLimit || 300,
     resetKey: timerResetKey,
     onTimeUp: () => {
@@ -124,6 +123,7 @@ export default function DragBoardLesson() {
       stopActivitySound();
     },
   });
+
   // ── AI review ──
   const {
     aiRecommendation,
@@ -238,9 +238,6 @@ export default function DragBoardLesson() {
   }, [showActivityModal]);
 
   // ── Drag & drop + run button wiring ────────────────────────────────────────
-  // `cleanup` lives in the outer scope so the useEffect return can always reach
-  // it — even when the DOM wasn't ready yet and init() had to retry via setTimeout.
-  // `cancelled` stops any pending retry from attaching listeners after unmount.
   useEffect(() => {
     let cleanup = null;
     let cancelled = false;
@@ -256,9 +253,6 @@ export default function DragBoardLesson() {
       const outputArea   = document.getElementById("outputArea");
 
       if (!whiteboard || !codeArea || !trashCan || !notification || !runButton) {
-        // Retry after a short delay. The cancelled flag above prevents stacking
-        // listeners if the effect re-runs or the component unmounts before the
-        // DOM is ready.
         setTimeout(init, 200);
         return;
       }
@@ -289,7 +283,6 @@ export default function DragBoardLesson() {
           expectedOutput:    question.expectedOutput || null,
           dataTypesRequired: question.dataTypesRequired || [],
         });
-        outputArea.textContent = result.stdout || result.stderr || "/* No output */";
 
         const timeTaken = Math.floor((Date.now() - questionStartTimeRef.current) / 1000);
         const attempts  = assessmentAttemptsRef.current + 1;
@@ -354,14 +347,28 @@ export default function DragBoardLesson() {
               setRevealedHints(0);
               revealedHintsRef.current = 0;
             } else {
+              // ✅ FIX: All questions answered — mark assessment complete in DB
               setCharacterImg(getRandomImage(congratsImages));
               setShowCongratsModal(true);
               markAssessmentCompleted(currentLesson._id || currentLesson.id, currentLesson.isAIReview, updatedHistory);
+              if (!currentLesson.isAIReview) {
+                await markCompleted({
+                  lessonType:   "assessment",
+                  assessmentId: currentLesson._id || currentLesson.id,
+                });
+              }
             }
           } else {
+            // ✅ FIX: All questions answered — mark assessment complete in DB
             setCharacterImg(getRandomImage(congratsImages));
             setShowCongratsModal(true);
             markAssessmentCompleted(currentLesson._id || currentLesson.id, currentLesson.isAIReview, updatedHistory);
+            if (!currentLesson.isAIReview) {
+              await markCompleted({
+                lessonType:   "assessment",
+                assessmentId: currentLesson._id || currentLesson.id,
+              });
+            }
           }
         } else {
           if (attempts >= 3) {
@@ -417,8 +424,8 @@ export default function DragBoardLesson() {
           expectedOutput:    currentLesson.expectedOutput || null,
           dataTypesRequired: currentLesson.dataTypesRequired || [],
         });
-        outputArea.textContent = result.stdout || result.stderr || "/* No output */";
 
+        // ✅ FIX: Use ref instead of stale outer-scope lessonStartTime
         const timeTaken = Math.floor((Date.now() - currentActivityStartTimeRef.current) / 1000);
         const attempts  = activityAttemptsRef.current + 1;
 
@@ -455,6 +462,7 @@ export default function DragBoardLesson() {
           playSuccessSound();
           stopTimer();
           if (!currentLesson.isAIReview)
+            // ✅ FIX: Use ref for accurate time tracking
             markCompleted({ lessonType: "activity", lessonStartTime: lessonStartTimeRef.current });
           stopActivitySound();
           setCharacterImg(getRandomImage(congratsImages));
@@ -496,7 +504,6 @@ export default function DragBoardLesson() {
       updateVariableState(whiteboard);
       updateCode(whiteboard, codeArea);
 
-      // Assign to outer-scope variable so the return below can always call it
       cleanup = () => {
         destroy && destroy();
         runButton.removeEventListener("click", onRun);
@@ -507,7 +514,7 @@ export default function DragBoardLesson() {
     init();
 
     return () => {
-      cancelled = true;   // stop any pending setTimeout(init) from running
+      cancelled = true;
       if (cleanup) cleanup();
     };
   }, [lesson?.type, lesson?._id]);
@@ -700,7 +707,11 @@ export default function DragBoardLesson() {
       />
 
       {/* Whiteboard workspace */}
-      <Workspace lessonType={lesson.type} timeFormatted={timerFormatted} />
+      <Workspace
+        lessonType={lesson.type}
+        timeFormatted={timerFormatted}
+        dataTypesRequired={lesson.dataTypesRequired || lesson.currentQuestion?.dataTypesRequired || []}
+      />
 
       {/* All modals (lesson, activity intro, congrats, answer) */}
       <LessonModals

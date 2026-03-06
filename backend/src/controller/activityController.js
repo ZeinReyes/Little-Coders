@@ -1,36 +1,40 @@
 import LessonActivity from "../model/LessonActivity.js";
 
+const validDataTypes = [
+  "print", "variable", "multiple", "add", "subtract", "divide",
+  "equal", "notequal", "less", "lessequal", "greater", "greaterequal",
+  "if", "elif", "else", "while"
+];
+
+const validateDataTypes = (dataTypesRequired) => {
+  if (!dataTypesRequired) return true;
+  return dataTypesRequired.every(dt => validDataTypes.includes(dt.type));
+};
+
 export const createActivity = async (req, res) => {
   try {
     const { materialId } = req.params;
 
-    let { 
-      name, 
-      instructions, 
-      hints, 
-      expectedOutput, 
-      difficulty, 
-      dataTypesRequired, 
+    let {
+      name,
+      instructions,
+      hints,
+      expectedOutput,
+      difficulty,
+      dataTypesRequired,
       order,
-      timeLimit // ✅ added
+      timeLimit,
     } = req.body;
 
     if (!Array.isArray(hints)) hints = hints ? [hints] : [];
 
-    // ✅ Validate timeLimit
     if (!timeLimit || timeLimit < 30) {
       return res.status(400).json({
         message: "Time limit must be at least 30 seconds."
       });
     }
 
-    const validDataTypes = [
-      "print", "variable", "multiple", "add", "subtract", "divide",
-      "equal", "notequal", "less", "lessequal", "greater", "greaterequal",
-      "if", "elif", "else", "while"
-    ];
-
-    if (dataTypesRequired && !dataTypesRequired.every(dt => validDataTypes.includes(dt))) {
+    if (!validateDataTypes(dataTypesRequired)) {
       return res.status(400).json({ message: "Invalid data type selected." });
     }
 
@@ -43,7 +47,7 @@ export const createActivity = async (req, res) => {
       difficulty: difficulty || "easy",
       dataTypesRequired: dataTypesRequired || [],
       order: order || 0,
-      timeLimit, // ✅ added
+      timeLimit,
     });
 
     await activity.save();
@@ -68,8 +72,8 @@ export const getActivityById = async (req, res) => {
 
 export const getActivitiesByMaterial = async (req, res) => {
   try {
-    const { materialId } = req.params; // materialId is now LessonMaterial
-    const activities = await LessonActivity.find({ materialId }).sort({ order: 1 }); // Sort by order only
+    const { materialId } = req.params;
+    const activities = await LessonActivity.find({ materialId }).sort({ order: 1 });
 
     const normalized = activities.map((a) => ({
       ...a.toObject(),
@@ -87,16 +91,16 @@ export const updateActivity = async (req, res) => {
   try {
     const { id } = req.params;
 
-    let { 
-      name, 
-      instructions, 
-      hints, 
-      expectedOutput, 
-      difficulty, 
-      materialId, 
-      dataTypesRequired, 
+    let {
+      name,
+      instructions,
+      hints,
+      expectedOutput,
+      difficulty,
+      materialId,
+      dataTypesRequired,
       order,
-      timeLimit // ✅ added
+      timeLimit,
     } = req.body;
 
     if (!materialId) {
@@ -107,13 +111,7 @@ export const updateActivity = async (req, res) => {
 
     if (!Array.isArray(hints)) hints = hints ? [hints] : [];
 
-    const validDataTypes = [
-      "print", "variable", "multiple", "add", "subtract", "divide",
-      "equal", "notequal", "less", "lessequal", "greater", "greaterequal",
-      "if", "elif", "else", "while"
-    ];
-
-    if (dataTypesRequired && !dataTypesRequired.every(dt => validDataTypes.includes(dt))) {
+    if (!validateDataTypes(dataTypesRequired)) {
       return res.status(400).json({ message: "Invalid data type selected." });
     }
 
@@ -127,16 +125,15 @@ export const updateActivity = async (req, res) => {
       dataTypesRequired: dataTypesRequired || [],
     };
 
-    // Validate & update timeLimit if provided
-if (timeLimit !== undefined) {
-  timeLimit = Number(timeLimit);
-  if (!timeLimit || timeLimit < 30) {
-    return res.status(400).json({
-      message: "Time limit must be a number and at least 30 seconds."
-    });
-  }
-  updateData.timeLimit = timeLimit;
-}
+    if (timeLimit !== undefined) {
+      timeLimit = Number(timeLimit);
+      if (!timeLimit || timeLimit < 30) {
+        return res.status(400).json({
+          message: "Time limit must be a number and at least 30 seconds."
+        });
+      }
+      updateData.timeLimit = timeLimit;
+    }
 
     if (order !== undefined) {
       updateData.order = order;

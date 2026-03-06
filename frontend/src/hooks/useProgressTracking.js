@@ -7,10 +7,9 @@ import axios from "axios";
  */
 export function useProgressTracking({ lessonId, itemId, user }) {
 
-  // ── Mark lesson / activity completed ──
-  const markCompleted = async ({ lessonType, lessonStartTime }) => {
+  // ── Mark lesson / activity / assessment completed ──
+  const markCompleted = async ({ lessonType, lessonStartTime, assessmentId }) => {
     if (!user?._id) return;
-    if (lessonType === "assessment") return;
 
     try {
       const token = localStorage.getItem("token");
@@ -24,6 +23,9 @@ export function useProgressTracking({ lessonId, itemId, user }) {
       } else if (lessonType === "activity") {
         endpoint = "complete-activity";
         payload.activityId = itemId;
+      } else if (lessonType === "assessment") {
+        endpoint = "complete-assessment";
+        payload.assessmentId = assessmentId || itemId;
       }
 
       if (!endpoint) return;

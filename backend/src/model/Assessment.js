@@ -10,11 +10,11 @@ const assessmentSchema = new mongoose.Schema(
       required: true,
     },
 
-    // ✅ WHOLE ASSESSMENT TIME LIMIT (in seconds)
+    // WHOLE ASSESSMENT TIME LIMIT (in seconds)
     timeLimit: {
       type: Number,
       required: true,
-      min: 30, // minimum 30 seconds
+      min: 30,
     },
 
     questions: [
@@ -27,12 +27,25 @@ const assessmentSchema = new mongoose.Schema(
           enum: ["Easy", "Medium", "Hard"],
           default: "Easy",
         },
+        // ✅ Changed from [String] to [{ type, min }] to support minimum counts per block type
         dataTypesRequired: {
-          type: [String],
-          enum: [
-            "print", "variable", "multiple", "add", "subtract", "divide",
-            "equal", "notequal", "less", "lessequal", "greater", "greaterequal",
-            "if", "elif", "else", "while",
+          type: [
+            {
+              type: {
+                type: String,
+                enum: [
+                  "print", "variable", "multiple", "add", "subtract", "divide",
+                  "equal", "notequal", "less", "lessequal", "greater", "greaterequal",
+                  "if", "elif", "else", "while",
+                ],
+                required: true,
+              },
+              min: {
+                type: Number,
+                default: 1,
+                min: 1,
+              },
+            },
           ],
           default: [],
         },
@@ -47,7 +60,6 @@ const assessmentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// ✅ Format JSON response
 assessmentSchema.set("toJSON", {
   transform: (doc, ret) => {
     ret.id = ret._id;

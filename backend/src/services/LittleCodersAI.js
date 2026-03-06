@@ -13,13 +13,18 @@
  *   weights.json  — neural network weights
  *   metadata.json — version, accuracy, counters
  *   ai_data.json  — growing dataset of real student sessions
+ *
+ * FIXES:
+ *  - One-step clamp: difficulty can only move one level at a time (Easy→Medium, not Easy→Hard)
+ *  - Confidence threshold: requires ≥60% confidence to change difficulty
+ *  - questionsRemaining normalised over 5 instead of 10 so it doesn't dominate features
  */
 
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname     = path.dirname(fileURLToPath(import.meta.url));
 const MODEL_DIR     = path.join(__dirname, "../ai_model");
 const WEIGHTS_PATH  = path.join(MODEL_DIR, "weights.json");
 const METADATA_PATH = path.join(MODEL_DIR, "metadata.json");
@@ -31,6 +36,9 @@ const HIDDEN1       = 12;
 const HIDDEN2       = 8;
 const OUTPUT_SIZE   = 3;
 const LABELS        = ["Easy", "Medium", "Hard"];
+
+// Minimum confidence required to change difficulty level
+const MIN_CONFIDENCE_TO_CHANGE = 0.60;
 
 // ── Bootstrap training data ──────────────────────────────────
 const BOOTSTRAP_DATA = [
@@ -107,16 +115,16 @@ function initBias(size) { return new Array(size).fill(0.01); }
 const relu  = x => Math.max(0, x);
 const reluD = x => x > 0 ? 1 : 0;
 function softmax(arr) {
-  const max = Math.max(...arr);
+  const max  = Math.max(...arr);
   const exps = arr.map(x => Math.exp(x - max));
-  const sum = exps.reduce((a, b) => a + b, 0);
+  const sum  = exps.reduce((a, b) => a + b, 0);
   return exps.map(e => e / sum);
 }
-function matVec(W, x) { return W.map(row => row.reduce((s, w, j) => s + w * x[j], 0)); }
-function addBias(a, b) { return a.map((v, i) => v + b[i]); }
+function matVec(W, x)   { return W.map(row => row.reduce((s, w, j) => s + w * x[j], 0)); }
+function addBias(a, b)  { return a.map((v, i) => v + b[i]); }
 
 function forward(net, x) {
-  const z1 = addBias(matVec(net.W1, x), net.b1); const a1 = z1.map(relu);
+  const z1 = addBias(matVec(net.W1, x),  net.b1); const a1 = z1.map(relu);
   const z2 = addBias(matVec(net.W2, a1), net.b2); const a2 = z2.map(relu);
   const z3 = addBias(matVec(net.W3, a2), net.b3); const out = softmax(z3);
   return { x, z1, a1, z2, a2, z3, out };
@@ -125,13 +133,13 @@ function forward(net, x) {
 function backward(net, cache, labelIdx, lr) {
   const { x, z1, a1, z2, a2, out } = cache;
   const dOut = out.map((v, i) => v - (i === labelIdx ? 1 : 0));
-  const dW3 = dOut.map(d => a2.map(a => d * a)); const db3 = [...dOut];
-  const da2 = net.W3[0].map((_, j) => dOut.reduce((s, d, i) => s + d * net.W3[i][j], 0));
-  const dz2 = da2.map((d, i) => d * reluD(z2[i]));
-  const dW2 = dz2.map(d => a1.map(a => d * a)); const db2 = [...dz2];
-  const da1 = net.W2[0].map((_, j) => dz2.reduce((s, d, i) => s + d * net.W2[i][j], 0));
-  const dz1 = da1.map((d, i) => d * reluD(z1[i]));
-  const dW1 = dz1.map(d => x.map(xi => d * xi)); const db1 = [...dz1];
+  const dW3  = dOut.map(d => a2.map(a => d * a)); const db3 = [...dOut];
+  const da2  = net.W3[0].map((_, j) => dOut.reduce((s, d, i) => s + d * net.W3[i][j], 0));
+  const dz2  = da2.map((d, i) => d * reluD(z2[i]));
+  const dW2  = dz2.map(d => a1.map(a => d * a)); const db2 = [...dz2];
+  const da1  = net.W2[0].map((_, j) => dz2.reduce((s, d, i) => s + d * net.W2[i][j], 0));
+  const dz1  = da1.map((d, i) => d * reluD(z1[i]));
+  const dW1  = dz1.map(d => x.map(xi => d * xi)); const db1 = [...dz1];
   for (let i = 0; i < net.W1.length; i++) for (let j = 0; j < net.W1[i].length; j++) net.W1[i][j] -= lr * dW1[i][j];
   for (let i = 0; i < net.b1.length; i++) net.b1[i] -= lr * db1[i];
   for (let i = 0; i < net.W2.length; i++) for (let j = 0; j < net.W2[i].length; j++) net.W2[i][j] -= lr * dW2[i][j];
@@ -142,7 +150,10 @@ function backward(net, cache, labelIdx, lr) {
 
 function computeAccuracy(net, data) {
   let c = 0;
-  for (const s of data) { const { out } = forward(net, s.f); if (out.indexOf(Math.max(...out)) === s.label) c++; }
+  for (const s of data) {
+    const { out } = forward(net, s.f);
+    if (out.indexOf(Math.max(...out)) === s.label) c++;
+  }
   return c / data.length;
 }
 
@@ -165,7 +176,7 @@ function trainNetwork(data, epochs = 2500, startLr = 0.05) {
 // ── Persistence ───────────────────────────────────────────────
 function ensureDir() { if (!fs.existsSync(MODEL_DIR)) fs.mkdirSync(MODEL_DIR, { recursive: true }); }
 
-function saveWeights(net) { ensureDir(); fs.writeFileSync(WEIGHTS_PATH, JSON.stringify(net)); }
+function saveWeights(net)  { ensureDir(); fs.writeFileSync(WEIGHTS_PATH, JSON.stringify(net)); }
 function loadWeights() {
   if (!fs.existsSync(WEIGHTS_PATH)) return null;
   try { return JSON.parse(fs.readFileSync(WEIGHTS_PATH, "utf8")); } catch { return null; }
@@ -186,8 +197,9 @@ function saveStudentData(data) { ensureDir(); fs.writeFileSync(DATA_PATH, JSON.s
 // ── Feature extraction ────────────────────────────────────────
 export function extractFeatures(history, currentDifficulty, questionsRemaining) {
   if (!history || history.length === 0) return new Array(8).fill(0.5);
-  const last3 = history.slice(-3);
-  const totalQ = history.length;
+
+  const last3       = history.slice(-3);
+  const totalQ      = history.length;
   const avgAttempts = last3.reduce((s, q) => s + (q.attemptsUsed || 1), 0) / last3.length / 3;
   const solvedRate  = last3.filter(q => q.solved).length / last3.length;
   const avgHints    = last3.reduce((s, q) => s + (q.hintsUsed || 0), 0) / last3.length / 3;
@@ -195,9 +207,26 @@ export function extractFeatures(history, currentDifficulty, questionsRemaining) 
   const diffNorm    = diffEnc[currentDifficulty] ?? 0.0;
   const solvedFirst = last3.filter(q => q.attemptsUsed === 1 && q.solved).length / last3.length;
   const failedAll   = history.filter(q => q.attemptsUsed >= 3 && !q.solved).length / totalQ;
+
   let streak = 0;
-  for (let i = history.length - 1; i >= 0; i--) { if (history[i].attemptsUsed === 1 && history[i].solved) streak++; else break; }
-  return [Math.min(avgAttempts,1), solvedRate, Math.min(avgHints,1), diffNorm, solvedFirst, failedAll, Math.min(streak/3,1), Math.min((questionsRemaining||5)/10,1)];
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].attemptsUsed === 1 && history[i].solved) streak++;
+    else break;
+  }
+
+  // ✅ Normalise over 5 (not 10) so remaining questions don't dominate the prediction
+  const remainingNorm = Math.min((questionsRemaining || 0) / 5, 1);
+
+  return [
+    Math.min(avgAttempts, 1),
+    solvedRate,
+    Math.min(avgHints, 1),
+    diffNorm,
+    solvedFirst,
+    failedAll,
+    Math.min(streak / 3, 1),
+    remainingNorm,
+  ];
 }
 
 // ── Convert a completed session into labeled training samples ──
@@ -208,7 +237,7 @@ function sessionToSamples(questions) {
     const next = questions[i];
     if (next.solved) {
       samples.push({
-        f: extractFeatures(questions.slice(0, i), questions[i-1].difficulty, questions.length - i),
+        f: extractFeatures(questions.slice(0, i), questions[i - 1].difficulty, questions.length - i),
         label: diffEnc[next.difficulty] ?? 0,
       });
     }
@@ -233,7 +262,14 @@ export function initAI() {
   console.log("\n🧠 [AI] First run — training on bootstrap data...");
   _net = trainNetwork(BOOTSTRAP_DATA, 2500, 0.05);
   const acc = computeAccuracy(_net, BOOTSTRAP_DATA);
-  _meta = { version: 1, sampleCount: BOOTSTRAP_DATA.length, realStudentSamples: 0, accuracy: (acc*100).toFixed(1)+"%", trainedAt: new Date().toISOString(), newSessionsSinceRetrain: 0 };
+  _meta = {
+    version: 1,
+    sampleCount: BOOTSTRAP_DATA.length,
+    realStudentSamples: 0,
+    accuracy: (acc * 100).toFixed(1) + "%",
+    trainedAt: new Date().toISOString(),
+    newSessionsSinceRetrain: 0,
+  };
   saveWeights(_net);
   saveMetadata(_meta);
 }
@@ -264,11 +300,19 @@ export function recordSession(completedQuestions) {
 export function retrainWithAllData() {
   if (!_meta) _meta = loadMetadata();
   const studentData = loadStudentData();
-  const combined = [...BOOTSTRAP_DATA, ...studentData];
+  const combined    = [...BOOTSTRAP_DATA, ...studentData];
   console.log(`\n🔄 [AI] Retraining — ${BOOTSTRAP_DATA.length} bootstrap + ${studentData.length} real = ${combined.length} total...`);
   _net = trainNetwork(combined, 2500, 0.05);
   const acc = computeAccuracy(_net, combined);
-  _meta = { ..._meta, version: (_meta.version||1)+1, sampleCount: combined.length, realStudentSamples: studentData.length, accuracy: (acc*100).toFixed(1)+"%", trainedAt: new Date().toISOString(), newSessionsSinceRetrain: 0 };
+  _meta = {
+    ..._meta,
+    version: (_meta.version || 1) + 1,
+    sampleCount: combined.length,
+    realStudentSamples: studentData.length,
+    accuracy: (acc * 100).toFixed(1) + "%",
+    trainedAt: new Date().toISOString(),
+    newSessionsSinceRetrain: 0,
+  };
   saveWeights(_net);
   saveMetadata(_meta);
   console.log(`✅ [AI] Retrained! v${_meta.version} | acc: ${_meta.accuracy} | ${combined.length} samples`);
@@ -278,29 +322,70 @@ export function retrainWithAllData() {
 export function suggestNextDifficulty(performanceData) {
   if (!_net) initAI();
   const { history, currentDifficulty, questionsRemaining } = performanceData;
-  if (!history || history.length === 0) return { suggestedDifficulty: "Easy", confidence: "high", reasoning: "No history yet — starting Easy." };
 
-  const features = extractFeatures(history, currentDifficulty, questionsRemaining);
-  const { out }  = forward(_net, features);
-  const predIdx  = out.indexOf(Math.max(...out));
-  const topProb  = out[predIdx];
-  const suggested = LABELS[predIdx];
-  const confidence = topProb >= 0.75 ? "high" : topProb >= 0.5 ? "medium" : "low";
+  if (!history || history.length === 0) {
+    return { suggestedDifficulty: "Easy", confidence: "high", reasoning: "No history yet — starting Easy." };
+  }
 
+  const features  = extractFeatures(history, currentDifficulty, questionsRemaining);
+  const { out }   = forward(_net, features);
+  const predIdx   = out.indexOf(Math.max(...out));
+  const topProb   = out[predIdx];
+  let   suggested = LABELS[predIdx];
+
+  // ✅ Only allow moving ONE step at a time — prevents Easy→Hard or Hard→Easy jumps
+  const diffOrder  = ["Easy", "Medium", "Hard"];
+  const currentIdx = diffOrder.indexOf(currentDifficulty);
+  const suggestIdx = diffOrder.indexOf(suggested);
+
+  if (suggestIdx > currentIdx + 1) suggested = diffOrder[currentIdx + 1]; // cap: max one step up
+  if (suggestIdx < currentIdx - 1) suggested = diffOrder[currentIdx - 1]; // cap: max one step down
+
+  // ✅ Only change difficulty if the model is confident enough
+  if (suggested !== currentDifficulty && topProb < MIN_CONFIDENCE_TO_CHANGE) {
+    suggested = currentDifficulty;
+  }
+
+  const confidence  = topProb >= 0.75 ? "high" : topProb >= 0.5 ? "medium" : "low";
   const totalSolved = history.filter(q => q.solved).length;
-  const avgAtt = (history.slice(-3).reduce((s,q)=>s+(q.attemptsUsed||1),0)/Math.min(history.length,3)).toFixed(1);
-  let reasoning = `AI v${_meta?.version||"?"} (${_meta?.realStudentSamples||0} real samples): `;
-  if (suggested === currentDifficulty) reasoning += `Mixed performance (${totalSolved}/${history.length} solved, avg ${avgAtt} attempts) — staying at ${currentDifficulty}.`;
-  else if (suggested === "Hard") reasoning += `Strong performance (avg ${avgAtt} attempts, ${totalSolved}/${history.length} solved) — ready for Hard!`;
-  else if (suggested === "Easy") reasoning += `Struggling (${totalSolved}/${history.length} solved) — stepping back to Easy.`;
-  else if (currentDifficulty === "Easy") reasoning += `Solving Easy consistently — time for Medium!`;
-  else reasoning += `Stepping down from Hard to rebuild on Medium.`;
+  const avgAtt      = (
+    history.slice(-3).reduce((s, q) => s + (q.attemptsUsed || 1), 0) /
+    Math.min(history.length, 3)
+  ).toFixed(1);
 
-  console.log(`🎯 [AI v${_meta?.version}] → ${suggested} | ${confidence} (${(topProb*100).toFixed(1)}%) | Easy:${(out[0]*100).toFixed(0)}% Med:${(out[1]*100).toFixed(0)}% Hard:${(out[2]*100).toFixed(0)}%`);
+  let reasoning = `AI v${_meta?.version || "?"} (${_meta?.realStudentSamples || 0} real samples): `;
+  if (suggested === currentDifficulty) {
+    reasoning += `Staying at ${currentDifficulty} (${totalSolved}/${history.length} solved, avg ${avgAtt} attempts).`;
+  } else if (suggested === "Hard") {
+    reasoning += `Strong performance (avg ${avgAtt} attempts, ${totalSolved}/${history.length} solved) — ready for Hard!`;
+  } else if (suggested === "Easy") {
+    reasoning += `Struggling (${totalSolved}/${history.length} solved) — stepping back to Easy.`;
+  } else if (currentDifficulty === "Easy") {
+    reasoning += `Solving Easy consistently — time for Medium!`;
+  } else {
+    reasoning += `Stepping down from Hard to Medium.`;
+  }
+
+  console.log(
+    `🎯 [AI v${_meta?.version}] → ${suggested} | ${confidence} (${(topProb * 100).toFixed(1)}%) | ` +
+    `Easy:${(out[0] * 100).toFixed(0)}% Med:${(out[1] * 100).toFixed(0)}% Hard:${(out[2] * 100).toFixed(0)}%`
+  );
+
   return { suggestedDifficulty: suggested, confidence, reasoning };
 }
 
 export function getModelStatus() {
   const meta = loadMetadata();
-  return { version: meta.version, accuracy: meta.accuracy, totalSamples: meta.sampleCount, realStudentSamples: meta.realStudentSamples||0, bootstrapSamples: BOOTSTRAP_DATA.length, sessionsSinceRetrain: meta.newSessionsSinceRetrain||0, retrainEvery: RETRAIN_EVERY, nextRetrainIn: RETRAIN_EVERY-(meta.newSessionsSinceRetrain||0), trainedAt: meta.trainedAt, weightsExist: fs.existsSync(WEIGHTS_PATH) };
+  return {
+    version:              meta.version,
+    accuracy:             meta.accuracy,
+    totalSamples:         meta.sampleCount,
+    realStudentSamples:   meta.realStudentSamples  || 0,
+    bootstrapSamples:     BOOTSTRAP_DATA.length,
+    sessionsSinceRetrain: meta.newSessionsSinceRetrain || 0,
+    retrainEvery:         RETRAIN_EVERY,
+    nextRetrainIn:        RETRAIN_EVERY - (meta.newSessionsSinceRetrain || 0),
+    trainedAt:            meta.trainedAt,
+    weightsExist:         fs.existsSync(WEIGHTS_PATH),
+  };
 }
