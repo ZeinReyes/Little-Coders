@@ -57,7 +57,7 @@ export function slotToCode(slot, indentLevel = 0) {
       const right = slots[1] ? slotToCode(slots[1], 0).trim() : '0';
       const opMap = {
         add: "+", subtract: "-", multiply: "*", divide: "/",
-        equal: "==", notequal: "!=", less: "<", lessequal: "<=",
+        equal: "=", equalto: "==", notequal: "!=", less: "<", lessequal: "<=",
         greater: ">", greaterequal: ">="
       };
       const op = opMap[child.dataset.op] || child.dataset.op || '+';

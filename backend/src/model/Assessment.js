@@ -35,8 +35,8 @@ const assessmentSchema = new mongoose.Schema(
                 type: String,
                 enum: [
                   "print", "variable", "multiple", "add", "subtract", "divide",
-                  "equal", "notequal", "less", "lessequal", "greater", "greaterequal",
-                  "if", "elif", "else", "while",
+                  "equal", "equalto", "notequal", "less", "lessequal", "greater", "greaterequal",
+                  "if", "elif", "else", "while", "do-while", "for",  // ← add these three
                 ],
                 required: true,
               },

@@ -85,14 +85,14 @@ export function generateNodeCode(node) {
 
     const opMap = {
       add: "+", subtract: "-", multiply: "*", divide: "/",
-      equal: "==", notequal: "!=", less: "<", lessequal: "<=",
+      equal: "=", equalto: "==", notequal: "!=", less: "<", lessequal: "<=",
       greater: ">", greaterequal: ">="
     };
     const pyOp = opMap[op] || "+";
 
     return {
       code: `${left.code} ${pyOp} ${right.code}`,
-      type: ["equal","notequal","less","lessequal","greater","greaterequal"].includes(op)
+      type: ["equalto","notequal","less","lessequal","greater","greaterequal"].includes(op)
         ? "bool"
         : left.type === right.type
         ? left.type
