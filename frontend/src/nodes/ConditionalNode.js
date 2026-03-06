@@ -65,7 +65,7 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
     const ifNode = document.createElement('div');
     ifNode.className = 'if-node';
     ifNode.id = makeId('if');
-    ifNode.dataset.type = 'conditional if';
+    ifNode.dataset.type = 'if';
 
     ifNode.style.cssText = `
       background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
@@ -244,7 +244,7 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
     const elifNode = document.createElement('div');
     elifNode.className = 'elif-node';
     elifNode.id = makeId('elif');
-    elifNode.dataset.type = 'conditional elif';
+    elifNode.dataset.type = 'elif';
 
     elifNode.style.cssText = `
       background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
@@ -390,7 +390,7 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
     const elseNode = document.createElement('div');
     elseNode.className = 'else-node';
     elseNode.id = makeId('else');
-    elseNode.dataset.type = 'conditional else';
+    elseNode.dataset.type = 'else';
 
     elseNode.style.cssText = `
       background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);

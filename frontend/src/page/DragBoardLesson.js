@@ -257,6 +257,9 @@ export default function DragBoardLesson() {
         return;
       }
 
+      // ✅ FIX: Destroy any previous initDragAndDrop listeners before re-initialising.
+      // When only currentQuestion changes (same lesson _id / type) the effect re-runs,
+      // so we must tear down the old palette wiring first to avoid duplicate handlers.
       const destroy = initDragAndDrop({
         paletteSelector: ".elements img",
         whiteboard,
@@ -347,7 +350,6 @@ export default function DragBoardLesson() {
               setRevealedHints(0);
               revealedHintsRef.current = 0;
             } else {
-              // ✅ FIX: All questions answered — mark assessment complete in DB
               setCharacterImg(getRandomImage(congratsImages));
               setShowCongratsModal(true);
               markAssessmentCompleted(currentLesson._id || currentLesson.id, currentLesson.isAIReview, updatedHistory);
@@ -359,7 +361,6 @@ export default function DragBoardLesson() {
               }
             }
           } else {
-            // ✅ FIX: All questions answered — mark assessment complete in DB
             setCharacterImg(getRandomImage(congratsImages));
             setShowCongratsModal(true);
             markAssessmentCompleted(currentLesson._id || currentLesson.id, currentLesson.isAIReview, updatedHistory);
@@ -425,7 +426,6 @@ export default function DragBoardLesson() {
           dataTypesRequired: currentLesson.dataTypesRequired || [],
         });
 
-        // ✅ FIX: Use ref instead of stale outer-scope lessonStartTime
         const timeTaken = Math.floor((Date.now() - currentActivityStartTimeRef.current) / 1000);
         const attempts  = activityAttemptsRef.current + 1;
 
@@ -462,7 +462,6 @@ export default function DragBoardLesson() {
           playSuccessSound();
           stopTimer();
           if (!currentLesson.isAIReview)
-            // ✅ FIX: Use ref for accurate time tracking
             markCompleted({ lessonType: "activity", lessonStartTime: lessonStartTimeRef.current });
           stopActivitySound();
           setCharacterImg(getRandomImage(congratsImages));
@@ -517,7 +516,14 @@ export default function DragBoardLesson() {
       cancelled = true;
       if (cleanup) cleanup();
     };
-  }, [lesson?.type, lesson?._id]);
+
+  // ✅ FIX: Added lesson?.currentQuestion?._id to dependency array.
+  // Previously, this effect only re-ran when lesson._id or lesson.type changed.
+  // But moving between questions only changes currentQuestion — same _id and type —
+  // so initDragAndDrop was never re-called, leaving the palette drag wiring from
+  // question 1 stale. Operators that weren't in question 1's palette (like '-')
+  // would drag but silently fail to drop because no fresh handler was registered.
+  }, [lesson?.type, lesson?._id, lesson?.currentQuestion?._id]);
 
   // ── Lesson navigation ──────────────────────────────────────────────────────
   const handleNextContent = async () => {

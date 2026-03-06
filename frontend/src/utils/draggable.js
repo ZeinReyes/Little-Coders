@@ -25,7 +25,7 @@ export function clearDragType() {
 export function makeDraggable(el) {
   if (!el) return;
   el.setAttribute('draggable', 'true');
-  
+
   el.addEventListener('dragstart', (e) => {
     // Detect if this element is from palette or from board
     if (el.closest('#palette') || el.dataset.source === 'palette') {
@@ -45,7 +45,14 @@ export function makeDraggable(el) {
   });
 
   el.addEventListener('dragend', () => {
-    _dragSource = null;
-    _dragType = null;
+    // ✅ FIX: Defer clearing drag state so the drop handler on the slot
+    // has time to read _dragType / _dragSource before they are wiped.
+    // Without this, dragend fires before drop in some browsers, causing
+    // getDragState() inside the slot drop handler to return nulls and
+    // silently skip creating the new element (broke question 2+ operators).
+    setTimeout(() => {
+      _dragSource = null;
+      _dragType = null;
+    }, 50);
   });
 }
