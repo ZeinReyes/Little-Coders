@@ -40,17 +40,11 @@ const DS = `
 .ds-empty-state{text-align:center;padding:1.5rem;color:#94a3b8;font-size:.78rem;}
 .ds-menu-btn{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:7px;border:1.5px solid #e2e8f0;background:#fff;cursor:pointer;color:#64748b;transition:all .15s;}
 .ds-menu-btn:hover{background:#f1f5f9;border-color:#cbd5e1;color:#0f172a;}
-.ds-dropdown{position:fixed;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:9999;min-width:140px;overflow:hidden;}
-.ds-dropdown-item{display:flex;align-items:center;gap:8px;padding:.65rem 1rem;font-size:.78rem;cursor:pointer;transition:background .15s;color:#374151;}
-.ds-dropdown-item:hover{background:#f8fafc;}
-.ds-dropdown-item.danger{color:#dc2626;}
-.ds-dropdown-item.danger:hover{background:#fef2f2;}
 .ds-btn-sm{display:inline-flex;align-items:center;gap:5px;font-family:'Sora',sans-serif;font-size:.73rem;font-weight:500;padding:.35rem .85rem;border-radius:8px;border:none;cursor:pointer;transition:all .15s;}
 .ds-btn-primary-sm{background:#2563eb;color:#fff;}
 .ds-btn-primary-sm:hover{background:#1d4ed8;}
 .ds-spinner{width:14px;height:14px;border:2px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto;}
 @keyframes spin{to{transform:rotate(360deg)}}
-/* Modal */
 .ds-overlay{position:fixed;inset:0;background:rgba(15,23,42,.4);display:flex;align-items:center;justify-content:center;z-index:1000;padding:1rem;}
 .ds-modal{background:#fff;border-radius:16px;width:100%;max-width:420px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.15);animation:fadeUp .2s ease;}
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
@@ -70,6 +64,9 @@ const DS = `
 .ds-btn-danger:hover{background:#b91c1c;}
 `;
 
+// Safely extract Mongo ID regardless of _id vs id field
+const gid = (obj) => obj?._id || obj?.id;
+
 export default function LessonsList() {
   const [lessons, setLessons] = useState([]);
   const [expandedLesson, setExpandedLesson] = useState(null);
@@ -87,7 +84,6 @@ export default function LessonsList() {
 
   useEffect(() => { fetchLessons(); }, []);
 
-  // Close menu on outside click
   useEffect(() => {
     const handler = () => setOpenMenu(null);
     document.addEventListener("click", handler);
@@ -108,16 +104,21 @@ export default function LessonsList() {
       setLoadingLessons((p) => ({ ...p, [lessonId]: true }));
       try {
         const token = localStorage.getItem("token");
-        const materialsRes = await axios.get(`${API_BASE}/materials/lessons/${lessonId}/materials`, { headers: { Authorization: `Bearer ${token}` } });
+        const headers = { Authorization: `Bearer ${token}` };
+
+        const materialsRes = await axios.get(`${API_BASE}/materials/lessons/${lessonId}/materials`, { headers });
         const sortedMaterials = materialsRes.data.sort((a, b) => (a.order || 0) - (b.order || 0));
+
         const activitiesByMaterial = {};
         await Promise.all(sortedMaterials.map(async (material) => {
+          const mId = gid(material);
           try {
-            const actRes = await axios.get(`${API_BASE}/activities/materials/${material._id}/activities`, { headers: { Authorization: `Bearer ${token}` } });
-            activitiesByMaterial[material._id] = actRes.data.sort((a, b) => (a.order || 0) - (b.order || 0));
-          } catch { activitiesByMaterial[material._id] = []; }
+            const actRes = await axios.get(`${API_BASE}/activities/materials/${mId}/activities`, { headers });
+            activitiesByMaterial[mId] = actRes.data.sort((a, b) => (a.order || 0) - (b.order || 0));
+          } catch { activitiesByMaterial[mId] = []; }
         }));
-        const assessmentsRes = await axios.get(`${API_BASE}/assessments/lessons/${lessonId}/assessments`, { headers: { Authorization: `Bearer ${token}` } });
+
+        const assessmentsRes = await axios.get(`${API_BASE}/assessments/lessons/${lessonId}/assessments`, { headers });
         setLessonContents((p) => ({ ...p, [lessonId]: {
           materials: sortedMaterials,
           activitiesByMaterial,
@@ -133,26 +134,26 @@ export default function LessonsList() {
     const { type, id, lessonId, materialId } = deleteTarget || {};
     try {
       const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
       if (type === "lesson") {
-        await axios.delete(`${API_BASE}/lessons/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-        setLessons((p) => p.filter((l) => l._id !== id));
-        // Remove from expanded cache too
-        setLessonContents((p) => { const n = {...p}; delete n[id]; return n; });
+        await axios.delete(`${API_BASE}/lessons/${id}`, { headers });
+        setLessons((p) => p.filter((l) => gid(l) !== id));
+        setLessonContents((p) => { const n = { ...p }; delete n[id]; return n; });
       } else if (type === "material") {
-        await axios.delete(`${API_BASE}/materials/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-        setLessonContents((p) => ({ ...p, [lessonId]: { ...p[lessonId], materials: p[lessonId].materials.filter((m) => m._id !== id) } }));
+        await axios.delete(`${API_BASE}/materials/${id}`, { headers });
+        setLessonContents((p) => ({ ...p, [lessonId]: { ...p[lessonId], materials: p[lessonId].materials.filter((m) => gid(m) !== id) } }));
       } else if (type === "activity") {
-        await axios.delete(`${API_BASE}/activities/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-        setLessonContents((p) => ({ ...p, [lessonId]: { ...p[lessonId], activitiesByMaterial: { ...p[lessonId].activitiesByMaterial, [materialId]: p[lessonId].activitiesByMaterial[materialId].filter((a) => a._id !== id) } } }));
+        await axios.delete(`${API_BASE}/activities/${id}`, { headers });
+        setLessonContents((p) => ({ ...p, [lessonId]: { ...p[lessonId], activitiesByMaterial: { ...p[lessonId].activitiesByMaterial, [materialId]: p[lessonId].activitiesByMaterial[materialId].filter((a) => gid(a) !== id) } } }));
       } else if (type === "assessment") {
-        await axios.delete(`${API_BASE}/assessments/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-        setLessonContents((p) => ({ ...p, [lessonId]: { ...p[lessonId], assessments: p[lessonId].assessments.filter((a) => (a._id || a.id) !== id) } }));
+        await axios.delete(`${API_BASE}/assessments/${id}`, { headers });
+        setLessonContents((p) => ({ ...p, [lessonId]: { ...p[lessonId], assessments: p[lessonId].assessments.filter((a) => gid(a) !== id) } }));
       }
       setShowDeleteModal(false);
     } catch (err) {
       const msg = err.response?.data?.message || err.message;
       const status = err.response?.status;
-      console.error(`Delete failed [${status}]:`, msg, "| ID attempted:", deleteTarget?.id);
+      console.error(`Delete failed [${status}]:`, msg, "| type:", type, "| id:", id);
       alert(`Failed to delete: ${msg} (${status})`);
     }
   };
@@ -166,6 +167,7 @@ export default function LessonsList() {
     setOpenMenu(id);
   };
 
+  // Called as function (not <Component/>) to keep fresh closure values
   const FloatingMenu = () => {
     if (!openMenu || !menuPos || !menuMeta) return null;
     const { type, id, lessonId, materialId } = menuMeta;
@@ -187,15 +189,15 @@ export default function LessonsList() {
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          style={{display:"flex",alignItems:"center",gap:8,padding:".65rem 1rem",fontSize:".78rem",cursor:"pointer",color:"#374151"}}
-          onMouseEnter={(e) => e.currentTarget.style.background="#f8fafc"}
-          onMouseLeave={(e) => e.currentTarget.style.background="transparent"}
+          style={{ display:"flex", alignItems:"center", gap:8, padding:".65rem 1rem", fontSize:".78rem", cursor:"pointer", color:"#374151" }}
+          onMouseEnter={(e) => e.currentTarget.style.background = "#f8fafc"}
+          onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
           onClick={() => {
             setOpenMenu(null);
-            if (type === "lesson") navigate(`/admin/lessons/edit/${id}`);
+            if (type === "lesson")        navigate(`/admin/lessons/edit/${id}`);
             else if (type === "material") navigate(`/admin/lessons/${lessonId}/materials/${id}`);
             else if (type === "activity") navigate(`/admin/lessons/${lessonId}/activities/${id}`);
-            else navigate(`/admin/edit-assessment/${id}`);
+            else                          navigate(`/admin/edit-assessment/${id}`);
           }}
         >
           <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -204,9 +206,9 @@ export default function LessonsList() {
           Edit
         </div>
         <div
-          style={{display:"flex",alignItems:"center",gap:8,padding:".65rem 1rem",fontSize:".78rem",cursor:"pointer",color:"#dc2626"}}
-          onMouseEnter={(e) => e.currentTarget.style.background="#fef2f2"}
-          onMouseLeave={(e) => e.currentTarget.style.background="transparent"}
+          style={{ display:"flex", alignItems:"center", gap:8, padding:".65rem 1rem", fontSize:".78rem", cursor:"pointer", color:"#dc2626" }}
+          onMouseEnter={(e) => e.currentTarget.style.background = "#fef2f2"}
+          onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
           onClick={() => {
             setDeleteTarget({ type, id, lessonId, materialId });
             setShowDeleteModal(true);
@@ -223,12 +225,13 @@ export default function LessonsList() {
     return ReactDOM.createPortal(menu, document.body);
   };
 
-  const filtered = lessons.filter((l) => l.title.toLowerCase().includes(search.toLowerCase()));
+  const filtered = lessons.filter((l) => l.title?.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <>
       <style>{DS}</style>
       <div className="ds-root">
+
         <div className="ds-topbar">
           <div>
             <h1>Lessons</h1>
@@ -239,7 +242,7 @@ export default function LessonsList() {
               <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
               </svg>
-              <input type="text" placeholder="Search lessons…" value={search} onChange={(e) => setSearch(e.target.value)}/>
+              <input type="text" placeholder="Search lessons…" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <Link to="/admin/lessons/add" className="ds-btn-add">
               <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -250,120 +253,123 @@ export default function LessonsList() {
           </div>
         </div>
 
-        {filtered.map((lesson) => (
-          <div key={lesson._id} className="ds-lesson-card">
-            <div className="ds-lesson-header" onClick={() => toggleExpand(lesson._id)}>
-              <div className="ds-lesson-title">
-                <span>📘</span>
-                {lesson.title}
-              </div>
-              <div className="ds-lesson-actions" onClick={(e) => e.stopPropagation()}>
-                <button className="ds-btn-sm ds-btn-primary-sm"
-                  onClick={() => navigate(`/admin/lessons/${lesson._id}/add-material`)}>
-                  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+        {filtered.map((lesson) => {
+          const lId = gid(lesson);
+          return (
+            <div key={lId} className="ds-lesson-card">
+              <div className="ds-lesson-header" onClick={() => toggleExpand(lId)}>
+                <div className="ds-lesson-title">
+                  <span>📘</span>
+                  {lesson.title}
+                </div>
+                <div className="ds-lesson-actions" onClick={(e) => e.stopPropagation()}>
+                  <button className="ds-btn-sm ds-btn-primary-sm"
+                    onClick={() => navigate(`/admin/lessons/${lId}/add-material`)}>
+                    <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                    </svg>
+                    Add Material
+                  </button>
+                  <button className="ds-menu-btn"
+                    onClick={(e) => openMenuBtn(e, lId, "lesson", null, null)}>
+                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                      <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+                    </svg>
+                  </button>
+                  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
+                    style={{ transition:"transform .2s", transform: expandedLesson === lId ? "rotate(180deg)" : "none", color:"#94a3b8" }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
                   </svg>
-                  Add Material
-                </button>
-                <button className="ds-menu-btn"
-                  onClick={(e) => openMenuBtn(e, lesson._id, "lesson", null, null)}>
-                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
-                    <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
-                  </svg>
-                </button>
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
-                  style={{transition:"transform .2s",transform: expandedLesson === lesson._id ? "rotate(180deg)" : "none",color:"#94a3b8"}}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
-                </svg>
+                </div>
               </div>
-            </div>
 
-            {expandedLesson === lesson._id && (
-              <div className="ds-lesson-body">
-                {loadingLessons[lesson._id] ? (
-                  <div style={{padding:"1rem",textAlign:"center"}}>
-                    <div className="ds-spinner"/>
-                    <p style={{fontSize:".75rem",color:"#94a3b8",marginTop:8}}>Loading contents…</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="ds-section-label">
-                      <span>📄</span> Materials & Activities
+              {expandedLesson === lId && (
+                <div className="ds-lesson-body">
+                  {loadingLessons[lId] ? (
+                    <div style={{ padding:"1rem", textAlign:"center" }}>
+                      <div className="ds-spinner"/>
+                      <p style={{ fontSize:".75rem", color:"#94a3b8", marginTop:8 }}>Loading contents…</p>
                     </div>
-                    {lessonContents[lesson._id]?.materials?.length ? (
-                      <div className="ds-item-list">
-                        {lessonContents[lesson._id].materials.map((m) => (
-                          <div key={m._id}>
-                            <div className="ds-item">
-                              <div className="ds-item-name">
-                                <span>📖</span>{m.title}
-                              </div>
-                              <div className="ds-item-actions">
-                                <button className="ds-btn-sm ds-btn-primary-sm"
-                                  onClick={() => navigate(`/admin/materials/${m._id}/add-activity`)}>
-                                  + Activity
-                                </button>
-                                <button className="ds-menu-btn"
-                                  onClick={(e) => openMenuBtn(e, m._id, "material", lesson._id, null)}>
-                                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
-                                    <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                            {lessonContents[lesson._id]?.activitiesByMaterial[m._id]?.map((a) => (
-                              <div key={a._id} className="ds-activity-item">
-                                <div className="ds-activity-name">
-                                  <span>⚡</span>{a.name}
+                  ) : (
+                    <>
+                      <div className="ds-section-label"><span>📄</span> Materials & Activities</div>
+
+                      {lessonContents[lId]?.materials?.length ? (
+                        <div className="ds-item-list">
+                          {lessonContents[lId].materials.map((m) => {
+                            const mId = gid(m);
+                            return (
+                              <div key={mId}>
+                                <div className="ds-item">
+                                  <div className="ds-item-name"><span>📖</span>{m.title}</div>
+                                  <div className="ds-item-actions">
+                                    <button className="ds-btn-sm ds-btn-primary-sm"
+                                      onClick={() => navigate(`/admin/materials/${mId}/add-activity`)}>
+                                      + Activity
+                                    </button>
+                                    <button className="ds-menu-btn"
+                                      onClick={(e) => openMenuBtn(e, mId, "material", lId, null)}>
+                                      <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                                        <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+                                      </svg>
+                                    </button>
+                                  </div>
                                 </div>
+                                {lessonContents[lId]?.activitiesByMaterial[mId]?.map((a) => {
+                                  const aId = gid(a);
+                                  return (
+                                    <div key={aId} className="ds-activity-item">
+                                      <div className="ds-activity-name"><span>⚡</span>{a.name}</div>
+                                      <div className="ds-item-actions">
+                                        <span className={`ds-diff-badge ds-diff-${a.difficulty?.toLowerCase()}`}>{a.difficulty}</span>
+                                        <button className="ds-menu-btn"
+                                          onClick={(e) => openMenuBtn(e, aId, "activity", lId, mId)}>
+                                          <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                                            <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+                                          </svg>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : <p className="ds-empty-state">No materials yet.</p>}
+
+                      <div className="ds-section-label" style={{ marginTop:"1rem" }}><span>✅</span> Assessments</div>
+
+                      {lessonContents[lId]?.assessments?.length ? (
+                        <div className="ds-item-list">
+                          {lessonContents[lId].assessments.map((asmt) => {
+                            const asmtId = gid(asmt);
+                            return (
+                              <div key={asmtId} className="ds-item">
+                                <div className="ds-item-name"><span>🧩</span>{asmt.title}</div>
                                 <div className="ds-item-actions">
-                                  <span className={`ds-diff-badge ds-diff-${a.difficulty?.toLowerCase()}`}>{a.difficulty}</span>
                                   <button className="ds-menu-btn"
-                                    onClick={(e) => openMenuBtn(e, a._id, "activity", lesson._id, m._id)}>
+                                    onClick={(e) => openMenuBtn(e, asmtId, "assessment", lId, null)}>
                                     <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
                                       <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
                                     </svg>
                                   </button>
                                 </div>
                               </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    ) : <p className="ds-empty-state">No materials yet.</p>}
-
-                    <div className="ds-section-label" style={{marginTop:"1rem"}}>
-                      <span>✅</span> Assessments
-                    </div>
-                    {lessonContents[lesson._id]?.assessments?.length ? (
-                      <div className="ds-item-list">
-                        {lessonContents[lesson._id].assessments.map((asmt) => {
-                          const aId = asmt._id || asmt.id;
-                          return (
-                            <div key={aId} className="ds-item">
-                              <div className="ds-item-name"><span>🧩</span>{asmt.title}</div>
-                              <div className="ds-item-actions">
-                                <button className="ds-menu-btn"
-                                  onClick={(e) => openMenuBtn(e, aId, "assessment", lesson._id, null)}>
-                                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
-                                    <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : <p className="ds-empty-state">No assessments yet.</p>}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
+                            );
+                          })}
+                        </div>
+                      ) : <p className="ds-empty-state">No assessments yet.</p>}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
 
         {filtered.length === 0 && (
-          <div style={{textAlign:"center",padding:"3rem",color:"#94a3b8",fontSize:".85rem"}}>
+          <div style={{ textAlign:"center", padding:"3rem", color:"#94a3b8", fontSize:".85rem" }}>
             No lessons found.
           </div>
         )}
