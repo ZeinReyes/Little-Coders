@@ -16,40 +16,26 @@ function EditProfile() {
     role: "",
   });
   const [loading, setLoading]   = useState(false);
-  const [fetching, setFetching] = useState(true); // true until user data loads
+  const [fetching, setFetching] = useState(true);
   const [message, setMessage]   = useState("");
 
-  // ── Resolve userId ─────────────────────────────────────────────────────────
-  // user._id is the Mongoose ObjectId string; user.id is the toJSON alias.
-  // Both are set in the fixed loginUser / updateUser controllers.
-  // localStorage.getItem("userId") is the last-resort fallback.
+  // Resolve userId - same chain as working user EditProfile
   const userId =
     user?._id?.toString() ||
     user?.id?.toString()  ||
     localStorage.getItem("userId");
 
-  // ── Load user into form ────────────────────────────────────────────────────
-  // Runs whenever userId becomes available (handles async AuthContext hydration).
+  // Always fetch fresh from API - never short-circuit from context.
+  // The working user EditProfile always fetches; context can be stale.
   useEffect(() => {
-    if (!userId) return;
-
-    // If user context is already populated, pre-fill immediately without a fetch
-    if (user?.name && user?.email) {
-      setFormData({
-        name:     user.name,
-        email:    user.email,
-        password: "",
-        role:     user.role || "",
-      });
+    if (!userId) {
       setFetching(false);
       return;
     }
 
-    // Otherwise fetch from API (e.g. hard-refresh where context is empty)
     const fetchUser = async () => {
       try {
         const token = localStorage.getItem("token");
-        // GET /api/users/:id → returns user object directly (no wrapper)
         const res = await axios.get(`${API}/users/${userId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -70,11 +56,9 @@ function EditProfile() {
     fetchUser();
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Form change ────────────────────────────────────────────────────────────
   const handleChange = (e) =>
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!userId) {
@@ -85,7 +69,6 @@ function EditProfile() {
     setLoading(true);
     setMessage("");
 
-    // Only include password in payload if the user typed one
     const payload = {
       name:  formData.name.trim(),
       email: formData.email.trim(),
@@ -95,35 +78,42 @@ function EditProfile() {
 
     try {
       const token = localStorage.getItem("token");
-      // PUT /api/users/:id → fixed controller returns { message, user }
       const res = await axios.put(`${API}/users/${userId}`, payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Update auth context so the rest of the app sees the new name/email
-      if (res.data.user) {
+      // Guard: only call setUser if response actually has a user object.
+      // Old controller returns { message } only - calling setUser(undefined)
+      // would wipe auth context and make userId null on next render.
+      if (res.data?.user && typeof res.data.user === "object") {
         setUser(res.data.user);
+        setFormData({
+          name:     res.data.user.name  || formData.name,
+          email:    res.data.user.email || formData.email,
+          role:     res.data.user.role  || formData.role,
+          password: "",
+        });
+      } else {
+        // Patch context manually with known-saved values
+        setUser((prev) => ({
+          ...prev,
+          name:  payload.name,
+          email: payload.email,
+          role:  payload.role,
+        }));
+        setFormData((prev) => ({ ...prev, password: "" }));
       }
-
-      // Sync form with server response; clear password field
-      setFormData({
-        name:     res.data.user?.name  || formData.name,
-        email:    res.data.user?.email || formData.email,
-        role:     res.data.user?.role  || formData.role,
-        password: "",
-      });
 
       setMessage("Profile updated successfully!");
     } catch (err) {
       console.error("Error updating profile:", err);
-      // Show the server's error message if available
       setMessage(err.response?.data?.error || "Failed to update profile.");
     } finally {
       setLoading(false);
     }
   };
 
-  const isSuccess = message.includes("successfully");
+  const isSuccess = message === "Profile updated successfully!";
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
