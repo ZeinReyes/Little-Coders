@@ -17,7 +17,7 @@ const DS = `
 .ds-search input::placeholder{color:#c1c8d4;}
 .ds-btn-add{display:inline-flex;align-items:center;gap:6px;background:#1e293b;color:#fff;font-family:'Sora',sans-serif;font-size:.82rem;font-weight:500;padding:.55rem 1.2rem;border-radius:9px;border:none;cursor:pointer;text-decoration:none;transition:all .15s;}
 .ds-btn-add:hover{background:#0f172a;box-shadow:0 4px 12px rgba(15,23,42,.2);color:#fff;}
-.ds-lesson-card{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #2563eb;border-radius:12px;margin-bottom:.75rem;overflow:hidden;transition:box-shadow .2s;}
+.ds-lesson-card{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #2563eb;border-radius:12px;margin-bottom:.75rem;transition:box-shadow .2s;}
 .ds-lesson-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.07);}
 .ds-lesson-header{padding:.9rem 1.2rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
 .ds-lesson-title{font-size:.88rem;font-weight:600;color:#0f172a;display:flex;align-items:center;gap:8px;}
@@ -39,7 +39,7 @@ const DS = `
 .ds-empty-state{text-align:center;padding:1.5rem;color:#94a3b8;font-size:.78rem;}
 .ds-menu-btn{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:7px;border:1.5px solid #e2e8f0;background:#fff;cursor:pointer;color:#64748b;transition:all .15s;}
 .ds-menu-btn:hover{background:#f1f5f9;border-color:#cbd5e1;color:#0f172a;}
-.ds-dropdown{position:absolute;top:calc(100% + 4px);right:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:2000;min-width:130px;overflow:hidden;}
+.ds-dropdown{position:fixed;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:9999;min-width:140px;overflow:hidden;}
 .ds-dropdown-item{display:flex;align-items:center;gap:8px;padding:.65rem 1rem;font-size:.78rem;cursor:pointer;transition:background .15s;color:#374151;}
 .ds-dropdown-item:hover{background:#f8fafc;}
 .ds-dropdown-item.danger{color:#dc2626;}
@@ -78,6 +78,8 @@ export default function LessonsList() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [openMenu, setOpenMenu] = useState(null);
+  const [menuPos, setMenuPos] = useState(null);
+  const [menuMeta, setMenuMeta] = useState(null);
 
   const navigate = useNavigate();
   const API_BASE = "https://little-coders-production.up.railway.app/api";
@@ -147,28 +149,50 @@ export default function LessonsList() {
     } catch (err) { console.error(err); alert("Failed to delete."); }
   };
 
-  const Menu = ({ type, id, lessonId, materialId }) => openMenu === id ? (
-    <div className="ds-dropdown" onClick={(e) => e.stopPropagation()}>
-      <div className="ds-dropdown-item" onClick={() => {
-        setOpenMenu(null);
-        if (type === "lesson") navigate(`/admin/lessons/edit/${id}`);
-        else if (type === "material") navigate(`/admin/lessons/${lessonId}/materials/${id}`);
-        else if (type === "activity") navigate(`/admin/lessons/${lessonId}/activities/${id}`);
-        else navigate(`/admin/edit-assessment/${id}`);
-      }}>
-        <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Z"/>
-        </svg>
-        Edit
+  // Single floating dropdown rendered at root level using fixed position
+  const openMenuBtn = (e, id, type, lessonId, materialId) => {
+    e.stopPropagation();
+    if (openMenu === id) { setOpenMenu(null); return; }
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    setMenuMeta({ type, id, lessonId, materialId });
+    setOpenMenu(id);
+  };
+
+  const FloatingMenu = () => {
+    if (!openMenu || !menuPos || !menuMeta) return null;
+    const { type, id, lessonId, materialId } = menuMeta;
+    return (
+      <div
+        className="ds-dropdown"
+        style={{ top: menuPos.top, right: menuPos.right }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="ds-dropdown-item" onClick={() => {
+          setOpenMenu(null);
+          if (type === "lesson") navigate(`/admin/lessons/edit/${id}`);
+          else if (type === "material") navigate(`/admin/lessons/${lessonId}/materials/${id}`);
+          else if (type === "activity") navigate(`/admin/lessons/${lessonId}/activities/${id}`);
+          else navigate(`/admin/edit-assessment/${id}`);
+        }}>
+          <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Z"/>
+          </svg>
+          Edit
+        </div>
+        <div className="ds-dropdown-item danger" onClick={() => {
+          setDeleteTarget({ type, id, lessonId, materialId });
+          setShowDeleteModal(true);
+          setOpenMenu(null);
+        }}>
+          <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916"/>
+          </svg>
+          Delete
+        </div>
       </div>
-      <div className="ds-dropdown-item danger" onClick={() => { setDeleteTarget({ type, id, lessonId, materialId }); setShowDeleteModal(true); setOpenMenu(null); }}>
-        <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916"/>
-        </svg>
-        Delete
-      </div>
-    </div>
-  ) : null;
+    );
+  };
 
   const filtered = lessons.filter((l) => l.title.toLowerCase().includes(search.toLowerCase()));
 
