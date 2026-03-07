@@ -47,11 +47,13 @@ export const loginUser = async (req, res) => {
     );
 
     const userResponse = {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
+      _id:                    user._id,
+      id:                     user._id, // ✅ include both for frontend compatibility
+      name:                   user.name,
+      email:                  user.email,
+      role:                   user.role,
       hasCompletedOnboarding: user.hasCompletedOnboarding,
+      isVerified:             user.isVerified,
     };
 
     res.json({ message: "Login successful", user: userResponse, token });
@@ -89,11 +91,13 @@ export const addUser = async (req, res) => {
     );
 
     const userResponse = {
-      _id: newUser._id,
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
+      _id:                    newUser._id,
+      id:                     newUser._id,
+      name:                   newUser.name,
+      email:                  newUser.email,
+      role:                   newUser.role,
       hasCompletedOnboarding: newUser.hasCompletedOnboarding,
+      isVerified:             newUser.isVerified,
     };
 
     res.status(201).json({ message: "User registered successfully", user: userResponse, token });
@@ -105,7 +109,7 @@ export const addUser = async (req, res) => {
 
 // ==============================
 // UPDATE user
-// ✅ FIX: now returns { message, user } so the frontend can call setUser(res.data.user)
+// ✅ FIX: Returns { message, user } so frontend can call setUser(res.data.user)
 // ==============================
 export const updateUser = async (req, res) => {
   try {
@@ -114,7 +118,7 @@ export const updateUser = async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    // Only hash if a new plain-text password was provided
+    // Only hash if a non-empty plain-text password was provided
     if (password && password.trim() !== "") {
       const isAlreadyHashed =
         password.startsWith("$2b$") || password.startsWith("$2a$");
@@ -132,9 +136,10 @@ export const updateUser = async (req, res) => {
 
     await user.save();
 
-    // ✅ Return the updated user (without password) so the frontend can update context
+    // ✅ Return updated user (without password) so EditProfile can call setUser()
     const userResponse = {
       _id:                    user._id,
+      id:                     user._id,
       name:                   user.name,
       email:                  user.email,
       role:                   user.role,

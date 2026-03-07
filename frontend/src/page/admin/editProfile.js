@@ -3,36 +3,56 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/authContext";
 
+const API = "https://little-coders-production.up.railway.app/api";
+
 function EditProfile() {
   const { user, setUser } = useContext(AuthContext);
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     role: "",
   });
+  const [loading, setLoading]   = useState(false);
+  const [fetching, setFetching] = useState(true); // true until user data loads
+  const [message, setMessage]   = useState("");
 
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const navigate = useNavigate();
+  // ── Resolve userId ─────────────────────────────────────────────────────────
+  // user._id is the Mongoose ObjectId string; user.id is the toJSON alias.
+  // Both are set in the fixed loginUser / updateUser controllers.
+  // localStorage.getItem("userId") is the last-resort fallback.
+  const userId =
+    user?._id?.toString() ||
+    user?.id?.toString()  ||
+    localStorage.getItem("userId");
 
-  // ✅ Prefer user._id (Mongoose default) then user.id, then localStorage fallback
-  const userId = user?._id || user?.id || localStorage.getItem("userId");
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
+  // ── Load user into form ────────────────────────────────────────────────────
+  // Runs whenever userId becomes available (handles async AuthContext hydration).
   useEffect(() => {
     if (!userId) return;
+
+    // If user context is already populated, pre-fill immediately without a fetch
+    if (user?.name && user?.email) {
+      setFormData({
+        name:     user.name,
+        email:    user.email,
+        password: "",
+        role:     user.role || "",
+      });
+      setFetching(false);
+      return;
+    }
+
+    // Otherwise fetch from API (e.g. hard-refresh where context is empty)
     const fetchUser = async () => {
       try {
         const token = localStorage.getItem("token");
-        // GET /api/users/:id  → controller returns the user object directly (no wrapper)
-        const res = await axios.get(
-          `https://little-coders-production.up.railway.app/api/users/${userId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        // GET /api/users/:id → returns user object directly (no wrapper)
+        const res = await axios.get(`${API}/users/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         setFormData({
           name:     res.data.name  || "",
           email:    res.data.email || "",
@@ -41,59 +61,71 @@ function EditProfile() {
         });
       } catch (err) {
         console.error("Error fetching user:", err);
+        setMessage("Could not load profile. Please refresh.");
+      } finally {
+        setFetching(false);
       }
     };
-    fetchUser();
-  }, [userId]);
 
+    fetchUser();
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Form change ────────────────────────────────────────────────────────────
+  const handleChange = (e) =>
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!userId) {
+      setMessage("No user session found. Please log in again.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
 
-    // Only send password if the user actually typed one
+    // Only include password in payload if the user typed one
     const payload = {
-      name:  formData.name,
-      email: formData.email,
+      name:  formData.name.trim(),
+      email: formData.email.trim(),
       role:  formData.role,
       ...(formData.password.trim() !== "" && { password: formData.password }),
     };
 
     try {
       const token = localStorage.getItem("token");
-      // PUT /api/users/:id  → controller now returns { message, user }
-      const res = await axios.put(
-        `https://little-coders-production.up.railway.app/api/users/${userId}`,
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      // PUT /api/users/:id → fixed controller returns { message, user }
+      const res = await axios.put(`${API}/users/${userId}`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      // ✅ res.data.user is the updated user returned by the fixed controller
+      // Update auth context so the rest of the app sees the new name/email
       if (res.data.user) {
         setUser(res.data.user);
       }
 
-      // Keep form in sync (clear password, update name/email/role from server)
-      setFormData((prev) => ({
-        ...prev,
-        name:     res.data.user?.name  || prev.name,
-        email:    res.data.user?.email || prev.email,
-        role:     res.data.user?.role  || prev.role,
+      // Sync form with server response; clear password field
+      setFormData({
+        name:     res.data.user?.name  || formData.name,
+        email:    res.data.user?.email || formData.email,
+        role:     res.data.user?.role  || formData.role,
         password: "",
-      }));
+      });
 
       setMessage("Profile updated successfully!");
     } catch (err) {
       console.error("Error updating profile:", err);
-      const serverMsg = err.response?.data?.error;
-      setMessage(serverMsg || "Failed to update profile.");
+      // Show the server's error message if available
+      setMessage(err.response?.data?.error || "Failed to update profile.");
     } finally {
       setLoading(false);
     }
   };
 
-  const isSuccess = message.includes("success");
+  const isSuccess = message.includes("successfully");
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
       <style>{`
@@ -161,9 +193,9 @@ function EditProfile() {
         }
         .ep-role-dot {
           width: 6px; height: 6px; border-radius: 50%;
-          background: #63b3ed; animation: pulse 2s infinite;
+          background: #63b3ed; animation: ep-pulse 2s infinite;
         }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        @keyframes ep-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
         .ep-divider { height: 1px; background: #e8ecf1; }
 
@@ -196,6 +228,7 @@ function EditProfile() {
           border-color: #3b82f6; background: #fff;
           box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
         }
+        .ep-input:disabled { opacity: 0.6; cursor: not-allowed; }
         .ep-input-hint { font-size: 0.73rem; color: #9ca3af; margin-top: 0.35rem; }
 
         .ep-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
@@ -214,6 +247,18 @@ function EditProfile() {
         .ep-alert svg { width: 16px; height: 16px; flex-shrink: 0; }
         .ep-alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
         .ep-alert-error   { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+
+        /* ── Skeleton loader ── */
+        .ep-skeleton {
+          height: 42px; border-radius: 8px;
+          background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);
+          background-size: 200% 100%;
+          animation: ep-shimmer 1.4s infinite;
+        }
+        @keyframes ep-shimmer {
+          0%   { background-position: -200% 0; }
+          100% { background-position:  200% 0; }
+        }
 
         /* ── Footer ── */
         .ep-footer {
@@ -247,9 +292,9 @@ function EditProfile() {
           width: 14px; height: 14px;
           border: 2px solid rgba(255,255,255,0.35);
           border-top-color: #fff; border-radius: 50%;
-          animation: spin 0.7s linear infinite;
+          animation: ep-spin 0.7s linear infinite;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes ep-spin { to { transform: rotate(360deg); } }
       `}</style>
 
       <div className="ep-wrapper">
@@ -282,11 +327,13 @@ function EditProfile() {
               <div className={`ep-alert ${isSuccess ? "ep-alert-success" : "ep-alert-error"}`}>
                 {isSuccess ? (
                   <svg fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                      d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                   </svg>
                 ) : (
                   <svg fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                      d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
                   </svg>
                 )}
                 {message}
@@ -306,11 +353,16 @@ function EditProfile() {
                     </svg>
                     Full Name
                   </label>
-                  <input
-                    type="text" name="name" className="ep-input"
-                    value={formData.name} onChange={handleChange}
-                    placeholder="Enter full name" required
-                  />
+                  {fetching ? (
+                    <div className="ep-skeleton" />
+                  ) : (
+                    <input
+                      type="text" name="name" className="ep-input"
+                      value={formData.name} onChange={handleChange}
+                      placeholder="Enter full name" required
+                      disabled={loading}
+                    />
+                  )}
                 </div>
 
                 <div className="ep-form-group">
@@ -321,11 +373,16 @@ function EditProfile() {
                     </svg>
                     Email Address
                   </label>
-                  <input
-                    type="email" name="email" className="ep-input"
-                    value={formData.email} onChange={handleChange}
-                    placeholder="Enter email address" required
-                  />
+                  {fetching ? (
+                    <div className="ep-skeleton" />
+                  ) : (
+                    <input
+                      type="email" name="email" className="ep-input"
+                      value={formData.email} onChange={handleChange}
+                      placeholder="Enter email address" required
+                      disabled={loading}
+                    />
+                  )}
                 </div>
               </div>
 
@@ -342,6 +399,7 @@ function EditProfile() {
                   type="password" name="password" className="ep-input"
                   value={formData.password} onChange={handleChange}
                   placeholder="Leave blank to keep current password"
+                  disabled={loading || fetching}
                 />
                 <div className="ep-input-hint">
                   Only fill this in if you want to change your password.
@@ -352,7 +410,10 @@ function EditProfile() {
 
           {/* Footer */}
           <div className="ep-footer">
-            <button type="button" className="ep-btn ep-btn-ghost" onClick={() => navigate(-1)}>
+            <button
+              type="button" className="ep-btn ep-btn-ghost"
+              onClick={() => navigate(-1)} disabled={loading}
+            >
               <svg fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
               </svg>
@@ -360,7 +421,8 @@ function EditProfile() {
             </button>
             <button
               type="submit" className="ep-btn ep-btn-primary"
-              disabled={loading} onClick={handleSubmit}
+              disabled={loading || fetching}
+              onClick={handleSubmit}
             >
               {loading ? (
                 <><span className="ep-spinner" /> Saving…</>

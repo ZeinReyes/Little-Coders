@@ -125,40 +125,46 @@ export default function Dashboard() {
     setFetching(true);
     setError(null);
     try {
-      const [usersRes, lessonsRes, assessmentsRes] = await Promise.all([
+      const [usersRes, lessonsRes] = await Promise.all([
         axios.get(`${API}/users`, { headers: authHeaders() }),
         axios.get(`${API}/lessons`),
-        axios.get(`${API}/assessments`),
       ]);
 
       // Safely extract arrays — APIs may return { data: [] } wrappers or plain arrays
       const toArray = (d) => (Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []);
 
-      const usersData       = toArray(usersRes.data);
-      const lessonsData     = toArray(lessonsRes.data);
-      const assessmentsData = toArray(assessmentsRes.data);
+      const usersData   = toArray(usersRes.data);
+      const lessonsData = toArray(lessonsRes.data);
 
       setUsers(usersData);
       setLessons(lessonsData);
-      setAssessments(assessmentsData);
 
-      // Per-lesson: fetch materials, then per-material fetch activities.
-      // Route mount points confirmed from DragBoardLesson.js:
-      //   Materials:  GET /api/materials/lessons/:lessonId/materials
-      //   Activities: GET /api/activities/materials/:materialId/activities
+      // Per-lesson: fetch materials, activities, and assessments in parallel.
+      // Endpoints confirmed from LessonsList.js:
+      //   Materials:   GET /api/materials/lessons/:lessonId/materials
+      //   Activities:  GET /api/activities/materials/:materialId/activities
+      //   Assessments: GET /api/assessments/lessons/:lessonId/assessments
       if (lessonsData.length > 0) {
+        let allAssessments = [];
+
         const metaEntries = await Promise.all(
           lessonsData.map(async (lesson) => {
             const lessonId = lesson._id || lesson.id;
             try {
-              const matsRes = await axios.get(`${API}/materials/lessons/${lessonId}/materials`);
-              const mats    = toArray(matsRes.data);
+              const [matsRes, asmtsRes] = await Promise.all([
+                axios.get(`${API}/materials/lessons/${lessonId}/materials`,   { headers: authHeaders() }),
+                axios.get(`${API}/assessments/lessons/${lessonId}/assessments`, { headers: authHeaders() }),
+              ]);
+
+              const mats  = toArray(matsRes.data);
+              const asmts = toArray(asmtsRes.data);
+              allAssessments = [...allAssessments, ...asmts];
 
               const actCounts = await Promise.all(
                 mats.map(async (m) => {
                   const mid = m._id || m.id;
                   try {
-                    const actsRes = await axios.get(`${API}/activities/materials/${mid}/activities`);
+                    const actsRes = await axios.get(`${API}/activities/materials/${mid}/activities`, { headers: authHeaders() });
                     return toArray(actsRes.data).length;
                   } catch {
                     return 0;
@@ -167,15 +173,18 @@ export default function Dashboard() {
               );
 
               return [lessonId, {
-                materials:  mats.length,
-                activities: actCounts.reduce((s, c) => s + c, 0),
+                materials:   mats.length,
+                activities:  actCounts.reduce((s, c) => s + c, 0),
+                assessments: asmts.length,
               }];
             } catch {
-              return [lessonId, { materials: 0, activities: 0 }];
+              return [lessonId, { materials: 0, activities: 0, assessments: 0 }];
             }
           })
         );
+
         setLessonMeta(Object.fromEntries(metaEntries));
+        setAssessments(allAssessments);
       }
     } catch (err) {
       console.error("Dashboard fetch error:", err);
@@ -189,7 +198,7 @@ export default function Dashboard() {
   // ── Derived values ────────────────────────────────────────────────────────
   const totalUsers       = users.length;
   const totalLessons     = lessons.length;
-  const totalAssessments = assessments.length;
+  const totalAssessments = Object.values(lessonMeta).reduce((s, m) => s + (m.assessments || 0), 0);
   const totalMaterials   = Object.values(lessonMeta).reduce((s, m) => s + m.materials,  0);
   const totalActivities  = Object.values(lessonMeta).reduce((s, m) => s + m.activities, 0);
   const verifiedUsers    = (Array.isArray(users) ? users : []).filter((u) => u.isVerified).length;
@@ -224,12 +233,8 @@ export default function Dashboard() {
   // Lessons table enriched with per-lesson counts
   const lessonsTableData = (Array.isArray(lessons) ? lessons : []).map((l) => {
     const id   = l._id || l.id;
-    const meta = lessonMeta[id] || { materials: 0, activities: 0 };
-    const asmtCount = (Array.isArray(assessments) ? assessments : []).filter((a) => {
-      const lid = typeof a.lessonId === "object" ? a.lessonId?._id : a.lessonId;
-      return String(lid) === String(id);
-    }).length;
-    return { ...l, id, ...meta, assessmentCount: asmtCount };
+    const meta = lessonMeta[id] || { materials: 0, activities: 0, assessments: 0 };
+    return { ...l, id, ...meta, assessmentCount: meta.assessments };
   });
 
   // New signups per day this week (Mon–Sun)
