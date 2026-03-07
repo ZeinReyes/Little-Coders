@@ -6,7 +6,7 @@ import { AuthContext } from "../../context/authContext";
 const API = "https://little-coders-production.up.railway.app/api";
 
 function EditProfile() {
-  const { user, setUser } = useContext(AuthContext);
+  const { user, refreshUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -82,27 +82,19 @@ function EditProfile() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Guard: only call setUser if response actually has a user object.
-      // Old controller returns { message } only - calling setUser(undefined)
-      // would wipe auth context and make userId null on next render.
-      if (res.data?.user && typeof res.data.user === "object") {
-        setUser(res.data.user);
-        setFormData({
-          name:     res.data.user.name  || formData.name,
-          email:    res.data.user.email || formData.email,
-          role:     res.data.user.role  || formData.role,
-          password: "",
-        });
-      } else {
-        // Patch context manually with known-saved values
-        setUser((prev) => ({
-          ...prev,
-          name:  payload.name,
-          email: payload.email,
-          role:  payload.role,
-        }));
-        setFormData((prev) => ({ ...prev, password: "" }));
-      }
+      // refreshUser fetches the latest user from the API and updates
+      // the auth context internally — no need to call setUser directly,
+      // which is not exposed by AuthContext.
+      await refreshUser(userId);
+
+      // Sync form with what we just saved (no need to wait for context)
+      setFormData((prev) => ({
+        ...prev,
+        name:     payload.name,
+        email:    payload.email,
+        role:     payload.role,
+        password: "",
+      }));
 
       setMessage("Profile updated successfully!");
     } catch (err) {
