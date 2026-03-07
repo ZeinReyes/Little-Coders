@@ -22,6 +22,7 @@ import EditProfile from "./page/user/editProfile";
 // Admin
 import AdminPage from "./page/admin/adminPage";
 import Dashboard from "./page/admin/dashboard";
+import AdminEditProfile from "./page/admin/editProfile";
 import Users from "./page/admin/users";
 import AddUser from "./page/admin/addUser";
 import Lessons from "./page/admin/lessons";
@@ -100,6 +101,7 @@ function App() {
       >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="admin/edit-profile" element={<AdminEditProfile />} />
         <Route path="users" element={<Users />} />
         <Route path="users/add" element={<AddUser />} />
         <Route path="lessons" element={<Lessons />} />
