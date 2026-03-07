@@ -39,7 +39,7 @@ const DS = `
 .ds-empty-state{text-align:center;padding:1.5rem;color:#94a3b8;font-size:.78rem;}
 .ds-menu-btn{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:7px;border:1.5px solid #e2e8f0;background:#fff;cursor:pointer;color:#64748b;transition:all .15s;}
 .ds-menu-btn:hover{background:#f1f5f9;border-color:#cbd5e1;color:#0f172a;}
-.ds-dropdown{position:absolute;top:calc(100% + 4px);right:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:20;min-width:130px;overflow:hidden;}
+.ds-dropdown{position:absolute;top:calc(100% + 4px);right:0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:2000;min-width:130px;overflow:hidden;}
 .ds-dropdown-item{display:flex;align-items:center;gap:8px;padding:.65rem 1rem;font-size:.78rem;cursor:pointer;transition:background .15s;color:#374151;}
 .ds-dropdown-item:hover{background:#f8fafc;}
 .ds-dropdown-item.danger{color:#dc2626;}
