@@ -53,7 +53,7 @@ function ModuleList() {
     if (!user?._id) return;
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("https://little-coders-backend.onrender.com/api/lessons", {
+      const res = await axios.get("https://little-coders-production.up.railway.app/api/lessons", {
         headers: { Authorization: `Bearer ${token}` },
       });
       const sortedModules = res.data.sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -94,7 +94,7 @@ function ModuleList() {
 
       const unlockPromises = lessons.map((lesson) =>
         axios
-          .get(`https://little-coders-backend.onrender.com/api/progress/check-unlock`, {
+          .get(`https://little-coders-production.up.railway.app/api/progress/check-unlock`, {
             params: { userId, itemType: "lesson", itemId: lesson._id },
             headers: { Authorization: `Bearer ${token}` },
           })
@@ -107,7 +107,7 @@ function ModuleList() {
 
       const progressPromises = lessons.map((lesson) =>
         axios
-          .get(`https://little-coders-backend.onrender.com/api/progress/${userId}/${lesson._id}`, {
+          .get(`https://little-coders-production.up.railway.app/api/progress/${userId}/${lesson._id}`, {
             headers: { Authorization: `Bearer ${token}` },
           })
           .then((res) => ({

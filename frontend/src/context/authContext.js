@@ -8,7 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const API_BASE_URL = "https://little-coders-backend.onrender.com/api/users";
+  const API_BASE_URL = "https://little-coders-production.up.railway.app/api/users";
 
   // Login: store token & fetch fresh user from backend
   const login = async (userData, token) => {

@@ -57,14 +57,14 @@ function ManageLesson() {
 
       const [materialsRes, activitiesRes, assessmentsRes] = await Promise.all([
         axios.get(
-          `https://little-coders-backend.onrender.com/api/materials/lessons/${id}/materials`,
+          `https://little-coders-production.up.railway.app/api/materials/lessons/${id}/materials`,
           { headers: { Authorization: `Bearer ${token}` } }
         ),
         axios.get(
-          `https://little-coders-backend.onrender.com/api/activities/lessons/${id}/activities`,
+          `https://little-coders-production.up.railway.app/api/activities/lessons/${id}/activities`,
           { headers: { Authorization: `Bearer ${token}` } }
         ),
-        axios.get(`https://little-coders-backend.onrender.com/api/assessments`, {
+        axios.get(`https://little-coders-production.up.railway.app/api/assessments`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -121,7 +121,7 @@ function ManageLesson() {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `https://little-coders-backend.onrender.com/api/lessons/${id}/reorder`,
+        `https://little-coders-production.up.railway.app/api/lessons/${id}/reorder`,
         {
           items: reorderedItems.map((item, index) => ({
             id: item._id,
@@ -165,11 +165,11 @@ function ManageLesson() {
       let endpoint = "";
 
       if (selectedItem.type === "material")
-        endpoint = `https://little-coders-backend.onrender.com/api/materials/${selectedItem._id}`;
+        endpoint = `https://little-coders-production.up.railway.app/api/materials/${selectedItem._id}`;
       else if (selectedItem.type === "activity")
-        endpoint = `https://little-coders-backend.onrender.com/api/activities/${selectedItem._id}`;
+        endpoint = `https://little-coders-production.up.railway.app/api/activities/${selectedItem._id}`;
       else
-        endpoint = `https://little-coders-backend.onrender.com/api/assessments/${selectedItem._id}`;
+        endpoint = `https://little-coders-production.up.railway.app/api/assessments/${selectedItem._id}`;
 
       await axios.delete(endpoint, {
         headers: { Authorization: `Bearer ${token}` },
@@ -193,14 +193,14 @@ function ManageLesson() {
       let endpoint = "";
 
       if (selectedItem.type === "material") {
-        endpoint = `https://little-coders-backend.onrender.com/api/materials/${selectedItem._id}`;
+        endpoint = `https://little-coders-production.up.railway.app/api/materials/${selectedItem._id}`;
         payload = {
           title: editForm.title,
           overview: editForm.overview,
           contents: editForm.contents,
         };
       } else if (selectedItem.type === "activity") {
-        endpoint = `https://little-coders-backend.onrender.com/api/activities/${selectedItem._id}`;
+        endpoint = `https://little-coders-production.up.railway.app/api/activities/${selectedItem._id}`;
         payload = {
           name: editForm.name,
           instructions: editForm.instructions,
@@ -210,7 +210,7 @@ function ManageLesson() {
           lessonId: id,
         };
       } else {
-        endpoint = `https://little-coders-backend.onrender.com/api/assessments/${selectedItem._id}`;
+        endpoint = `https://little-coders-production.up.railway.app/api/assessments/${selectedItem._id}`;
         payload = {
           title: editForm.title,
           instructions: editForm.instructions,

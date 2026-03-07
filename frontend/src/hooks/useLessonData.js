@@ -90,14 +90,14 @@ export function useLessonData({ lessonId, itemId }) {
 
         const res = await axios
           .get(
-            `https://little-coders-backend.onrender.com/api/materials/lessons/${lessonId}/materials/${itemId}`,
+            `https://little-coders-production.up.railway.app/api/materials/lessons/${lessonId}/materials/${itemId}`,
             { headers }
           )
           .then((r) => ({ ...r.data, type: "lesson" }))
           .catch(async () =>
             axios
               .get(
-                `https://little-coders-backend.onrender.com/api/assessments/lessons/${lessonId}/assessments/${itemId}`,
+                `https://little-coders-production.up.railway.app/api/assessments/lessons/${lessonId}/assessments/${itemId}`,
                 { headers }
               )
               .then((r) => {
@@ -120,7 +120,7 @@ export function useLessonData({ lessonId, itemId }) {
               .catch(() =>
                 axios
                   .get(
-                    `https://little-coders-backend.onrender.com/api/activities/lessons/${lessonId}/activities/${itemId}`,
+                    `https://little-coders-production.up.railway.app/api/activities/lessons/${lessonId}/activities/${itemId}`,
                     { headers }
                   )
                   .then((r) => ({ ...r.data, type: "activity" }))

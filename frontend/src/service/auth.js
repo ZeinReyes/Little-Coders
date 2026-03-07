@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API = 'https://little-coders-backend.onrender.com/api/auth';
+const API = 'https://little-coders-production.up.railway.app/api/auth';
 
 export const login = async ({ email, password }) => {
     const response = await axios.post(`${API}/login`, { email, password });

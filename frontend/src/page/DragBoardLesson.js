@@ -537,7 +537,7 @@ export default function DragBoardLesson() {
     try {
       const token = localStorage.getItem("token");
       const res   = await fetch(
-        `https://little-coders-backend.onrender.com/api/activities/materials/${itemId}/activities`,
+        `https://little-coders-production.up.railway.app/api/activities/materials/${itemId}/activities`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const activities = await res.json();
@@ -572,7 +572,7 @@ export default function DragBoardLesson() {
       try {
         const token = localStorage.getItem("token");
         const res   = await fetch(
-          `https://little-coders-backend.onrender.com/api/activities/materials/${itemId}/activities`,
+          `https://little-coders-production.up.railway.app/api/activities/materials/${itemId}/activities`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const activities = await res.json();

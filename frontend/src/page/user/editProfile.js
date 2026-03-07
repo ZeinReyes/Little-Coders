@@ -35,7 +35,7 @@ function EditProfile() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await axios.get(`https://little-coders-backend.onrender.com/api/users/${_id}`);
+        const res = await axios.get(`https://little-coders-production.up.railway.app/api/users/${_id}`);
         setUser({
           name: res.data.name,
           email: res.data.email,
@@ -68,7 +68,7 @@ function EditProfile() {
       if (showPasswordFields && passwords.password) {
         updatedData.password = passwords.password;
       }
-      await axios.put(`https://little-coders-backend.onrender.com/api/users/${_id}`, updatedData);
+      await axios.put(`https://little-coders-production.up.railway.app/api/users/${_id}`, updatedData);
       setMessage("✅ Profile updated successfully!");
       setShowPasswordFields(false);
       setPasswords({ password: "", confirmPassword: "" });

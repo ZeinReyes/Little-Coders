@@ -82,7 +82,7 @@ function AddActivity() {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        `https://little-coders-backend.onrender.com/api/activities/materials/${id}/activities`,
+        `https://little-coders-production.up.railway.app/api/activities/materials/${id}/activities`,
         formData,
         { headers: { Authorization: `Bearer ${token}` } }
       );

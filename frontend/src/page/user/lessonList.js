@@ -118,19 +118,19 @@ function LessonList() {
         const token = localStorage.getItem("token");
         const [moduleRes, materialsRes, assessmentsRes, progressRes] =
           await Promise.all([
-            axios.get(`https://little-coders-backend.onrender.com/api/lessons/${lessonId}`, {
+            axios.get(`https://little-coders-production.up.railway.app/api/lessons/${lessonId}`, {
               headers: { Authorization: `Bearer ${token}` },
             }),
             axios.get(
-              `https://little-coders-backend.onrender.com/api/materials/lessons/${lessonId}/materials`,
+              `https://little-coders-production.up.railway.app/api/materials/lessons/${lessonId}/materials`,
               { headers: { Authorization: `Bearer ${token}` } }
             ),
             axios.get(
-              `https://little-coders-backend.onrender.com/api/assessments/lessons/${lessonId}/assessments`,
+              `https://little-coders-production.up.railway.app/api/assessments/lessons/${lessonId}/assessments`,
               { headers: { Authorization: `Bearer ${token}` } }
             ),
             axios.get(
-              `https://little-coders-backend.onrender.com/api/progress/${userId}/${lessonId}`,
+              `https://little-coders-production.up.railway.app/api/progress/${userId}/${lessonId}`,
               { headers: { Authorization: `Bearer ${token}` } }
             ),
           ]);
@@ -147,7 +147,7 @@ function LessonList() {
         const activitiesByMaterial = {};
         for (const m of materialsRes.data) {
           const res = await axios.get(
-            `https://little-coders-backend.onrender.com/api/activities/materials/${m._id}/activities`,
+            `https://little-coders-production.up.railway.app/api/activities/materials/${m._id}/activities`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
           activitiesByMaterial[m._id] = res.data || [];
@@ -248,7 +248,7 @@ function LessonList() {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          `https://little-coders-backend.onrender.com/api/assessments/${itemId}`,
+          `https://little-coders-production.up.railway.app/api/assessments/${itemId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const assessment = res.data;

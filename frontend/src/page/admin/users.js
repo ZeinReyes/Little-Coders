@@ -20,7 +20,7 @@ function UsersList() {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("https://little-coders-backend.onrender.com/api/users", {
+      const res = await axios.get("https://little-coders-production.up.railway.app/api/users", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUsers(res.data);
@@ -37,7 +37,7 @@ function UsersList() {
   const handleDelete = async () => {
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`https://little-coders-backend.onrender.com/api/users/${deleteUserId}`, {
+      await axios.delete(`https://little-coders-production.up.railway.app/api/users/${deleteUserId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUsers(users.filter((user) => user._id !== deleteUserId));
@@ -61,7 +61,7 @@ function UsersList() {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `https://little-coders-backend.onrender.com/api/users/${editUser._id}`,
+        `https://little-coders-production.up.railway.app/api/users/${editUser._id}`,
         { name: editUser.name, email: editUser.email, role: editUser.role },
         { headers: { Authorization: `Bearer ${token}` } }
       );

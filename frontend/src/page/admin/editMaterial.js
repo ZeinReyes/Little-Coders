@@ -15,7 +15,7 @@ export default function EditMaterial() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const API_BASE = "https://little-coders-backend.onrender.com/api";
+  const API_BASE = "https://little-coders-production.up.railway.app/api";
 
   // ✅ Fetch existing material
   useEffect(() => {

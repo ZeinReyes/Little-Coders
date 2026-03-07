@@ -25,7 +25,7 @@ function EditLesson() {
   const fetchLesson = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(`https://little-coders-backend.onrender.com/api/lessons/${id}`, {
+      const res = await axios.get(`https://little-coders-production.up.railway.app/api/lessons/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -67,7 +67,7 @@ function EditLesson() {
       }, {});
 
       await axios.put(
-        `https://little-coders-backend.onrender.com/api/lessons/${id}`,
+        `https://little-coders-production.up.railway.app/api/lessons/${id}`,
         { ...lesson, topics },
         { headers: { Authorization: `Bearer ${token}` } }
       );

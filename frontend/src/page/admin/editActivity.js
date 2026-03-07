@@ -31,7 +31,7 @@ function EditActivity() {
     fetchActivity();
   }, []);
 
-  const API_BASE = "https://little-coders-backend.onrender.com/api";
+  const API_BASE = "https://little-coders-production.up.railway.app/api";
 
   const fetchActivity = async () => {
     try {
@@ -105,7 +105,7 @@ function EditActivity() {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `https://little-coders-backend.onrender.com/api/activities/${id}`,
+        `https://little-coders-production.up.railway.app/api/activities/${id}`,
         activity,
         { headers: { Authorization: `Bearer ${token}` } }
       );

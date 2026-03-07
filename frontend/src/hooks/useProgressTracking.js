@@ -30,7 +30,7 @@ export function useProgressTracking({ lessonId, itemId, user }) {
 
       if (!endpoint) return;
 
-      await axios.post(`https://little-coders-backend.onrender.com/api/progress/${endpoint}`, payload, {
+      await axios.post(`https://little-coders-production.up.railway.app/api/progress/${endpoint}`, payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
     } catch (err) {
@@ -52,7 +52,7 @@ export function useProgressTracking({ lessonId, itemId, user }) {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        `https://little-coders-backend.onrender.com/api/progress/mark-assessment-attempt`,
+        `https://little-coders-production.up.railway.app/api/progress/mark-assessment-attempt`,
         {
           assessmentId,
           lessonId,
@@ -82,7 +82,7 @@ export function useProgressTracking({ lessonId, itemId, user }) {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        `https://little-coders-backend.onrender.com/api/progress/mark-activity-attempt`,
+        `https://little-coders-production.up.railway.app/api/progress/mark-activity-attempt`,
         {
           activityId,
           lessonId,

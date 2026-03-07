@@ -27,7 +27,7 @@ function TutorialModal({ show, onClose }) {
   const [slides, setSlides] = useState([]);
   const [imagePool, setImagePool] = useState([]);
 
-  const API_BASE_URL = "https://little-coders-backend.onrender.com/api";
+  const API_BASE_URL = "https://little-coders-production.up.railway.app/api";
 
   // 🔹 Slide-based z-index config
   const zIndexConfig = {
