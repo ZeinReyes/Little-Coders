@@ -17,7 +17,7 @@ const DS = `
 .ds-search input::placeholder{color:#c1c8d4;}
 .ds-btn-add{display:inline-flex;align-items:center;gap:6px;background:#1e293b;color:#fff;font-family:'Sora',sans-serif;font-size:.82rem;font-weight:500;padding:.55rem 1.2rem;border-radius:9px;border:none;cursor:pointer;text-decoration:none;transition:all .15s;}
 .ds-btn-add:hover{background:#0f172a;box-shadow:0 4px 12px rgba(15,23,42,.2);color:#fff;}
-.ds-lesson-card{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #2563eb;border-radius:12px;margin-bottom:.75rem;transition:box-shadow .2s;}
+.ds-lesson-card{z-Index: 10;background:#fff;border:1px solid #e2e8f0;border-left:4px solid #2563eb;border-radius:12px;margin-bottom:.75rem;transition:box-shadow .2s;}
 .ds-lesson-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.07);}
 .ds-lesson-header{padding:.9rem 1.2rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
 .ds-lesson-title{font-size:.88rem;font-weight:600;color:#0f172a;display:flex;align-items:center;gap:8px;}
