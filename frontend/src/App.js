@@ -101,7 +101,7 @@ function App() {
       >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route path="admin/edit-profile" element={<AdminEditProfile />} />
+        <Route path="edit-profile" element={<AdminEditProfile />} />
         <Route path="users" element={<Users />} />
         <Route path="users/add" element={<AddUser />} />
         <Route path="lessons" element={<Lessons />} />
