@@ -8,7 +8,7 @@ import User from '../model/User.js';
 const client = new MailtrapClient({ token: process.env.MAILTRAP_TOKEN });
 
 const SENDER = {
-  email: 'noreply@littlecoders.com',
+  email: 'hello@demomailtrap.co',
   name: 'Little Coders',
 };
 

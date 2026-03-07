@@ -3,7 +3,7 @@ import { MailtrapClient } from 'mailtrap';
 const client = new MailtrapClient({ token: process.env.MAILTRAP_TOKEN });
 
 const SENDER = {
-  email: 'noreply@littlecoders.com',
+  email: 'hello@demomailtrap.co',
   name: 'Little Coders Contact Bot',
 };
 
