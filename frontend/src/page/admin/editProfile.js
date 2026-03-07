@@ -1,426 +1,413 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import { AuthContext } from "../../context/authContext";
-
-const API = "https://little-coders-production.up.railway.app/api";
+import {
+  Container,
+  Form,
+  Button,
+  Card,
+  Spinner,
+  InputGroup,
+} from "react-bootstrap";
+import { useNavigate, useParams } from "react-router-dom";
+import { Eye, EyeOff, Settings, User } from "lucide-react";
 
 function EditProfile() {
-  const { user, refreshUser } = useContext(AuthContext);
+  const { _id } = useParams();
+  const [user, setUser] = useState({ name: "", email: "" });
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [message, setMessage] = useState("");
+  const [activeTab, setActiveTab] = useState("edit");
   const navigate = useNavigate();
 
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
+  const [isEditing, setIsEditing] = useState(false);
+
+  const [showPasswordFields, setShowPasswordFields] = useState(false);
+  const [passwords, setPasswords] = useState({
     password: "",
-    role: "",
+    confirmPassword: "",
   });
-  const [loading, setLoading]   = useState(false);
-  const [fetching, setFetching] = useState(true);
-  const [message, setMessage]   = useState("");
+  const [showPasswords, setShowPasswords] = useState({
+    password: false,
+    confirmPassword: false,
+  });
 
-  // Resolve userId - same chain as working user EditProfile
-  const userId =
-    user?._id?.toString() ||
-    user?.id?.toString()  ||
-    localStorage.getItem("userId");
-
-  // Always fetch fresh from API - never short-circuit from context.
-  // The working user EditProfile always fetches; context can be stale.
   useEffect(() => {
-    if (!userId) {
-      setFetching(false);
-      return;
-    }
-
     const fetchUser = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get(`${API}/users/${userId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setFormData({
-          name:     res.data.name  || "",
-          email:    res.data.email || "",
-          password: "",
-          role:     res.data.role  || "",
+        const res = await axios.get(`https://little-coders-production.up.railway.app/api/users/${_id}`);
+        setUser({
+          name: res.data.name,
+          email: res.data.email,
+          password: res.data.password,
         });
       } catch (err) {
         console.error("Error fetching user:", err);
-        setMessage("Could not load profile. Please refresh.");
       } finally {
-        setFetching(false);
+        setLoading(false);
       }
     };
-
     fetchUser();
-  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [_id]);
 
-  const handleChange = (e) =>
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleChange = (e) => setUser({ ...user, [e.target.name]: e.target.value });
+  const handlePasswordChange = (e) => setPasswords({ ...passwords, [e.target.name]: e.target.value });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!userId) {
-      setMessage("No user session found. Please log in again.");
+  const handleSubmit = async () => {
+    setUpdating(true);
+    setMessage("");
+
+    if (showPasswordFields && passwords.password !== passwords.confirmPassword) {
+      setMessage("❌ Passwords do not match.");
+      setUpdating(false);
       return;
     }
 
-    setLoading(true);
-    setMessage("");
-
-    const payload = {
-      name:  formData.name.trim(),
-      email: formData.email.trim(),
-      role:  formData.role,
-      ...(formData.password.trim() !== "" && { password: formData.password }),
-    };
-
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.put(`${API}/users/${userId}`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      // refreshUser fetches the latest user from the API and updates
-      // the auth context internally — no need to call setUser directly,
-      // which is not exposed by AuthContext.
-      await refreshUser(userId);
-
-      // Sync form with what we just saved (no need to wait for context)
-      setFormData((prev) => ({
-        ...prev,
-        name:     payload.name,
-        email:    payload.email,
-        role:     payload.role,
-        password: "",
-      }));
-
-      setMessage("Profile updated successfully!");
+      const updatedData = { ...user };
+      if (showPasswordFields && passwords.password) {
+        updatedData.password = passwords.password;
+      }
+      await axios.put(`https://little-coders-production.up.railway.app/api/users/${_id}`, updatedData);
+      setMessage("✅ Profile updated successfully!");
+      setShowPasswordFields(false);
+      setPasswords({ password: "", confirmPassword: "" });
+      setIsEditing(false);
+      setTimeout(() => window.location.reload(), 1200);
     } catch (err) {
-      console.error("Error updating profile:", err);
-      setMessage(err.response?.data?.error || "Failed to update profile.");
+      console.error("Error updating user:", err);
+      if (err.response?.data?.error) {
+        setMessage(`❌ ${err.response.data.error}: Email already exists`);
+      } else {
+        setMessage("❌ Failed to update profile. Try again.");
+      }
     } finally {
-      setLoading(false);
+      setUpdating(false);
     }
   };
 
-  const isSuccess = message === "Profile updated successfully!";
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>
+        <Spinner animation="border" variant="warning" />
+      </div>
+    );
+  }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+      <Button
+        variant="outline-warning"
+        className="m-3"
+        style={{
+          width: "15%",
+          fontWeight: "bold",
+          borderRadius: "8px",
+        }}
+        onClick={() => navigate(-1)}
+      >
+        ← Back
+      </Button>
 
-        .ep-wrapper {
-          font-family: 'DM Sans', sans-serif;
-          min-height: 100vh;
-          background: #f0f2f5;
-          display: flex;
-          align-items: flex-start;
-          justify-content: center;
-          padding: 2.5rem 1rem;
-        }
-        .ep-card {
-          width: 100%;
-          max-width: 680px;
-          background: #ffffff;
-          border-radius: 12px;
-          box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05);
-          overflow: hidden;
-        }
+      <Container
+        fluid
+        className="d-flex justify-content-center align-items-center mt-3 mb-4"
+      >
+        <div
+          className="d-flex shadow-lg rounded-4"
+          style={{
+            background: "#fffaf3",
+            maxWidth: "950px",
+            width: "100%",
+            borderRadius: "18px",
+            overflow: "hidden",
+          }}
+        >
+          {/* Sidebar */}
+          <div
+            style={{
+              width: "230px",
+              background: "linear-gradient(180deg, #ff914d, #ffb347)",
+              padding: "1.5rem",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "stretch",
+              color: "#fff",
+            }}
+          >
+            <h5
+              style={{
+                fontFamily: "Poppins, sans-serif",
+                fontWeight: "600",
+                marginBottom: "1.5rem",
+                textAlign: "center",
+                letterSpacing: "1px",
+              }}
+            >
+              My Profile
+            </h5>
 
-        /* ── Header ── */
-        .ep-header {
-          background: linear-gradient(135deg, #1a2236 0%, #243150 100%);
-          padding: 2rem 2.25rem 1.75rem;
-          position: relative;
-          overflow: hidden;
-        }
-        .ep-header::after {
-          content: '';
-          position: absolute;
-          right: -40px; top: -40px;
-          width: 180px; height: 180px;
-          border-radius: 50%;
-          background: rgba(255,255,255,0.04);
-          pointer-events: none;
-        }
-        .ep-header-icon {
-          width: 48px; height: 48px;
-          background: rgba(255,255,255,0.1);
-          border: 1px solid rgba(255,255,255,0.15);
-          border-radius: 10px;
-          display: flex; align-items: center; justify-content: center;
-          margin-bottom: 1rem;
-        }
-        .ep-header-icon svg { width: 22px; height: 22px; stroke: #a8c4f0; }
-        .ep-header h2 {
-          color: #ffffff; font-size: 1.35rem; font-weight: 600;
-          margin: 0 0 0.25rem; letter-spacing: -0.02em;
-        }
-        .ep-header p { color: rgba(255,255,255,0.5); font-size: 0.82rem; margin: 0; }
+            <Button
+              variant={activeTab === "edit" ? "light" : "outline-light"}
+              className="mb-3 d-flex align-items-center gap-2"
+              style={{
+                fontFamily: "Poppins, sans-serif",
+                fontWeight: "500",
+                borderRadius: "10px",
+                background: activeTab === "edit" ? "#fff" : "transparent",
+                color: activeTab === "edit" ? "#ff914d" : "#fff",
+                border: "none",
+                transition: "0.3s",
+              }}
+              onClick={() => setActiveTab("edit")}
+            >
+              <User size={18} /> Edit Profile
+            </Button>
 
-        /* ── Role badge ── */
-        .ep-role-badge {
-          display: inline-flex; align-items: center; gap: 6px;
-          background: rgba(99,179,237,0.15);
-          border: 1px solid rgba(99,179,237,0.3);
-          color: #90cdf4;
-          font-family: 'DM Mono', monospace;
-          font-size: 0.7rem; font-weight: 500;
-          letter-spacing: 0.06em; text-transform: uppercase;
-          padding: 4px 10px; border-radius: 20px; margin-top: 0.75rem;
-        }
-        .ep-role-dot {
-          width: 6px; height: 6px; border-radius: 50%;
-          background: #63b3ed; animation: ep-pulse 2s infinite;
-        }
-        @keyframes ep-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-
-        .ep-divider { height: 1px; background: #e8ecf1; }
-
-        /* ── Body ── */
-        .ep-body { padding: 2rem 2.25rem 2.25rem; }
-        .ep-section-label {
-          font-size: 0.7rem; font-weight: 600;
-          letter-spacing: 0.1em; text-transform: uppercase;
-          color: #8a94a6; margin-bottom: 1.25rem;
-        }
-        .ep-form-group { margin-bottom: 1.35rem; }
-        .ep-label {
-          font-size: 0.8rem; font-weight: 500; color: #374151;
-          margin-bottom: 0.45rem;
-          display: flex; align-items: center; gap: 6px;
-        }
-        .ep-label svg { width: 14px; height: 14px; stroke: #9ca3af; }
-        .ep-input {
-          display: block; width: 100%;
-          padding: 0.6rem 0.9rem;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 0.875rem; color: #111827;
-          background: #f9fafb;
-          border: 1.5px solid #e5e7eb; border-radius: 8px;
-          transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
-          outline: none;
-        }
-        .ep-input::placeholder { color: #c1c8d4; }
-        .ep-input:focus {
-          border-color: #3b82f6; background: #fff;
-          box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
-        }
-        .ep-input:disabled { opacity: 0.6; cursor: not-allowed; }
-        .ep-input-hint { font-size: 0.73rem; color: #9ca3af; margin-top: 0.35rem; }
-
-        .ep-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-        @media (max-width: 540px) {
-          .ep-grid-2 { grid-template-columns: 1fr; }
-          .ep-body    { padding: 1.5rem 1.25rem; }
-          .ep-header  { padding: 1.5rem 1.25rem 1.25rem; }
-        }
-
-        /* ── Alert ── */
-        .ep-alert {
-          display: flex; align-items: center; gap: 10px;
-          padding: 0.75rem 1rem; border-radius: 8px;
-          font-size: 0.83rem; font-weight: 500; margin-bottom: 1.5rem;
-        }
-        .ep-alert svg { width: 16px; height: 16px; flex-shrink: 0; }
-        .ep-alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
-        .ep-alert-error   { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
-
-        /* ── Skeleton loader ── */
-        .ep-skeleton {
-          height: 42px; border-radius: 8px;
-          background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);
-          background-size: 200% 100%;
-          animation: ep-shimmer 1.4s infinite;
-        }
-        @keyframes ep-shimmer {
-          0%   { background-position: -200% 0; }
-          100% { background-position:  200% 0; }
-        }
-
-        /* ── Footer ── */
-        .ep-footer {
-          border-top: 1px solid #f1f3f7;
-          padding: 1.25rem 2.25rem;
-          display: flex; justify-content: flex-end; gap: 0.75rem;
-          background: #fafbfc;
-        }
-        .ep-btn {
-          font-family: 'DM Sans', sans-serif;
-          font-size: 0.85rem; font-weight: 500;
-          padding: 0.55rem 1.35rem; border-radius: 8px; border: none;
-          cursor: pointer;
-          display: inline-flex; align-items: center; gap: 7px;
-          transition: all 0.15s; line-height: 1.4;
-        }
-        .ep-btn svg { width: 15px; height: 15px; }
-        .ep-btn-ghost {
-          background: transparent;
-          border: 1.5px solid #d1d5db; color: #6b7280;
-        }
-        .ep-btn-ghost:hover { background: #f3f4f6; border-color: #9ca3af; color: #374151; }
-        .ep-btn-primary { background: #1a2236; color: #fff; border: 1.5px solid transparent; }
-        .ep-btn-primary:hover:not(:disabled) {
-          background: #243150;
-          box-shadow: 0 4px 12px rgba(26,34,54,0.25);
-          transform: translateY(-1px);
-        }
-        .ep-btn-primary:disabled { opacity: 0.65; cursor: not-allowed; }
-        .ep-spinner {
-          width: 14px; height: 14px;
-          border: 2px solid rgba(255,255,255,0.35);
-          border-top-color: #fff; border-radius: 50%;
-          animation: ep-spin 0.7s linear infinite;
-        }
-        @keyframes ep-spin { to { transform: rotate(360deg); } }
-      `}</style>
-
-      <div className="ep-wrapper">
-        <div className="ep-card">
-
-          {/* Header */}
-          <div className="ep-header">
-            <div className="ep-header-icon">
-              <svg fill="none" viewBox="0 0 24 24" strokeWidth="1.6">
-                <path strokeLinecap="round" strokeLinejoin="round"
-                  d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-              </svg>
-            </div>
-            <h2>Edit Profile</h2>
-            <p>Manage your administrator account settings</p>
-            {formData.role && (
-              <div className="ep-role-badge">
-                <span className="ep-role-dot" />
-                {formData.role}
-              </div>
-            )}
+            <Button
+              variant={activeTab === "settings" ? "light" : "outline-light"}
+              className="d-flex align-items-center gap-2"
+              style={{
+                fontFamily: "Poppins, sans-serif",
+                fontWeight: "500",
+                borderRadius: "10px",
+                background: activeTab === "settings" ? "#fff" : "transparent",
+                color: activeTab === "settings" ? "#ff914d" : "#fff",
+                border: "none",
+                transition: "0.3s",
+              }}
+              onClick={() => setActiveTab("settings")}
+            >
+              <Settings size={18} /> Settings
+            </Button>
           </div>
 
-          <div className="ep-divider" />
+          {/* Main Content */}
+          <div
+            style={{
+              flexGrow: 1,
+              background: "#fffdf8",
+              padding: "2.5rem",
+            }}
+          >
+            {activeTab === "edit" ? (
+              <Card
+                style={{
+                  width: "100%",
+                  maxWidth: "520px",
+                  margin: "0 auto",
+                  borderRadius: "15px",
+                  border: "1px solid #ffe0b2",
+                  boxShadow: "0 6px 12px rgba(0,0,0,0.05)",
+                }}
+                className="p-4"
+              >
+                <h3
+                  className="text-center mb-4"
+                  style={{
+                    fontFamily: "Poppins, sans-serif",
+                    color: "#ff914d",
+                    fontWeight: "600",
+                  }}
+                >
+                  Edit Profile
+                </h3>
 
-          {/* Body */}
-          <div className="ep-body">
+                <Form>
+                  <Form.Group className="mb-3" controlId="formName">
+                    <Form.Label>Full Name</Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="name"
+                      placeholder="Enter your full name"
+                      value={user.name}
+                      onChange={handleChange}
+                      readOnly={!isEditing}
+                      required
+                      style={{
+                        borderRadius: "10px",
+                        padding: "10px",
+                        border: "1px solid #ffd8a8",
+                      }}
+                    />
+                  </Form.Group>
 
-            {message && (
-              <div className={`ep-alert ${isSuccess ? "ep-alert-success" : "ep-alert-error"}`}>
-                {isSuccess ? (
-                  <svg fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round"
-                      d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                  </svg>
-                ) : (
-                  <svg fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round"
-                      d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-                  </svg>
+                  <Form.Group className="mb-3" controlId="formEmail">
+                    <Form.Label>Email Address</Form.Label>
+                    <Form.Control
+                      type="email"
+                      name="email"
+                      placeholder="Enter your email"
+                      value={user.email}
+                      onChange={handleChange}
+                      readOnly={!isEditing}
+                      required
+                      style={{
+                        borderRadius: "10px",
+                        padding: "10px",
+                        border: "1px solid #ffd8a8",
+                      }}
+                    />
+                  </Form.Group>
+
+                  {!showPasswordFields ? (
+                    <div className="mb-3">
+                      <Form.Label>Password</Form.Label>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <Form.Control
+                          type="password"
+                          value="********"
+                          disabled
+                          style={{
+                            width: "80%",
+                            borderRadius: "10px",
+                            border: "1px solid #ffd8a8",
+                          }}
+                        />
+                        <Button
+                          variant="outline-warning"
+                          size="sm"
+                          disabled={!isEditing}
+                          onClick={() => setShowPasswordFields(true)}
+                        >
+                          Change
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <Form.Group className="mb-3" controlId="formPassword">
+                        <Form.Label>New Password</Form.Label>
+                        <InputGroup>
+                          <Form.Control
+                            type={showPasswords.password ? "text" : "password"}
+                            name="password"
+                            placeholder="Enter new password"
+                            value={passwords.password}
+                            onChange={handlePasswordChange}
+                            required
+                            style={{
+                              borderRadius: "10px",
+                              padding: "10px",
+                              border: "1px solid #ffd8a8",
+                            }}
+                          />
+                          <Button
+                            variant="outline-secondary"
+                            onClick={() =>
+                              setShowPasswords((prev) => ({
+                                ...prev,
+                                password: !prev.password,
+                              }))
+                            }
+                          >
+                            {showPasswords.password ? <EyeOff /> : <Eye />}
+                          </Button>
+                        </InputGroup>
+                      </Form.Group>
+
+                      <Form.Group className="mb-3" controlId="formConfirmPassword">
+                        <Form.Label>Confirm Password</Form.Label>
+                        <InputGroup>
+                          <Form.Control
+                            type={showPasswords.confirmPassword ? "text" : "password"}
+                            name="confirmPassword"
+                            placeholder="Confirm new password"
+                            value={passwords.confirmPassword}
+                            onChange={handlePasswordChange}
+                            required
+                            style={{
+                              borderRadius: "10px",
+                              padding: "10px",
+                              border: "1px solid #ffd8a8",
+                            }}
+                          />
+                          <Button
+                            variant="outline-secondary"
+                            onClick={() =>
+                              setShowPasswords((prev) => ({
+                                ...prev,
+                                confirmPassword: !prev.confirmPassword,
+                              }))
+                            }
+                          >
+                            {showPasswords.confirmPassword ? <EyeOff /> : <Eye />}
+                          </Button>
+                        </InputGroup>
+                      </Form.Group>
+
+                      <div className="d-flex justify-content-end">
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => {
+                            setShowPasswordFields(false);
+                            setPasswords({ password: "", confirmPassword: "" });
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </>
+                  )}
+
+                  {!isEditing ? (
+                    <Button
+                      variant="warning"
+                      className="w-100 mt-3"
+                      style={{
+                        borderRadius: "10px",
+                        fontWeight: "bold",
+                        padding: "10px",
+                      }}
+                      onClick={() => setIsEditing(true)}
+                    >
+                      ✏️ Edit Profile
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      className="w-100 mt-3"
+                      disabled={updating}
+                      style={{
+                        backgroundColor: "#ff914d",
+                        border: "none",
+                        borderRadius: "10px",
+                        fontWeight: "bold",
+                        padding: "10px",
+                      }}
+                      onClick={handleSubmit}
+                    >
+                      {updating ? "Updating..." : "💾 Save Changes"}
+                    </Button>
+                  )}
+                </Form>
+
+                {message && (
+                  <div
+                    className={`mt-3 text-center ${
+                      message.startsWith("✅") ? "text-success" : "text-danger"
+                    }`}
+                  >
+                    {message}
+                  </div>
                 )}
-                {message}
+              </Card>
+            ) : (
+              <div
+                className="text-center p-5"
+                style={{
+                  fontFamily: "Poppins, sans-serif",
+                  color: "#555",
+                }}
+              >
+                <h3 style={{ color: "#ff914d" }}>⚙️ Settings</h3>
+                <p>Settings section coming soon...</p>
               </div>
             )}
-
-            <div className="ep-section-label">Account Information</div>
-
-            <form onSubmit={handleSubmit}>
-              {/* Name + Email */}
-              <div className="ep-grid-2">
-                <div className="ep-form-group">
-                  <label className="ep-label">
-                    <svg fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round"
-                        d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                    </svg>
-                    Full Name
-                  </label>
-                  {fetching ? (
-                    <div className="ep-skeleton" />
-                  ) : (
-                    <input
-                      type="text" name="name" className="ep-input"
-                      value={formData.name} onChange={handleChange}
-                      placeholder="Enter full name" required
-                      disabled={loading}
-                    />
-                  )}
-                </div>
-
-                <div className="ep-form-group">
-                  <label className="ep-label">
-                    <svg fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round"
-                        d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-                    </svg>
-                    Email Address
-                  </label>
-                  {fetching ? (
-                    <div className="ep-skeleton" />
-                  ) : (
-                    <input
-                      type="email" name="email" className="ep-input"
-                      value={formData.email} onChange={handleChange}
-                      placeholder="Enter email address" required
-                      disabled={loading}
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Password */}
-              <div className="ep-form-group">
-                <label className="ep-label">
-                  <svg fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round"
-                      d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                  </svg>
-                  New Password
-                </label>
-                <input
-                  type="password" name="password" className="ep-input"
-                  value={formData.password} onChange={handleChange}
-                  placeholder="Leave blank to keep current password"
-                  disabled={loading || fetching}
-                />
-                <div className="ep-input-hint">
-                  Only fill this in if you want to change your password.
-                </div>
-              </div>
-            </form>
           </div>
-
-          {/* Footer */}
-          <div className="ep-footer">
-            <button
-              type="button" className="ep-btn ep-btn-ghost"
-              onClick={() => navigate(-1)} disabled={loading}
-            >
-              <svg fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-              Cancel
-            </button>
-            <button
-              type="submit" className="ep-btn ep-btn-primary"
-              disabled={loading || fetching}
-              onClick={handleSubmit}
-            >
-              {loading ? (
-                <><span className="ep-spinner" /> Saving…</>
-              ) : (
-                <>
-                  <svg fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                  </svg>
-                  Save Changes
-                </>
-              )}
-            </button>
-          </div>
-
         </div>
-      </div>
+      </Container>
     </>
   );
 }
