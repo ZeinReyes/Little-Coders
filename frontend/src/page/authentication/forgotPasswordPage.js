@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { forgotPassword } from '../../service/auth';
+import AuthBackground from './AuthBackground';
 
 function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -9,18 +10,12 @@ function ForgotPasswordPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage('');
-    setError('');
-    setLoading(true);
+    setMessage(''); setError(''); setLoading(true);
     try {
       const res = await forgotPassword({ email });
       setMessage(res.data.message);
     } catch (err) {
-      const msg =
-        err.response?.data?.error ||
-        err.response?.data?.message ||
-        'Something went wrong. Try again.';
-      setError(msg);
+      setError(err.response?.data?.error || err.response?.data?.message || 'Something went wrong. Try again.');
     } finally {
       setLoading(false);
     }
@@ -28,73 +23,32 @@ function ForgotPasswordPage() {
 
   return (
     <>
-      {/* 🌤️ Background elements */}
-      <img className='land' src='/assets/images/land.png' />
-      <div className="balloon"></div>
-      <div className="land"></div>
-      <img className="cloud-left" src="/assets/images/cloud.png" alt="Cloud Left" />
-      <img className="cloud-right" src="/assets/images/cloud.png" alt="Cloud Right" />
-      <img className="cloud-right1" src="/assets/images/cloud.png" alt="Cloud Right 2" />
-
-      <img className='cloud-left clone' src='/assets/images/cloud.png' />
-      <img className='cloud-right clone' src='/assets/images/cloud.png' />
-      <img className='cloud-right1 clone' src='/assets/images/cloud.png' />
-      <div className="balloon clone"></div>
-
-      {/* 🎨 Branding with curve text + logo */}
-      <div className="branding">
-        <svg viewBox="0 0 500 150" className="curve-text">
-          <path
-            id="curve"
-            d="M 50 100 Q 250 -35 450 100"
-            fill="transparent"
-          />
-          <text
-            width="500"
-            textAnchor="middle"
-            fontSize="36"
-            fontWeight="bold"
-            stroke="#111"
-            strokeWidth="2"
-            paintOrder="stroke"
-            style={{ textShadow: "1px 1px 2px rgba(0,0,0,0.2)" }}
-          >
-            <textPath href="#curve" startOffset="50%" className="little-coders">
-              <tspan fill="#e53935">L</tspan>
-              <tspan fill="#43a047">i</tspan>
-              <tspan fill="#1e88e5">t</tspan>
-              <tspan fill="#fb8c00">t</tspan>
-              <tspan fill="#8e24aa">l</tspan>
-              <tspan fill="#fdd835">e</tspan>
-              <tspan>&nbsp;</tspan>
-              <tspan fill="#3949ab">C</tspan>
-              <tspan fill="#43a047">o</tspan>
-              <tspan fill="#f4511e">d</tspan>
-              <tspan fill="#1e88e5">e</tspan>
-              <tspan fill="#8e24aa">r</tspan>
-              <tspan fill="#f4b400">s</tspan>
-            </textPath>
-          </text>
-        </svg>
-
-        <div className="logo-icon"></div>
-      </div>
-
-      {/* 🧩 Forgot Password container */}
-      <div className="loginContainer d-flex justify-content-center align-items-center w-100 min-vh-100">
-        <form
-          className="form_container-forgot w-full max-w-md p-5 rounded-lg shadow-md"
-          onSubmit={handleSubmit}
-        >
+      <AuthBackground />
+      <div className="loginContainer">
+        <form className="form_container-forgot" onSubmit={handleSubmit}>
+        <div className="auth-brand-title">
+            <span style={{ color: '#e53935' }}>L</span>
+            <span style={{ color: '#43a047' }}>i</span>
+            <span style={{ color: '#1e88e5' }}>t</span>
+            <span style={{ color: '#fb8c00' }}>t</span>
+            <span style={{ color: '#8e24aa' }}>l</span>
+            <span style={{ color: '#fdd835', WebkitTextStroke: '1px #999' }}>e</span>
+            <span>&nbsp;</span>
+            <span style={{ color: '#3949ab' }}>C</span>
+            <span style={{ color: '#43a047' }}>o</span>
+            <span style={{ color: '#f4511e' }}>d</span>
+            <span style={{ color: '#1e88e5' }}>e</span>
+            <span style={{ color: '#8e24aa' }}>r</span>
+            <span style={{ color: '#f4b400' }}>s</span>
+          </div>
+          <div class="divider"></div>
           <h2 className="title">Forgot Password</h2>
-          <p className="text-center mb-4" style={{ fontSize: '16px', color: '#444' }}>
+          <p style={{ textAlign: 'center', marginBottom: '16px', fontSize: 'clamp(13px, 2.5vw, 15px)', color: '#444' }}>
             Enter your email and we'll send you a reset link.
           </p>
 
           <div className="input_container">
-            <label className="input_label" htmlFor="email_field">
-              Email
-            </label>
+            <label className="input_label" htmlFor="email_field">Email</label>
             <input
               placeholder="name@mail.com"
               name="email"
@@ -111,20 +65,11 @@ function ForgotPasswordPage() {
             <span>{loading ? 'Sending...' : 'Send Reset Link'}</span>
           </button>
 
-          {message && (
-            <p style={{ color: 'green', marginTop: '10px' }}>{message}</p>
-          )}
-          {error && (
-            <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>
-          )}
+          {message && <p style={{ color: 'green', marginTop: '10px', fontSize: 'clamp(12px, 2vw, 14px)' }}>✅ {message}</p>}
+          {error && <p style={{ color: 'red', marginTop: '10px', fontSize: 'clamp(12px, 2vw, 14px)' }}>❌ {error}</p>}
 
-          <div className="sign-in_footer mt-3 text-center">
-            <p>
-              Remembered your password?{' '}
-              <a href="/login" className="note">
-                Back to Login
-              </a>
-            </p>
+          <div className="sign-in_footer" style={{ marginTop: '12px' }}>
+            <p>Remembered your password?{' '}<a href="/login" className="note">Back to Login</a></p>
           </div>
         </form>
       </div>
