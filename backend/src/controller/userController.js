@@ -1,6 +1,6 @@
 import User from "../model/User.js";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken"; // ✅ add jwt import
+import jwt from "jsonwebtoken";
 
 // ==============================
 // GET all users
@@ -34,41 +34,32 @@ export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find user by email
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: "Invalid email or password" });
 
-    // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ error: "Invalid email or password" });
 
-    // Generate JWT
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET || "your_jwt_secret",
       { expiresIn: "7d" }
     );
 
-    // Send user info + token
     const userResponse = {
       id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
-      hasCompletedOnboarding: user.hasCompletedOnboarding, // ✅ include onboarding status
+      hasCompletedOnboarding: user.hasCompletedOnboarding,
     };
 
-    res.json({
-      message: "Login successful",
-      user: userResponse,
-      token,
-    });
+    res.json({ message: "Login successful", user: userResponse, token });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Server error" });
   }
 };
-
 
 // ==============================
 // ADD new user
@@ -91,28 +82,21 @@ export const addUser = async (req, res) => {
 
     await newUser.save();
 
-    // Generate JWT token
     const token = jwt.sign(
       { id: newUser._id, role: newUser.role },
       process.env.JWT_SECRET || "your_jwt_secret",
       { expiresIn: "7d" }
     );
 
-    // Send user (without password) and token
     const userResponse = {
       _id: newUser._id,
       name: newUser.name,
       email: newUser.email,
       role: newUser.role,
-      hasCompletedOnboarding: newUser.hasCompletedOnboarding
+      hasCompletedOnboarding: newUser.hasCompletedOnboarding,
     };
 
-    res.status(201).json({
-      message: "User registered successfully",
-      user: userResponse,
-      token
-    });
-
+    res.status(201).json({ message: "User registered successfully", user: userResponse, token });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
@@ -121,6 +105,7 @@ export const addUser = async (req, res) => {
 
 // ==============================
 // UPDATE user
+// ✅ FIX: now returns { message, user } so the frontend can call setUser(res.data.user)
 // ==============================
 export const updateUser = async (req, res) => {
   try {
@@ -129,26 +114,35 @@ export const updateUser = async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    // ✅ Prevent double-hashing: only hash if the new password is not already hashed
+    // Only hash if a new plain-text password was provided
     if (password && password.trim() !== "") {
-      const isAlreadyHashed = password.startsWith("$2b$") || password.startsWith("$2a$");
-
+      const isAlreadyHashed =
+        password.startsWith("$2b$") || password.startsWith("$2a$");
       if (!isAlreadyHashed) {
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(password, salt);
       } else {
-        user.password = password; // already hashed (unlikely, but safe guard)
+        user.password = password;
       }
     }
 
-    // Update other fields
-    user.name = name || user.name;
+    user.name  = name  || user.name;
     user.email = email || user.email;
-    user.role = role || user.role;
+    user.role  = role  || user.role;
 
     await user.save();
 
-    res.json({ message: "User updated successfully" });
+    // ✅ Return the updated user (without password) so the frontend can update context
+    const userResponse = {
+      _id:                    user._id,
+      name:                   user.name,
+      email:                  user.email,
+      role:                   user.role,
+      hasCompletedOnboarding: user.hasCompletedOnboarding,
+      isVerified:             user.isVerified,
+    };
+
+    res.json({ message: "User updated successfully", user: userResponse });
   } catch (err) {
     console.error("Error updating user:", err);
     res.status(500).json({ error: "Server error" });
@@ -175,7 +169,6 @@ export const getOnboardingStatus = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("hasCompletedOnboarding");
     if (!user) return res.status(404).json({ error: "User not found" });
-
     res.json({ hasCompletedOnboarding: user.hasCompletedOnboarding });
   } catch (err) {
     res.status(500).json({ error: "Server error" });
@@ -189,10 +182,8 @@ export const completeOnboarding = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: "User not found" });
-
     user.hasCompletedOnboarding = true;
     await user.save();
-
     res.json({ message: "Onboarding marked as complete", user });
   } catch (err) {
     console.error("Error updating onboarding:", err);
@@ -207,10 +198,8 @@ export const resetOnboarding = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: "User not found" });
-
     user.hasCompletedOnboarding = false;
     await user.save();
-
     res.json({ message: "Onboarding reset", hasCompletedOnboarding: false });
   } catch (err) {
     res.status(500).json({ error: "Server error" });

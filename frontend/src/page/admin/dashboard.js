@@ -45,14 +45,15 @@ function ProgressBar({ value, color = "#2563eb" }) {
 }
 
 function SparkBar({ data }) {
-  const max = Math.max(...data, 1);
+  const safeData = Array.isArray(data) && data.length === 7 ? data : Array(7).fill(0);
+  const max = Math.max(...safeData, 1);
   return (
     <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 56 }}>
-      {data.map((v, i) => (
+      {safeData.map((v, i) => (
         <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
           <div style={{
             width: "100%", height: `${(v / max) * 44}px`,
-            background: i === data.length - 1
+            background: i === safeData.length - 1
               ? "linear-gradient(180deg,#2563eb,#1d4ed8)"
               : "#dbeafe",
             borderRadius: "4px 4px 2px 2px", transition: "height 0.6s ease",
@@ -130,31 +131,35 @@ export default function Dashboard() {
         axios.get(`${API}/assessments`),
       ]);
 
-      const usersData       = usersRes.data       || [];
-      const lessonsData     = lessonsRes.data     || [];
-      const assessmentsData = assessmentsRes.data || [];
+      // Safely extract arrays — APIs may return { data: [] } wrappers or plain arrays
+      const toArray = (d) => (Array.isArray(d) ? d : Array.isArray(d?.data) ? d.data : []);
+
+      const usersData       = toArray(usersRes.data);
+      const lessonsData     = toArray(lessonsRes.data);
+      const assessmentsData = toArray(assessmentsRes.data);
 
       setUsers(usersData);
       setLessons(lessonsData);
       setAssessments(assessmentsData);
 
-      // Per-lesson: fetch materials list, then per-material fetch activities
+      // Per-lesson: fetch materials, then per-material fetch activities.
+      // Route mount points confirmed from DragBoardLesson.js:
+      //   Materials:  GET /api/materials/lessons/:lessonId/materials
+      //   Activities: GET /api/activities/materials/:materialId/activities
       if (lessonsData.length > 0) {
         const metaEntries = await Promise.all(
           lessonsData.map(async (lesson) => {
             const lessonId = lesson._id || lesson.id;
             try {
-              // GET /api/lessons/:lessonId/materials
-              const matsRes  = await axios.get(`${API}/lessons/${lessonId}/materials`);
-              const mats     = matsRes.data || [];
+              const matsRes = await axios.get(`${API}/materials/lessons/${lessonId}/materials`);
+              const mats    = toArray(matsRes.data);
 
-              // GET /api/materials/:materialId/activities — one call per material
               const actCounts = await Promise.all(
                 mats.map(async (m) => {
                   const mid = m._id || m.id;
                   try {
-                    const actsRes = await axios.get(`${API}/materials/${mid}/activities`);
-                    return (actsRes.data || []).length;
+                    const actsRes = await axios.get(`${API}/activities/materials/${mid}/activities`);
+                    return toArray(actsRes.data).length;
                   } catch {
                     return 0;
                   }
@@ -187,27 +192,27 @@ export default function Dashboard() {
   const totalAssessments = assessments.length;
   const totalMaterials   = Object.values(lessonMeta).reduce((s, m) => s + m.materials,  0);
   const totalActivities  = Object.values(lessonMeta).reduce((s, m) => s + m.activities, 0);
-  const verifiedUsers    = users.filter((u) => u.isVerified).length;
+  const verifiedUsers    = (Array.isArray(users) ? users : []).filter((u) => u.isVerified).length;
   const verifiedPct      = totalUsers > 0 ? Math.round((verifiedUsers / totalUsers) * 100) : 0;
 
   // Recent 5 users by createdAt desc
-  const recentUsers = [...users]
+  const recentUsers = (Array.isArray(users) ? [...users] : [])
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 5);
 
   // Synthesised activity feed from real data
   const feedItems = [
-    ...users.slice(0, 3).map((u) => ({
+    ...(Array.isArray(users)       ? users.slice(0, 3)       : []).map((u) => ({
       type: "user",
       text: `New user registered: ${u.name}`,
       time: u.createdAt,
     })),
-    ...lessons.slice(0, 2).map((l) => ({
+    ...(Array.isArray(lessons)     ? lessons.slice(0, 2)     : []).map((l) => ({
       type: "lesson",
       text: `Lesson available: ${l.title}`,
       time: l.updatedAt || l.createdAt,
     })),
-    ...assessments.slice(0, 2).map((a) => ({
+    ...(Array.isArray(assessments) ? assessments.slice(0, 2) : []).map((a) => ({
       type: "assessment",
       text: `Assessment created: ${a.title}`,
       time: a.createdAt,
@@ -217,10 +222,10 @@ export default function Dashboard() {
     .slice(0, 7);
 
   // Lessons table enriched with per-lesson counts
-  const lessonsTableData = lessons.map((l) => {
+  const lessonsTableData = (Array.isArray(lessons) ? lessons : []).map((l) => {
     const id   = l._id || l.id;
     const meta = lessonMeta[id] || { materials: 0, activities: 0 };
-    const asmtCount = assessments.filter((a) => {
+    const asmtCount = (Array.isArray(assessments) ? assessments : []).filter((a) => {
       const lid = typeof a.lessonId === "object" ? a.lessonId?._id : a.lessonId;
       return String(lid) === String(id);
     }).length;
@@ -234,7 +239,7 @@ export default function Dashboard() {
     monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
     monday.setHours(0, 0, 0, 0);
     const counts = Array(7).fill(0);
-    users.forEach((u) => {
+    (Array.isArray(users) ? users : []).forEach((u) => {
       const d    = new Date(u.createdAt);
       const diff = Math.floor((d - monday) / 86400000);
       if (diff >= 0 && diff < 7) counts[diff]++;
@@ -242,7 +247,7 @@ export default function Dashboard() {
     return counts;
   })();
 
-  const onboardedCount = users.filter((u) => u.hasCompletedOnboarding).length;
+  const onboardedCount = (Array.isArray(users) ? users : []).filter((u) => u.hasCompletedOnboarding).length;
 
   const statCards = [
     { label: "Total Users",    value: totalUsers.toLocaleString(), icon: "👤", color: "#2563eb", bg: "#eff6ff" },
