@@ -1,233 +1,428 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useContext } from "react";
 import axios from "axios";
-import { Button, Form } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../../context/authContext";
 
-const dataTypeOptions = [
-  "print", "variable", "multiple", "add", "subtract", "divide",
-  "equal", "equalto", "notequal", "less", "lessequal", "greater", "greaterequal",
-  "if", "elif", "else", "while", "do-while", "for",
-];
+const API = "https://little-coders-production.up.railway.app/api";
 
-function EditActivity() {
-  const { lessonId, id } = useParams();
+function EditProfile() {
+  const { user, refreshUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [activity, setActivity] = useState({
+  const [formData, setFormData] = useState({
     name: "",
-    instructions: "",
-    timeLimit: 30,
-    hints: [""],
-    expectedOutput: "",
-    difficulty: "easy",
-    // ✅ Array of { type, min } objects
-    dataTypesRequired: [],
+    email: "",
+    password: "",
+    role: "",
   });
+  const [loading, setLoading]   = useState(false);
+  const [fetching, setFetching] = useState(true);
+  const [message, setMessage]   = useState("");
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  // Resolve userId - same chain as working user EditProfile
+  const userId =
+    user?._id?.toString() ||
+    user?.id?.toString()  ||
+    localStorage.getItem("userId");
 
+  // Always fetch fresh from API - never short-circuit from context.
+  // The working user EditProfile always fetches; context can be stale.
   useEffect(() => {
-    fetchActivity();
-  }, []);
-
-  const API_BASE = "https://little-coders-production.up.railway.app/api";
-
-  const fetchActivity = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await axios.get(
-        `${API_BASE}/activities/lessons/${lessonId}/activities/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      const data = res.data;
-
-      // ✅ Normalize dataTypesRequired — handle old string[] format from DB gracefully
-      const normalized = (data.dataTypesRequired || []).map((d) =>
-        typeof d === "string" ? { type: d, min: 1 } : d
-      );
-
-      setActivity({
-        name: data.name || "",
-        instructions: data.instructions || "",
-        hints: Array.isArray(data.hints) ? data.hints : [data.hints || ""],
-        expectedOutput: data.expectedOutput || "",
-        difficulty: data.difficulty || "easy",
-        dataTypesRequired: normalized,
-        timeLimit: data.timeLimit || 30,
-      });
-      setLoading(false);
-    } catch (err) {
-      console.error("Error fetching activity:", err);
-      setError("Failed to load activity.");
-      setLoading(false);
+    if (!userId) {
+      setFetching(false);
+      return;
     }
-  };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setActivity({ ...activity, [name]: value });
-  };
+    const fetchUser = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(`${API}/users/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setFormData({
+          name:     res.data.name  || "",
+          email:    res.data.email || "",
+          password: "",
+          role:     res.data.role  || "",
+        });
+      } catch (err) {
+        console.error("Error fetching user:", err);
+        setMessage("Could not load profile. Please refresh.");
+      } finally {
+        setFetching(false);
+      }
+    };
 
-  const handleHintChange = (index, value) => {
-    const newHints = [...activity.hints];
-    newHints[index] = value;
-    setActivity({ ...activity, hints: newHints });
-  };
+    fetchUser();
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const addHint = () => setActivity({ ...activity, hints: [...activity.hints, ""] });
-  const removeHint = (index) => {
-    setActivity({ ...activity, hints: activity.hints.filter((_, i) => i !== index) });
-  };
-
-  // ✅ Toggle type — adds { type, min: 1 } or removes
-  const handleDataTypeToggle = (type) => {
-    const current = [...activity.dataTypesRequired];
-    const exists = current.find((d) => d.type === type);
-    if (exists) {
-      setActivity({ ...activity, dataTypesRequired: current.filter((d) => d.type !== type) });
-    } else {
-      setActivity({ ...activity, dataTypesRequired: [...current, { type, min: 1 }] });
-    }
-  };
-
-  // ✅ Update min for a type
-  const handleMinChange = (type, value) => {
-    const updated = activity.dataTypesRequired.map((d) =>
-      d.type === type ? { ...d, min: Math.max(1, parseInt(value) || 1) } : d
-    );
-    setActivity({ ...activity, dataTypesRequired: updated });
-  };
+  const handleChange = (e) =>
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!userId) {
+      setMessage("No user session found. Please log in again.");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
+    const payload = {
+      name:  formData.name.trim(),
+      email: formData.email.trim(),
+      role:  formData.role,
+      ...(formData.password.trim() !== "" && { password: formData.password }),
+    };
+
     try {
       const token = localStorage.getItem("token");
-      await axios.put(
-        `https://little-coders-production.up.railway.app/api/activities/${id}`,
-        activity,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      navigate(`/admin/lessons`);
+      const res = await axios.put(`${API}/users/${userId}`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // refreshUser fetches the latest user from the API and updates
+      // the auth context internally — no need to call setUser directly,
+      // which is not exposed by AuthContext.
+      await refreshUser(userId);
+
+      // Sync form with what we just saved (no need to wait for context)
+      setFormData((prev) => ({
+        ...prev,
+        name:     payload.name,
+        email:    payload.email,
+        role:     payload.role,
+        password: "",
+      }));
+
+      setMessage("Profile updated successfully!");
     } catch (err) {
-      console.error("Error updating activity:", err);
-      setError("Failed to update activity.");
+      console.error("Error updating profile:", err);
+      setMessage(err.response?.data?.error || "Failed to update profile.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (loading) return <p className="p-3">Loading activity...</p>;
-  if (error) return <p className="p-3 text-danger">{error}</p>;
+  const isSuccess = message === "Profile updated successfully!";
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="p-3">
-      <div className="p-4">
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h3 className="text-white">Edit Activity</h3>
-        </div>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 
-        <Form onSubmit={handleSubmit} className="bg-white p-4 rounded shadow-sm">
-          <Form.Group className="mb-3">
-            <Form.Label>Activity Name</Form.Label>
-            <Form.Control type="text" name="name" value={activity.name} onChange={handleChange} required />
-          </Form.Group>
+        .ep-wrapper {
+          font-family: 'DM Sans', sans-serif;
+          min-height: 100vh;
+          background: #f0f2f5;
+          display: flex;
+          align-items: flex-start;
+          justify-content: center;
+          padding: 2.5rem 1rem;
+        }
+        .ep-card {
+          width: 100%;
+          max-width: 680px;
+          background: #ffffff;
+          border-radius: 12px;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05);
+          overflow: hidden;
+        }
 
-          <Form.Group className="mb-3">
-            <Form.Label>Instructions</Form.Label>
-            <Form.Control as="textarea" rows={3} name="instructions" value={activity.instructions} onChange={handleChange} />
-          </Form.Group>
+        /* ── Header ── */
+        .ep-header {
+          background: linear-gradient(135deg, #1a2236 0%, #243150 100%);
+          padding: 2rem 2.25rem 1.75rem;
+          position: relative;
+          overflow: hidden;
+        }
+        .ep-header::after {
+          content: '';
+          position: absolute;
+          right: -40px; top: -40px;
+          width: 180px; height: 180px;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.04);
+          pointer-events: none;
+        }
+        .ep-header-icon {
+          width: 48px; height: 48px;
+          background: rgba(255,255,255,0.1);
+          border: 1px solid rgba(255,255,255,0.15);
+          border-radius: 10px;
+          display: flex; align-items: center; justify-content: center;
+          margin-bottom: 1rem;
+        }
+        .ep-header-icon svg { width: 22px; height: 22px; stroke: #a8c4f0; }
+        .ep-header h2 {
+          color: #ffffff; font-size: 1.35rem; font-weight: 600;
+          margin: 0 0 0.25rem; letter-spacing: -0.02em;
+        }
+        .ep-header p { color: rgba(255,255,255,0.5); font-size: 0.82rem; margin: 0; }
 
-          <Form.Group className="mb-3">
-            <Form.Label>Hints</Form.Label>
-            {activity.hints.map((hint, index) => (
-              <div key={index} className="d-flex gap-2 mb-2">
-                <Form.Control type="text" value={hint} onChange={(e) => handleHintChange(index, e.target.value)} />
-                <Button variant="outline-danger" onClick={() => removeHint(index)}>✕</Button>
-              </div>
-            ))}
-            <Button variant="outline-primary" size="sm" onClick={addHint}>+ Add Hint</Button>
-          </Form.Group>
+        /* ── Role badge ── */
+        .ep-role-badge {
+          display: inline-flex; align-items: center; gap: 6px;
+          background: rgba(99,179,237,0.15);
+          border: 1px solid rgba(99,179,237,0.3);
+          color: #90cdf4;
+          font-family: 'DM Mono', monospace;
+          font-size: 0.7rem; font-weight: 500;
+          letter-spacing: 0.06em; text-transform: uppercase;
+          padding: 4px 10px; border-radius: 20px; margin-top: 0.75rem;
+        }
+        .ep-role-dot {
+          width: 6px; height: 6px; border-radius: 50%;
+          background: #63b3ed; animation: ep-pulse 2s infinite;
+        }
+        @keyframes ep-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-          {/* Time Limit */}
-          <div className="mb-3">
-            <label className="form-label">Time Limit (seconds)</label>
-            <input
-              type="number"
-              name="timeLimit"
-              className="form-control"
-              value={activity.timeLimit}
-              min={30}
-              required
-              onChange={(e) => setActivity({ ...activity, timeLimit: parseInt(e.target.value) })}
-            />
-          </div>
+        .ep-divider { height: 1px; background: #e8ecf1; }
 
-          <Form.Group className="mb-3">
-            <Form.Label>Expected Output</Form.Label>
-            <Form.Control as="textarea" rows={3} name="expectedOutput" value={activity.expectedOutput} onChange={handleChange} />
-          </Form.Group>
+        /* ── Body ── */
+        .ep-body { padding: 2rem 2.25rem 2.25rem; }
+        .ep-section-label {
+          font-size: 0.7rem; font-weight: 600;
+          letter-spacing: 0.1em; text-transform: uppercase;
+          color: #8a94a6; margin-bottom: 1.25rem;
+        }
+        .ep-form-group { margin-bottom: 1.35rem; }
+        .ep-label {
+          font-size: 0.8rem; font-weight: 500; color: #374151;
+          margin-bottom: 0.45rem;
+          display: flex; align-items: center; gap: 6px;
+        }
+        .ep-label svg { width: 14px; height: 14px; stroke: #9ca3af; }
+        .ep-input {
+          display: block; width: 100%;
+          padding: 0.6rem 0.9rem;
+          font-family: 'DM Sans', sans-serif;
+          font-size: 0.875rem; color: #111827;
+          background: #f9fafb;
+          border: 1.5px solid #e5e7eb; border-radius: 8px;
+          transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+          outline: none;
+        }
+        .ep-input::placeholder { color: #c1c8d4; }
+        .ep-input:focus {
+          border-color: #3b82f6; background: #fff;
+          box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+        }
+        .ep-input:disabled { opacity: 0.6; cursor: not-allowed; }
+        .ep-input-hint { font-size: 0.73rem; color: #9ca3af; margin-top: 0.35rem; }
 
-          <Form.Group className="mb-3">
-            <Form.Label>Difficulty</Form.Label>
-            <Form.Select name="difficulty" value={activity.difficulty} onChange={handleChange}>
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
-            </Form.Select>
-          </Form.Group>
+        .ep-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        @media (max-width: 540px) {
+          .ep-grid-2 { grid-template-columns: 1fr; }
+          .ep-body    { padding: 1.5rem 1.25rem; }
+          .ep-header  { padding: 1.5rem 1.25rem 1.25rem; }
+        }
 
-          {/* ✅ Data Types Required with min inputs */}
-          <Form.Group className="mb-3">
-            <Form.Label>Required Data Types</Form.Label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-              {dataTypeOptions.map((type) => {
-                const entry = activity.dataTypesRequired.find((d) => d.type === type);
-                const isChecked = !!entry;
-                return (
-                  <div
-                    key={type}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      background: isChecked ? "#e8f4ff" : "#f8f9fa",
-                      border: isChecked ? "1px solid #90c8ff" : "1px solid #dee2e6",
-                      borderRadius: "8px",
-                      padding: "4px 10px",
-                    }}
-                  >
-                    <Form.Check
-                      type="checkbox"
-                      label={type}
-                      checked={isChecked}
-                      onChange={() => handleDataTypeToggle(type)}
-                    />
-                    {isChecked && (
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "6px" }}>
-                        <span style={{ fontSize: "12px", color: "#555" }}>min:</span>
-                        <input
-                          type="number"
-                          min={1}
-                          value={entry.min}
-                          onChange={(e) => handleMinChange(type, e.target.value)}
-                          style={{ width: "48px", padding: "2px 4px", fontSize: "13px", borderRadius: "4px", border: "1px solid #ccc" }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+        /* ── Alert ── */
+        .ep-alert {
+          display: flex; align-items: center; gap: 10px;
+          padding: 0.75rem 1rem; border-radius: 8px;
+          font-size: 0.83rem; font-weight: 500; margin-bottom: 1.5rem;
+        }
+        .ep-alert svg { width: 16px; height: 16px; flex-shrink: 0; }
+        .ep-alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
+        .ep-alert-error   { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+
+        /* ── Skeleton loader ── */
+        .ep-skeleton {
+          height: 42px; border-radius: 8px;
+          background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);
+          background-size: 200% 100%;
+          animation: ep-shimmer 1.4s infinite;
+        }
+        @keyframes ep-shimmer {
+          0%   { background-position: -200% 0; }
+          100% { background-position:  200% 0; }
+        }
+
+        /* ── Footer ── */
+        .ep-footer {
+          border-top: 1px solid #f1f3f7;
+          padding: 1.25rem 2.25rem;
+          display: flex; justify-content: flex-end; gap: 0.75rem;
+          background: #fafbfc;
+        }
+        .ep-btn {
+          font-family: 'DM Sans', sans-serif;
+          font-size: 0.85rem; font-weight: 500;
+          padding: 0.55rem 1.35rem; border-radius: 8px; border: none;
+          cursor: pointer;
+          display: inline-flex; align-items: center; gap: 7px;
+          transition: all 0.15s; line-height: 1.4;
+        }
+        .ep-btn svg { width: 15px; height: 15px; }
+        .ep-btn-ghost {
+          background: transparent;
+          border: 1.5px solid #d1d5db; color: #6b7280;
+        }
+        .ep-btn-ghost:hover { background: #f3f4f6; border-color: #9ca3af; color: #374151; }
+        .ep-btn-primary { background: #1a2236; color: #fff; border: 1.5px solid transparent; }
+        .ep-btn-primary:hover:not(:disabled) {
+          background: #243150;
+          box-shadow: 0 4px 12px rgba(26,34,54,0.25);
+          transform: translateY(-1px);
+        }
+        .ep-btn-primary:disabled { opacity: 0.65; cursor: not-allowed; }
+        .ep-spinner {
+          width: 14px; height: 14px;
+          border: 2px solid rgba(255,255,255,0.35);
+          border-top-color: #fff; border-radius: 50%;
+          animation: ep-spin 0.7s linear infinite;
+        }
+        @keyframes ep-spin { to { transform: rotate(360deg); } }
+      `}</style>
+
+      <div className="ep-wrapper">
+        <div className="ep-card">
+
+          {/* Header */}
+          <div className="ep-header">
+            <div className="ep-header-icon">
+              <svg fill="none" viewBox="0 0 24 24" strokeWidth="1.6">
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+              </svg>
             </div>
-          </Form.Group>
-
-          <div className="d-flex justify-content-end gap-2 mt-4">
-            <Button variant="outline-secondary" onClick={() => navigate("/admin/lessons")}>Cancel</Button>
-            <Button type="submit" variant="primary">Save Changes</Button>
+            <h2>Edit Profile</h2>
+            <p>Manage your administrator account settings</p>
+            {formData.role && (
+              <div className="ep-role-badge">
+                <span className="ep-role-dot" />
+                {formData.role}
+              </div>
+            )}
           </div>
-        </Form>
+
+          <div className="ep-divider" />
+
+          {/* Body */}
+          <div className="ep-body">
+
+            {message && (
+              <div className={`ep-alert ${isSuccess ? "ep-alert-success" : "ep-alert-error"}`}>
+                {isSuccess ? (
+                  <svg fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                      d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                ) : (
+                  <svg fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                      d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                  </svg>
+                )}
+                {message}
+              </div>
+            )}
+
+            <div className="ep-section-label">Account Information</div>
+
+            <form onSubmit={handleSubmit}>
+              {/* Name + Email */}
+              <div className="ep-grid-2">
+                <div className="ep-form-group">
+                  <label className="ep-label">
+                    <svg fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round"
+                        d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                    </svg>
+                    Full Name
+                  </label>
+                  {fetching ? (
+                    <div className="ep-skeleton" />
+                  ) : (
+                    <input
+                      type="text" name="name" className="ep-input"
+                      value={formData.name} onChange={handleChange}
+                      placeholder="Enter full name" required
+                      disabled={loading}
+                    />
+                  )}
+                </div>
+
+                <div className="ep-form-group">
+                  <label className="ep-label">
+                    <svg fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round"
+                        d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                    </svg>
+                    Email Address
+                  </label>
+                  {fetching ? (
+                    <div className="ep-skeleton" />
+                  ) : (
+                    <input
+                      type="email" name="email" className="ep-input"
+                      value={formData.email} onChange={handleChange}
+                      placeholder="Enter email address" required
+                      disabled={loading}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Password */}
+              <div className="ep-form-group">
+                <label className="ep-label">
+                  <svg fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                      d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                  </svg>
+                  New Password
+                </label>
+                <input
+                  type="password" name="password" className="ep-input"
+                  value={formData.password} onChange={handleChange}
+                  placeholder="Leave blank to keep current password"
+                  disabled={loading || fetching}
+                />
+                <div className="ep-input-hint">
+                  Only fill this in if you want to change your password.
+                </div>
+              </div>
+            </form>
+          </div>
+
+          {/* Footer */}
+          <div className="ep-footer">
+            <button
+              type="button" className="ep-btn ep-btn-ghost"
+              onClick={() => navigate(-1)} disabled={loading}
+            >
+              <svg fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+              Cancel
+            </button>
+            <button
+              type="submit" className="ep-btn ep-btn-primary"
+              disabled={loading || fetching}
+              onClick={handleSubmit}
+            >
+              {loading ? (
+                <><span className="ep-spinner" /> Saving…</>
+              ) : (
+                <>
+                  <svg fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                  Save Changes
+                </>
+              )}
+            </button>
+          </div>
+
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
-export default EditActivity;
+export default EditProfile;
