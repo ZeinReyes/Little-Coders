@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import ReactDOM from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -17,7 +18,7 @@ const DS = `
 .ds-search input::placeholder{color:#c1c8d4;}
 .ds-btn-add{display:inline-flex;align-items:center;gap:6px;background:#1e293b;color:#fff;font-family:'Sora',sans-serif;font-size:.82rem;font-weight:500;padding:.55rem 1.2rem;border-radius:9px;border:none;cursor:pointer;text-decoration:none;transition:all .15s;}
 .ds-btn-add:hover{background:#0f172a;box-shadow:0 4px 12px rgba(15,23,42,.2);color:#fff;}
-.ds-lesson-card{z-Index: 10;background:#fff;border:1px solid #e2e8f0;border-left:4px solid #2563eb;border-radius:12px;margin-bottom:.75rem;transition:box-shadow .2s;}
+.ds-lesson-card{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #2563eb;border-radius:12px;margin-bottom:.75rem;transition:box-shadow .2s;}
 .ds-lesson-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.07);}
 .ds-lesson-header{padding:.9rem 1.2rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
 .ds-lesson-title{font-size:.88rem;font-weight:600;color:#0f172a;display:flex;align-items:center;gap:8px;}
@@ -236,15 +237,12 @@ export default function LessonsList() {
                   </svg>
                   Add Material
                 </button>
-                <div style={{position:"relative"}}>
-                  <button className="ds-menu-btn"
-                    onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === lesson._id ? null : lesson._id); }}>
-                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
-                      <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
-                    </svg>
-                  </button>
-                  <Menu type="lesson" id={lesson._id}/>
-                </div>
+                <button className="ds-menu-btn"
+                  onClick={(e) => openMenuBtn(e, lesson._id, "lesson", null, null)}>
+                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                    <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+                  </svg>
+                </button>
                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
                   style={{transition:"transform .2s",transform: expandedLesson === lesson._id ? "rotate(180deg)" : "none",color:"#94a3b8"}}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
@@ -277,15 +275,12 @@ export default function LessonsList() {
                                   onClick={() => navigate(`/admin/materials/${m._id}/add-activity`)}>
                                   + Activity
                                 </button>
-                                <div style={{position:"relative"}}>
-                                  <button className="ds-menu-btn"
-                                    onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === m._id ? null : m._id); }}>
-                                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
-                                      <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
-                                    </svg>
-                                  </button>
-                                  <Menu type="material" id={m._id} lessonId={lesson._id}/>
-                                </div>
+                                <button className="ds-menu-btn"
+                                  onClick={(e) => openMenuBtn(e, m._id, "material", lesson._id, null)}>
+                                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                                    <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+                                  </svg>
+                                </button>
                               </div>
                             </div>
                             {lessonContents[lesson._id]?.activitiesByMaterial[m._id]?.map((a) => (
@@ -295,15 +290,12 @@ export default function LessonsList() {
                                 </div>
                                 <div className="ds-item-actions">
                                   <span className={`ds-diff-badge ds-diff-${a.difficulty?.toLowerCase()}`}>{a.difficulty}</span>
-                                  <div style={{position:"relative"}}>
-                                    <button className="ds-menu-btn"
-                                      onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === a._id ? null : a._id); }}>
-                                      <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
-                                        <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
-                                      </svg>
-                                    </button>
-                                    <Menu type="activity" id={a._id} lessonId={lesson._id} materialId={m._id}/>
-                                  </div>
+                                  <button className="ds-menu-btn"
+                                    onClick={(e) => openMenuBtn(e, a._id, "activity", lesson._id, m._id)}>
+                                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                                      <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+                                    </svg>
+                                  </button>
                                 </div>
                               </div>
                             ))}
@@ -323,15 +315,12 @@ export default function LessonsList() {
                             <div key={aId} className="ds-item">
                               <div className="ds-item-name"><span>🧩</span>{asmt.title}</div>
                               <div className="ds-item-actions">
-                                <div style={{position:"relative"}}>
-                                  <button className="ds-menu-btn"
-                                    onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === aId ? null : aId); }}>
-                                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
-                                      <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
-                                    </svg>
-                                  </button>
-                                  <Menu type="assessment" id={aId} lessonId={lesson._id}/>
-                                </div>
+                                <button className="ds-menu-btn"
+                                  onClick={(e) => openMenuBtn(e, aId, "assessment", lesson._id, null)}>
+                                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                                    <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+                                  </svg>
+                                </button>
                               </div>
                             </div>
                           );
@@ -350,6 +339,8 @@ export default function LessonsList() {
             No lessons found.
           </div>
         )}
+
+        <FloatingMenu/>
 
         {showDeleteModal && (
           <div className="ds-overlay" onClick={() => setShowDeleteModal(false)}>
