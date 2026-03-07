@@ -1,26 +1,38 @@
-import { MailtrapClient } from 'mailtrap';
-
-const client = new MailtrapClient({ token: process.env.MAILTRAP_TOKEN });
-
-const SENDER = {
-  email: 'hello@demomailtrap.co',
-  name: 'Little Coders Contact Bot',
-};
+// backend/src/controller/contactController.js
+import nodemailer from "nodemailer";
 
 export const sendContactMessage = async (req, res) => {
   try {
-    console.log('📨 Received contact form request:', req.body);
+    console.log("📨 Received contact form request:", req.body);
 
     const { name, email, message } = req.body;
 
     if (!name || !email || !message) {
-      console.warn('⚠️ Missing fields:', { name, email, message });
-      return res.status(400).json({ error: 'All fields are required.' });
+      console.warn("⚠️ Missing fields:", { name, email, message });
+      return res.status(400).json({ error: "All fields are required." });
     }
 
-    await client.send({
-      from: SENDER,
-      to: [{ email: 'zbcreyes@gmail.com' }],
+    // ✅ Verify environment variables
+    console.log("🔧 Checking environment variables...");
+    console.log("EMAIL_USER:", process.env.EMAIL_USER ? "✅ Loaded" : "❌ Missing");
+    console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "✅ Loaded" : "❌ Missing");
+
+    // ✅ Create transporter using Gmail SMTP
+    console.log("🚀 Creating Gmail transporter...");
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    console.log("✅ Transporter created successfully!");
+
+    // ✅ Kid-friendly email template for Little Coders
+    const mailOptions = {
+      from: `"Little Coders Contact Bot" <${process.env.EMAIL_USER}>`,
+      to: "zbcreyes@gmail.com", // your receiving inbox
       subject: `💌 New Message from Little Coder ${name}!`,
       html: `
         <div style="font-family: 'Comic Sans MS', 'Poppins', Arial, sans-serif; background-color: #fdfdfd; padding: 20px; border-radius: 15px; border: 3px dashed #ff80ab;">
@@ -40,13 +52,18 @@ export const sendContactMessage = async (req, res) => {
           </p>
         </div>
       `,
-    });
+    };
+
+    console.log("📦 Email composed. Sending...");
+    const info = await transporter.sendMail(mailOptions);
 
     console.log(`📧 Email successfully sent from ${email} by ${name}`);
-    return res.status(200).json({ success: true, message: 'Message sent successfully!' });
+    console.log("📤 Nodemailer response:", info.response);
+
+    return res.status(200).json({ success: true, message: "Message sent successfully!" });
 
   } catch (error) {
-    console.error('❌ Contact form error:', error);
-    res.status(500).json({ error: 'Failed to send message. Please try again later.' });
+    console.error("❌ Contact form error:", error);
+    res.status(500).json({ error: "Failed to send message. Please try again later." });
   }
 };

@@ -1,16 +1,19 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { MailtrapClient } from 'mailtrap';
+import nodemailer from 'nodemailer';
 import User from '../model/User.js';
 
-// ── Mailtrap Client ──
-const client = new MailtrapClient({ token: process.env.MAILTRAP_TOKEN });
-
-const SENDER = {
-  email: 'hello@demomailtrap.co',
-  name: 'Little Coders',
-};
+// ── Transporter as a function so process.env is read at call time, not import time ──
+const getTransporter = () => nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
 // ══════════════════════════════════════════════════════════════════════════════
 // REGISTER
@@ -52,9 +55,9 @@ export const register = async (req, res) => {
     // Send email in a separate try/catch so a failure doesn't block registration
     try {
       const verifyLink = `${process.env.BACKEND_URL || 'https://little-coders-production.up.railway.app'}/api/auth/verify-email/${verificationToken}`;
-      await client.send({
-        from: SENDER,
-        to: [{ email }],
+      await getTransporter().sendMail({
+        from: '"Little Coders" <noreply@littlecoders.com>',
+        to: email,
         subject: '📧 Verify your Little Coders account',
         html: `
           <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 2rem; background: #FFF8F2; border-radius: 16px; border: 3px solid #FFD580;">
@@ -96,9 +99,11 @@ export const register = async (req, res) => {
 export const verifyEmail = async (req, res) => {
   const { token } = req.params;
   const CLIENT_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
-  console.log('🔍 Token received:', token);
+console.log('🔍 Token received:', token);
   console.log('🔍 CLIENT_URL:', CLIENT_URL);
   try {
+    console.log('🔍 Token received:', token);
+  console.log('🔍 CLIENT_URL:', CLIENT_URL);
     const user = await User.findOne({
       verificationToken: token,
       verificationExpiry: { $gt: Date.now() },
@@ -185,26 +190,16 @@ export const forgotPassword = async (req, res) => {
 
     const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password/${token}`;
 
-    await client.send({
-      from: SENDER,
-      to: [{ email }],
+    await getTransporter().sendMail({
+      from: '"Little Coders" <noreply@littlecoders.com>',
+      to: email,
       subject: 'Password Reset Request',
       html: `
-        <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 2rem; background: #FFF8F2; border-radius: 16px; border: 3px solid #FFD580;">
-          <h2 style="color: #e53935;">Reset Your Password</h2>
-          <p>Click the button below to reset your password:</p>
-          <div style="text-align: center; margin: 2rem 0;">
-            <a
-              href="${resetLink}"
-              style="background: linear-gradient(90deg, #FFB6C1, #FFD580); color: #4A2E05; padding: 0.9rem 2rem; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 1.1rem; display: inline-block;"
-            >
-              🔑 Reset My Password
-            </a>
-          </div>
-          <p style="color: #888; font-size: 0.85rem; text-align: center;">
-            This link will expire in <strong>1 hour</strong>.<br/>
-            If you didn't request a password reset, you can safely ignore this email.
-          </p>
+        <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 2rem;">
+          <h2>Reset Your Password</h2>
+          <p>Click the link below to reset your password:</p>
+          <a href="${resetLink}" style="color: #1e88e5;">${resetLink}</a>
+          <p>This link will expire in 1 hour.</p>
         </div>
       `,
     });
