@@ -3,7 +3,7 @@ import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
 
 const dataTypeOptions = [
-  "print", "variable", "multiple", "add", "subtract", "divide",
+  "print", "variable", "multiply", "add", "subtract", "divide",
   "equal", "equalto", "notequal", "less", "lessequal", "greater", "greaterequal",
   "if", "elif", "else", "while", "do-while", "for",
 ];

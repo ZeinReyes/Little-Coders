@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 const API = "https://little-coders-production.up.railway.app/api";
 
 const DATA_TYPES = [
-  "print","variable","multiple","add","subtract","divide",
+  "print","variable","multiply","add","subtract","divide",
   "equal","equalto","notequal","less","lessequal","greater","greaterequal",
   "if","elif","else","while","do-while","for",
 ];
