@@ -47,6 +47,16 @@ const TOOLTIP_DESCRIPTIONS = {
   for:          { label: "For Loop",            desc: "Repeat a block a set number of times" },
 };
 
+const INTERNAL_STYLES = `
+  .whiteboard-wrap {
+    display: flex;
+    flex-direction: column;
+  }
+  .whiteboard {
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+  }
+`;
+
 /**
  * Workspace
  * Props:
@@ -77,6 +87,21 @@ export default function Workspace({
     ? ALL_BLOCKS.filter(b => requiredTypes.includes(b.type))
     : ALL_BLOCKS;
 
+  // 💅 Inject internal styles once
+  useEffect(() => {
+    const styleId = "workspace-internal-styles";
+    if (!document.getElementById(styleId)) {
+      const styleTag = document.createElement("style");
+      styleTag.id = styleId;
+      styleTag.textContent = INTERNAL_STYLES;
+      document.head.appendChild(styleTag);
+    }
+    return () => {
+      const existing = document.getElementById(styleId);
+      if (existing) existing.remove();
+    };
+  }, []);
+
   // 💾 Restore after parent's initDragAndDrop runs, then observe for save
   useEffect(() => {
     const whiteboard = document.getElementById("whiteboard");
@@ -84,7 +109,6 @@ export default function Workspace({
     const dimOverlay = document.getElementById("dimOverlay");
     if (!whiteboard) return;
 
-    // setTimeout(0) yields so the parent's initDragAndDrop useEffect completes first
     const restoreTimer = setTimeout(() => {
       restoreWhiteboardState(whiteboard, codeArea, dimOverlay, effectiveKey);
     }, 0);
@@ -156,7 +180,7 @@ export default function Workspace({
     if (!whiteboard) return;
 
     Array.from(whiteboard.children).forEach(child => {
-      if (child.id !== "trashCan") whiteboard.removeChild(child);
+      whiteboard.removeChild(child);
     });
 
     if (codeArea)   codeArea.textContent   = "/* Build expressions on the whiteboard */";
@@ -189,12 +213,17 @@ export default function Workspace({
       {/* ── Whiteboard ── */}
       <div className="workspace">
         <div className="whiteboard-wrap">
-          <div id="trashCan" className="trash-can">🗑️</div>
+
+          {/* Toolbar: trash can + clear board button side by side */}
+          <div className="whiteboard-toolbar ms-auto">
+            <div id="trashCan" className="trash-can">🗑️</div>
+            <button className="clear-board-button" onClick={handleClearBoard}>
+              Clear Board
+            </button>
+          </div>
+
           <div id="whiteboard" className="whiteboard" />
         </div>
-        <button className="clear-board-button" onClick={handleClearBoard}>
-          🗑️ Clear Board
-        </button>
       </div>
 
       {/* ── Right Panel ── */}

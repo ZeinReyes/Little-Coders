@@ -116,7 +116,7 @@ export default function DragBoard() {
       notification,
     });
 
-    // 2️⃣ Restore saved nodes — uses createElement so all listeners are live
+    // 2️⃣ Restore saved nodes
     restoreWhiteboardState(whiteboard, codeArea, dimOverlay, STORAGE_KEY);
 
     const onRun = () => runProgram(codeArea, outputArea);
@@ -197,7 +197,7 @@ export default function DragBoard() {
     if (!whiteboard) return;
 
     Array.from(whiteboard.children).forEach(child => {
-      if (child.id !== "trashCan") whiteboard.removeChild(child);
+      whiteboard.removeChild(child);
     });
 
     if (codeArea)   codeArea.textContent   = "/* Build expressions on the whiteboard */";
@@ -260,14 +260,18 @@ export default function DragBoard() {
         {/* ── Workspace ── */}
         <div className="workspace">
           <div className="whiteboard-wrap">
-            <div id="whiteboard" className="whiteboard">
+
+            {/* ── Toolbar: trash can + clear board side by side ── */}
+            <div className="whiteboard-toolbar ms-auto">
               <div id="trashCan" className="trash-can">🗑️</div>
+              <button className="clear-board-button" onClick={handleClearBoard}>
+                Clear Board
+              </button>
             </div>
-            <div id="dimOverlay" className="dim-overlay"></div>
+
+            <div id="whiteboard" className="whiteboard" />
+            <div id="dimOverlay" className="dim-overlay" />
           </div>
-          <button className="clear-board-button" onClick={handleClearBoard}>
-            🗑️ Clear Board
-          </button>
         </div>
 
         {/* ── Code + Output ── */}
