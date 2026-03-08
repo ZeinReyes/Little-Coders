@@ -82,7 +82,7 @@ const clearAssessmentSession = (lessonId, itemId) => {
   } catch (_) {}
 };
 
-// ✅ Activity session — persists remaining timer seconds across refresh
+// Activity session — persists remaining timer seconds across refresh
 const ACTIVITY_KEY = (lessonId, itemId) =>
   `${SESSION_KEY_PREFIX}activity_${lessonId}_${itemId}`;
 
@@ -175,7 +175,6 @@ export default function DragBoardLesson() {
     onTimeUp: () => {
       playErrorSound();
       if (lessonRef.current?.type === "assessment" || lessonRef.current?.type === "activity") {
-        // ✅ Clear session and whiteboard when time runs out
         clearActivitySession(lessonId, itemId);
         setTimeout(clearWhiteboard, 50);
         setShowAnswerModal(true);
@@ -281,7 +280,7 @@ export default function DragBoardLesson() {
     itemId,
   ]);
 
-  // ✅ Restore activity timer session after initial load ──────────────────────
+  // ── Restore activity timer session after initial load ──────────────────────
   useEffect(() => {
     if (!lesson || lesson.type !== "activity" || lesson.isAIReview) return;
 
@@ -295,7 +294,7 @@ export default function DragBoardLesson() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson?._id, lesson?.type]);
 
-  // ✅ Persist activity timer every tick ─────────────────────────────────────
+  // ── Persist activity timer every tick ─────────────────────────────────────
   useEffect(() => {
     const currentLesson = lesson;
     if (
@@ -487,8 +486,11 @@ export default function DragBoardLesson() {
               assessmentAttemptsRef.current = 0;
               setRevealedHints(0);
               revealedHintsRef.current = 0;
+              // whiteboard cleared by the useEffect watching currentQuestion._id
             } else {
+              // ✅ No next question found — clear board before showing congrats
               clearAssessmentSession(lessonId, itemId);
+              setTimeout(clearWhiteboard, 50);
               setCharacterImg(getRandomImage(congratsImages));
               setShowCongratsModal(true);
               markAssessmentCompleted(currentLesson._id || currentLesson.id, currentLesson.isAIReview, updatedHistory);
@@ -500,7 +502,9 @@ export default function DragBoardLesson() {
               }
             }
           } else {
+            // ✅ All questions answered — clear board before showing congrats
             clearAssessmentSession(lessonId, itemId);
+            setTimeout(clearWhiteboard, 50);
             setCharacterImg(getRandomImage(congratsImages));
             setShowCongratsModal(true);
             markAssessmentCompleted(currentLesson._id || currentLesson.id, currentLesson.isAIReview, updatedHistory);
@@ -539,6 +543,8 @@ export default function DragBoardLesson() {
             checkIfNeedsReview(attempts, updatedMissing);
           }
           if (attempts >= 3) {
+            // ✅ Max attempts — clear board before showing answer modal
+            setTimeout(clearWhiteboard, 50);
             setAssessmentAnswer({
               expectedOutput:    question.expectedOutput,
               dataTypesRequired: question.dataTypesRequired,
@@ -601,7 +607,6 @@ export default function DragBoardLesson() {
         if (result.passedAll) {
           playSuccessSound();
           stopTimer();
-          // ✅ Clear session + whiteboard on correct answer
           clearActivitySession(lessonId, itemId);
           setTimeout(clearWhiteboard, 50);
           if (!currentLesson.isAIReview)
@@ -618,7 +623,6 @@ export default function DragBoardLesson() {
           checkIfNeedsReview(attempts, updatedMissing);
         }
         if (attempts >= 3) {
-          // ✅ Clear session + whiteboard when showing answer modal
           clearActivitySession(lessonId, itemId);
           setTimeout(clearWhiteboard, 50);
           setAssessmentAnswer({

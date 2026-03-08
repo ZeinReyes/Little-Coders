@@ -8,11 +8,6 @@ import { Modal, Button } from "react-bootstrap";
  *   2. ActivityModal     — "thinking / solving" intro before the activity
  *   3. CongratsModal     — shown on success
  *   4. AnswerModal       — reveals the answer after max attempts
- *
- * All open/close state and handlers are passed in as props so this file
- * is purely presentational.
- *
- * During each phase only the modal relevant to that phase is rendered.
  */
 export default function LessonModals({
   // Lesson modal
@@ -44,12 +39,6 @@ export default function LessonModals({
 
   return (
     <>
-      {/* ══════════════════════════════════════════════════
-          Each modal is conditionally rendered only when
-          its own show-flag is true, so only the modal
-          relevant to the current phase appears at a time.
-         ══════════════════════════════════════════════════ */}
-
       {/* ── Lesson Modal ── */}
       {isLesson && showLessonModal && (
         <Modal
@@ -73,7 +62,6 @@ export default function LessonModals({
             <div className="lmjsx-content-card">
               <div className="typing-container">{renderLessonContent()}</div>
             </div>
-
           </Modal.Body>
 
           <Modal.Footer className="lmjsx-footer-lesson d-flex justify-content-between">
@@ -262,6 +250,56 @@ export default function LessonModals({
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
 
+        /* ════════════════════════════════════════════════
+           TYPING ANIMATIONS
+           typing-container : used for rich/HTML lesson content
+                              fades in lines one by one using
+                              a staggered opacity reveal so it
+                              works with any content length.
+           typing-line      : used for the single activity text
+                              line — slides in from left with a
+                              blinking caret, works on one line.
+         ════════════════════════════════════════════════ */
+
+        /* --- typing-container (multi-line HTML content) --- */
+        .typing-container {
+          display: block;
+          animation: lmjsxFadeReveal 0.8s ease forwards;
+        }
+
+        @keyframes lmjsxFadeReveal {
+          0%   { opacity: 0; transform: translateY(10px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- typing-line (single short line with caret) --- */
+        .typing-line {
+          display: inline-block;
+          overflow: hidden;
+          /* 
+            ch units approximate character count.
+            We use a generous max so it always finishes.
+            The text is guaranteed single-line inside the
+            speech bubble so nowrap is safe here.
+          */
+          max-width: 100%;
+          white-space: normal;
+          border-right: 3px solid #5f3dc4;
+          animation:
+            lmjsxTypeIn 1.4s steps(60, end) forwards,
+            lmjsxCaret  0.75s step-end infinite;
+        }
+
+        @keyframes lmjsxTypeIn {
+          0%   { clip-path: inset(0 100% 0 0); }
+          100% { clip-path: inset(0 0% 0 0); }
+        }
+
+        @keyframes lmjsxCaret {
+          0%,  50% { border-right-color: #5f3dc4; }
+          51%, 100%{ border-right-color: transparent; }
+        }
+
         /* ── Shared title ── */
         .lmjsx-title {
           font-family: 'Fredoka One', 'Comic Sans MS', cursive;
@@ -297,26 +335,11 @@ export default function LessonModals({
           color: #868e96 !important;
           box-shadow: none !important;
         }
-        .lmjsx-btn-orange {
-          background: linear-gradient(135deg, #ff6b6b, #ffa94d) !important;
-          border-color: #e85d04 !important;
-        }
-        .lmjsx-btn-blue {
-          background: linear-gradient(135deg, #74c0fc, #4dabf7) !important;
-          border-color: #228be6 !important;
-        }
-        .lmjsx-btn-purple {
-          background: linear-gradient(135deg, #cc5de8, #f783ac) !important;
-          border-color: #ae3ec9 !important;
-        }
-        .lmjsx-btn-green {
-          background: linear-gradient(135deg, #51cf66, #38d9a9) !important;
-          border-color: #2f9e44 !important;
-        }
-        .lmjsx-btn-teal {
-          background: linear-gradient(135deg, #20c997, #4dabf7) !important;
-          border-color: #0ca678 !important;
-        }
+        .lmjsx-btn-orange  { background: linear-gradient(135deg, #ff6b6b, #ffa94d) !important; border-color: #e85d04 !important; }
+        .lmjsx-btn-blue    { background: linear-gradient(135deg, #74c0fc, #4dabf7) !important; border-color: #228be6 !important; }
+        .lmjsx-btn-purple  { background: linear-gradient(135deg, #cc5de8, #f783ac) !important; border-color: #ae3ec9 !important; }
+        .lmjsx-btn-green   { background: linear-gradient(135deg, #51cf66, #38d9a9) !important; border-color: #2f9e44 !important; }
+        .lmjsx-btn-teal    { background: linear-gradient(135deg, #20c997, #4dabf7) !important; border-color: #0ca678 !important; }
         .lmjsx-btn-pulse {
           animation: lmjsxPulse 1.6s ease-in-out infinite !important;
         }
@@ -334,46 +357,14 @@ export default function LessonModals({
         }
 
         /* ════ LESSON ════ */
-        .lmjsx-header-lesson {
-          background: linear-gradient(135deg, #74c0fc 0%, #a9e34b 100%);
-          border-bottom: none !important;
-          padding: 14px 20px !important;
-        }
-        .lmjsx-body-lesson {
-          max-height: 65vh;
-          overflow-y: auto;
-          padding: 1.5rem;
-          background: #FFF8F2;
-          font-family: 'Comic Sans MS', cursive;
-        }
-        .lmjsx-content-card {
-          position: relative;
-          background: #fff;
-          border: 4px solid #ffa94d;
-          border-radius: 18px;
-          padding: 20px 18px 16px;
-          box-shadow: 5px 5px 0 #ffd8a8;
-        }
-        .lmjsx-footer-lesson {
-          background: #fff9f0 !important;
-          border-top: none !important;
-          padding: 12px 20px !important;
-        }
+        .lmjsx-header-lesson  { background: linear-gradient(135deg, #74c0fc 0%, #a9e34b 100%); border-bottom: none !important; padding: 14px 20px !important; }
+        .lmjsx-body-lesson    { max-height: 65vh; overflow-y: auto; padding: 1.5rem; background: #FFF8F2; font-family: 'Comic Sans MS', cursive; }
+        .lmjsx-content-card   { position: relative; background: #fff; border: 4px solid #ffa94d; border-radius: 18px; padding: 20px 18px 16px; box-shadow: 5px 5px 0 #ffd8a8; }
+        .lmjsx-footer-lesson  { background: #fff9f0 !important; border-top: none !important; padding: 12px 20px !important; }
 
         /* ════ ACTIVITY ════ */
-        .lmjsx-header-activity {
-          background: linear-gradient(135deg, #da77f2 0%, #ff8787 100%);
-          border-bottom: none !important;
-          padding: 14px 20px !important;
-        }
-        .lmjsx-body-activity {
-          max-height: 65vh;
-          overflow-y: auto;
-          padding: 1.8rem;
-          text-align: center;
-          background: #fff0f6;
-          font-family: 'Comic Sans MS', cursive;
-        }
+        .lmjsx-header-activity { background: linear-gradient(135deg, #da77f2 0%, #ff8787 100%); border-bottom: none !important; padding: 14px 20px !important; }
+        .lmjsx-body-activity   { max-height: 65vh; overflow-y: auto; padding: 1.8rem; text-align: center; background: #fff0f6; font-family: 'Comic Sans MS', cursive; }
         .lmjsx-speech-bubble {
           position: relative;
           background: #fff;
@@ -394,167 +385,45 @@ export default function LessonModals({
           border-style: solid;
           border-color: #da77f2 transparent transparent;
         }
-        .lmjsx-thought-icon {
-          font-size: 2.6rem;
-          display: block;
-          margin-bottom: 10px;
-          animation: bounce 1.8s infinite ease-in-out;
-        }
-        .lmjsx-speech-text {
-          font-size: 1.1rem;
-          color: #5f3dc4;
-          font-weight: bold;
-          margin: 0;
-        }
-        .lmjsx-deco-row {
-          display: flex;
-          justify-content: center;
-          gap: 16px;
-          font-size: 1.7rem;
-          margin-top: 10px;
-        }
-        .lmjsx-deco-emoji {
-          display: inline-block;
-          animation: bounce 2s infinite ease-in-out;
-        }
-        .lmjsx-footer-activity {
-          background: #fff0f6 !important;
-          border-top: none !important;
-          padding: 12px 20px !important;
-          justify-content: flex-end;
-        }
+        .lmjsx-thought-icon  { font-size: 2.6rem; display: block; margin-bottom: 10px; animation: lmjsxBounce 1.8s infinite ease-in-out; }
+        .lmjsx-speech-text   { font-size: 1.1rem; color: #5f3dc4; font-weight: bold; margin: 0; }
+        .lmjsx-deco-row      { display: flex; justify-content: center; gap: 16px; font-size: 1.7rem; margin-top: 10px; }
+        .lmjsx-deco-emoji    { display: inline-block; animation: lmjsxBounce 2s infinite ease-in-out; }
+        .lmjsx-footer-activity { background: #fff0f6 !important; border-top: none !important; padding: 12px 20px !important; justify-content: flex-end; }
 
         /* ════ CONGRATS ════ */
-        .lmjsx-header-congrats {
-          background: linear-gradient(135deg, #ffd43b 0%, #ff6b6b 100%);
-          border-bottom: none !important;
-          padding: 14px 20px !important;
-        }
-        .lmjsx-body-congrats {
-          max-height: 65vh;
-          overflow-y: auto;
-          padding: 1.5rem;
-          text-align: center;
-          background: #fffbe6;
-          font-family: 'Comic Sans MS', cursive;
-        }
-        .lmjsx-confetti-row {
-          display: flex;
-          justify-content: center;
-          flex-wrap: wrap;
-          gap: 10px;
-          font-size: 1.8rem;
-          margin-bottom: 16px;
-        }
-        .lmjsx-confetti {
-          display: inline-block;
-          animation: lmjsxConfetti 1.2s ease-in-out infinite alternate;
-        }
+        .lmjsx-header-congrats { background: linear-gradient(135deg, #ffd43b 0%, #ff6b6b 100%); border-bottom: none !important; padding: 14px 20px !important; }
+        .lmjsx-body-congrats   { max-height: 65vh; overflow-y: auto; padding: 1.5rem; text-align: center; background: #fffbe6; font-family: 'Comic Sans MS', cursive; }
+        .lmjsx-confetti-row    { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; font-size: 1.8rem; margin-bottom: 16px; }
+        .lmjsx-confetti        { display: inline-block; animation: lmjsxConfetti 1.2s ease-in-out infinite alternate; }
         @keyframes lmjsxConfetti {
           from { transform: translateY(0) rotate(-10deg); }
           to   { transform: translateY(-13px) rotate(10deg); }
         }
-        .lmjsx-congrats-card {
-          background: #fff;
-          border: 4px solid #ffd43b;
-          border-radius: 20px;
-          padding: 20px 24px;
-          max-width: 88%;
-          margin: 0 auto 16px;
-          box-shadow: 5px 5px 0 #ffe066;
-        }
-        .lmjsx-congrats-heading {
-          font-family: 'Fredoka One', 'Comic Sans MS', cursive;
-          font-size: 1.8rem;
-          color: #e67700;
-          margin-bottom: 8px;
-        }
-        .lmjsx-congrats-text { font-size: 1.05rem; color: #5c5c5c; margin: 0 0 6px; }
-        .lmjsx-ai-msg {
-          border-radius: 12px;
-          padding: 10px 16px;
-          font-weight: bold;
-          margin-top: 10px;
-          font-size: 0.97rem;
-        }
-        .lmjsx-ai-activity  { background: #e7f5ff; color: #1971c2; border: 2px dashed #74c0fc; }
-        .lmjsx-ai-assessment{ background: #ebfbee; color: #2f9e44; border: 2px dashed #69db7c; }
-        .lmjsx-stars-row {
-          display: flex;
-          justify-content: center;
-          gap: 14px;
-          font-size: 2.2rem;
-        }
-        .lmjsx-big-star {
-          display: inline-block;
-          animation: lmjsxStarPop 0.9s ease-in-out infinite alternate;
-        }
+        .lmjsx-congrats-card    { background: #fff; border: 4px solid #ffd43b; border-radius: 20px; padding: 20px 24px; max-width: 88%; margin: 0 auto 16px; box-shadow: 5px 5px 0 #ffe066; }
+        .lmjsx-congrats-heading { font-family: 'Fredoka One', 'Comic Sans MS', cursive; font-size: 1.8rem; color: #e67700; margin-bottom: 8px; }
+        .lmjsx-congrats-text    { font-size: 1.05rem; color: #5c5c5c; margin: 0 0 6px; }
+        .lmjsx-ai-msg           { border-radius: 12px; padding: 10px 16px; font-weight: bold; margin-top: 10px; font-size: 0.97rem; }
+        .lmjsx-ai-activity      { background: #e7f5ff; color: #1971c2; border: 2px dashed #74c0fc; }
+        .lmjsx-ai-assessment    { background: #ebfbee; color: #2f9e44; border: 2px dashed #69db7c; }
+        .lmjsx-stars-row        { display: flex; justify-content: center; gap: 14px; font-size: 2.2rem; }
+        .lmjsx-big-star         { display: inline-block; animation: lmjsxStarPop 0.9s ease-in-out infinite alternate; }
         @keyframes lmjsxStarPop {
           from { transform: scale(1) rotate(-12deg); }
           to   { transform: scale(1.35) rotate(12deg); }
         }
-        .lmjsx-footer-congrats {
-          background: #fffbe6 !important;
-          border-top: none !important;
-          padding: 12px 20px !important;
-          justify-content: flex-end;
-        }
+        .lmjsx-footer-congrats { background: #fffbe6 !important; border-top: none !important; padding: 12px 20px !important; justify-content: flex-end; }
 
         /* ════ ANSWER ════ */
-        .lmjsx-header-answer {
-          background: linear-gradient(135deg, #63e6be 0%, #74c0fc 100%);
-          border-bottom: none !important;
-          padding: 14px 20px !important;
-        }
-        .lmjsx-body-answer {
-          max-height: 65vh;
-          overflow-y: auto;
-          padding: 1.5rem;
-          text-align: center;
-          background: #f0fff4;
-          font-family: 'Comic Sans MS', cursive;
-        }
-        .lmjsx-answer-section-title {
-          font-family: 'Fredoka One', 'Comic Sans MS', cursive;
-          font-size: 1.15rem;
-          color: #087f5b;
-          margin-bottom: 10px;
-        }
-        .lmjsx-answer-list {
-          list-style: none;
-          padding: 0;
-          display: inline-block;
-          text-align: left;
-          margin-bottom: 14px;
-        }
-        .lmjsx-answer-item {
-          font-size: 1rem;
-          padding: 6px 14px;
-          margin-bottom: 6px;
-          background: #fff;
-          border: 2px solid #63e6be;
-          border-radius: 30px;
-          box-shadow: 2px 2px 0 #b2f2e0;
-        }
-        .lmjsx-answer-pre {
-          background: #fff;
-          border: 3px dashed #63e6be;
-          border-radius: 14px;
-          padding: 14px;
-          font-family: 'Courier New', monospace;
-          font-size: 0.95rem;
-          color: #087f5b;
-          text-align: left;
-          box-shadow: 3px 3px 0 #b2f2e0;
-        }
-        .lmjsx-footer-answer {
-          background: #f0fff4 !important;
-          border-top: none !important;
-          padding: 12px 20px !important;
-          justify-content: flex-end;
-        }
+        .lmjsx-header-answer        { background: linear-gradient(135deg, #63e6be 0%, #74c0fc 100%); border-bottom: none !important; padding: 14px 20px !important; }
+        .lmjsx-body-answer          { max-height: 65vh; overflow-y: auto; padding: 1.5rem; text-align: center; background: #f0fff4; font-family: 'Comic Sans MS', cursive; }
+        .lmjsx-answer-section-title { font-family: 'Fredoka One', 'Comic Sans MS', cursive; font-size: 1.15rem; color: #087f5b; margin-bottom: 10px; }
+        .lmjsx-answer-list          { list-style: none; padding: 0; display: inline-block; text-align: left; margin-bottom: 14px; }
+        .lmjsx-answer-item          { font-size: 1rem; padding: 6px 14px; margin-bottom: 6px; background: #fff; border: 2px solid #63e6be; border-radius: 30px; box-shadow: 2px 2px 0 #b2f2e0; }
+        .lmjsx-answer-pre           { background: #fff; border: 3px dashed #63e6be; border-radius: 14px; padding: 14px; font-family: 'Courier New', monospace; font-size: 0.95rem; color: #087f5b; text-align: left; box-shadow: 3px 3px 0 #b2f2e0; }
+        .lmjsx-footer-answer        { background: #f0fff4 !important; border-top: none !important; padding: 12px 20px !important; justify-content: flex-end; }
 
-        /* ── Decorative icons & bounce ── */
+        /* ── Decorative icons ── */
         .lmjsx-spin-star {
           display: inline-block;
           animation: lmjsxSpinStar 3s linear infinite;
@@ -566,36 +435,11 @@ export default function LessonModals({
         }
         .lmjsx-bounce-icon {
           display: inline-block;
-          animation: bounce 1.5s infinite ease-in-out;
+          animation: lmjsxBounce 1.5s infinite ease-in-out;
         }
-
-        /* ── Typing animations (kept from original) ── */
-        @keyframes bounce {
+        @keyframes lmjsxBounce {
           0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
-        }
-        @keyframes typingDown {
-          from { clip-path: inset(0 0 100% 0); }
-          to   { clip-path: inset(0 0 0 0); }
-        }
-        .typing-container {
-          display: inline-block;
-          overflow: hidden;
-          white-space: normal;
-          border-right: 3px solid #333;
-          animation: typingDown 1.2s steps(40, end), blink 0.8s step-end infinite;
-        }
-        .typing-line {
-          display: inline-block;
-          overflow: hidden;
-          white-space: nowrap;
-          border-right: 2px solid #333;
-          animation: typingShort 1s steps(35, end), blink 0.8s step-end infinite;
-        }
-        @keyframes typingShort { from { width: 0; } to { width: 100%; } }
-        @keyframes blink {
-          0%, 50%  { border-color: #333; }
-          51%, 100%{ border-color: transparent; }
+          50%      { transform: translateY(-8px); }
         }
       `}</style>
     </>
@@ -619,7 +463,7 @@ function CharacterBubble({ src }) {
         style={{
           width: "420px",
           height: "auto",
-          animation: "bounce 2s infinite ease-in-out",
+          animation: "lmjsxBounce 2s infinite ease-in-out",
           filter: "drop-shadow(3px 3px 8px rgba(0,0,0,0.3))",
         }}
       />
