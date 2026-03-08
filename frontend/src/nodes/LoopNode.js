@@ -4,6 +4,7 @@ import { makeMovable } from '../utils/movable';
 import { attachTooltip } from '../utils/helpers';
 import { makeId } from '../utils/id';
 import { playObjectSound } from '../utils/sfx';
+import { addNodeTooltip } from '../utils/tooltip';
 
 export function createLoopNode(type, whiteboard, codeArea, dimOverlay) {
   // ---------------- WHILE LOOP (Hamster Wheel) ----------------
@@ -199,6 +200,14 @@ export function createLoopNode(type, whiteboard, codeArea, dimOverlay) {
       whileNode,
       "🐹 While Loop: Keeps running as long as the condition is true!"
     );
+
+    // ---------------- Kid-friendly tooltip ----------------
+    addNodeTooltip(whileNode, {
+      emoji: '🐹',
+      title: 'While Loop',
+      desc: 'Keeps doing something over and over as long as the condition is TRUE!',
+      example: 'while x < 10',
+    });
 
     return whileNode;
   }
@@ -494,6 +503,14 @@ export function createLoopNode(type, whiteboard, codeArea, dimOverlay) {
       "👣 For Loop: Count from START to END by STEP!"
     );
 
+    // ---------------- Kid-friendly tooltip ----------------
+    addNodeTooltip(forNode, {
+      emoji: '👣',
+      title: 'For Loop',
+      desc: 'Counts from START to END and does something each step!',
+      example: 'for i = 1 to 5',
+    });
+
     return forNode;
   }
 
@@ -680,6 +697,14 @@ export function createLoopNode(type, whiteboard, codeArea, dimOverlay) {
       doWhileNode,
       "🔁 Do-While: Do it first, then check if you should repeat!"
     );
+
+    // ---------------- Kid-friendly tooltip ----------------
+    addNodeTooltip(doWhileNode, {
+      emoji: '🔁',
+      title: 'Do-While Loop',
+      desc: 'Does the action FIRST, then checks if it should do it again!',
+      example: 'do { ... } while x < 5',
+    });
 
     return doWhileNode;
   }

@@ -5,6 +5,7 @@ import { makeMovable } from '../utils/movable';
 import { attachTooltip } from '../utils/helpers';
 import { makeId } from '../utils/id';   
 import { playObjectSound } from '../utils/sfx';
+import { addNodeTooltip } from '../utils/tooltip';
 
 function getOperatorSymbol(type) {
   const symbols = {
@@ -57,6 +58,20 @@ function operatorTooltip(type) {
   };
   return map[type] || "Operator";
 }
+
+const OPERATOR_TOOLTIPS = {
+  add:          { emoji: '➕', title: 'Add',                    desc: 'Put two numbers together to get a bigger one!',    example: '3 + 4 = 7'        },
+  subtract:     { emoji: '➖', title: 'Subtract',               desc: 'Take away one number from another!',               example: '9 - 3 = 6'        },
+  multiply:     { emoji: '✖️', title: 'Multiply',               desc: 'Add the same number lots of times — super fast!',  example: '4 × 3 = 12'       },
+  divide:       { emoji: '➗', title: 'Divide',                 desc: 'Split something into equal groups!',               example: '10 ÷ 2 = 5'       },
+  equal:        { emoji: '📦', title: 'Assign ( = )',           desc: 'Put a value inside a variable box!',               example: 'myAge = 10'       },
+  equalto:      { emoji: '🟰', title: 'Equal To ( == )',        desc: 'Check if two things are exactly the same!',        example: '5 == 5 → TRUE'    },
+  notequal:     { emoji: '❌', title: 'Not Equal ( != )',       desc: 'Check if two things are different!',               example: '3 != 7 → TRUE'    },
+  less:         { emoji: '🐭', title: 'Less Than ( < )',        desc: 'Is the left side smaller than the right?',         example: '3 < 10 → TRUE'    },
+  lessequal:    { emoji: '🐭', title: 'Less or Equal ( <= )',   desc: 'Is the left side smaller OR exactly the same?',    example: '5 <= 5 → TRUE'    },
+  greater:      { emoji: '🦁', title: 'Greater Than ( > )',     desc: 'Is the left side bigger than the right?',          example: '10 > 3 → TRUE'    },
+  greaterequal: { emoji: '🦁', title: 'Greater or Equal ( >= )',desc: 'Is the left side bigger OR exactly the same?',     example: '7 >= 7 → TRUE'    },
+};
 
 let operatorCounter = 0; // global sequential operator counter
 
@@ -111,6 +126,9 @@ export function createOperatorNode(type, whiteboard, codeArea, dimOverlay) {
   makeDraggable(op);
   makeMovable(op, whiteboard, codeArea, dimOverlay);
   attachTooltip(op, operatorTooltip(type));
+
+  // ---------------- Kid-friendly tooltip ----------------
+  addNodeTooltip(op, OPERATOR_TOOLTIPS[type] || { emoji: '🔧', title: 'Operator', desc: 'Does something with two values!', example: '' });
 
   return op;
 }

@@ -59,6 +59,60 @@ const randomActivityText = (slide) => {
     : solving[Math.floor(Math.random() * solving.length)];
 };
 
+// ── Session persistence helpers ────────────────────────────────────────────────
+const SESSION_KEY_PREFIX = "dragboard_session_";
+
+// Assessment session
+const saveAssessmentSession = (lessonId, itemId, data) => {
+  try {
+    const key = `${SESSION_KEY_PREFIX}${lessonId}_${itemId}`;
+    sessionStorage.setItem(key, JSON.stringify(data));
+  } catch (_) {}
+};
+const loadAssessmentSession = (lessonId, itemId) => {
+  try {
+    const key = `${SESSION_KEY_PREFIX}${lessonId}_${itemId}`;
+    const raw = sessionStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) { return null; }
+};
+const clearAssessmentSession = (lessonId, itemId) => {
+  try {
+    sessionStorage.removeItem(`${SESSION_KEY_PREFIX}${lessonId}_${itemId}`);
+  } catch (_) {}
+};
+
+// ✅ Activity session — persists remaining timer seconds across refresh
+const ACTIVITY_KEY = (lessonId, itemId) =>
+  `${SESSION_KEY_PREFIX}activity_${lessonId}_${itemId}`;
+
+const saveActivitySession = (lessonId, itemId, data) => {
+  try {
+    sessionStorage.setItem(ACTIVITY_KEY(lessonId, itemId), JSON.stringify(data));
+  } catch (_) {}
+};
+const loadActivitySession = (lessonId, itemId) => {
+  try {
+    const raw = sessionStorage.getItem(ACTIVITY_KEY(lessonId, itemId));
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) { return null; }
+};
+const clearActivitySession = (lessonId, itemId) => {
+  try {
+    sessionStorage.removeItem(ACTIVITY_KEY(lessonId, itemId));
+  } catch (_) {}
+};
+
+// ── Whiteboard clear helper ────────────────────────────────────────────────────
+const clearWhiteboard = () => {
+  const wb   = document.getElementById("whiteboard");
+  const out  = document.getElementById("outputArea");
+  const code = document.getElementById("codeArea");
+  if (wb) wb.querySelectorAll("[data-type]").forEach((b) => b.remove());
+  if (out)  out.textContent  = "/* Results will appear here */";
+  if (code) code.textContent = "/* Build expressions on the whiteboard */";
+};
+
 // ══════════════════════════════════════════════════════════════════════════════
 export default function DragBoardLesson() {
   const { lessonId, itemId } = useParams();
@@ -97,6 +151,9 @@ export default function DragBoardLesson() {
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
   const [currentActivityStartTime, setCurrentActivityStartTime] = useState(Date.now());
 
+  // ── Persisted timer seconds (restored from sessionStorage on refresh) ──
+  const [restoredTimerSeconds, setRestoredTimerSeconds] = useState(null);
+
   // ── Progress tracking ──
   const { markCompleted, recordAssessmentAttempt, recordActivityAttempt } =
     useProgressTracking({ lessonId, itemId, user });
@@ -112,12 +169,15 @@ export default function DragBoardLesson() {
 
   // ── Timer ──
   const timerResetKey = `${lesson?._id}-${lesson?.currentQuestion?._id}`;
-  const { formatted: timerFormatted, stopTimer } = useTimer({
-    initialSeconds: lesson?.timeLimit || 300,
+  const { formatted: timerFormatted, stopTimer, remainingSeconds } = useTimer({
+    initialSeconds: restoredTimerSeconds ?? (lesson?.timeLimit || 300),
     resetKey: timerResetKey,
     onTimeUp: () => {
       playErrorSound();
       if (lessonRef.current?.type === "assessment" || lessonRef.current?.type === "activity") {
+        // ✅ Clear session and whiteboard when time runs out
+        clearActivitySession(lessonId, itemId);
+        setTimeout(clearWhiteboard, 50);
         setShowAnswerModal(true);
       }
       stopActivitySound();
@@ -144,7 +204,7 @@ export default function DragBoardLesson() {
   } = useAIReview({ lessonId, currentMissingTypes, onShowReview: stopTimer });
 
   // ══════════════════════════════════════════════════════════════════════════════
-  // ── Refs — declared before any early returns (Rules of Hooks) ──
+  // ── Refs ──
   // ══════════════════════════════════════════════════════════════════════════════
   const lessonRef                   = useRef(lesson);
   const assessmentAttemptsRef       = useRef(assessmentAttempts);
@@ -155,8 +215,9 @@ export default function DragBoardLesson() {
   const currentMissingTypesRef      = useRef(currentMissingTypes);
   const questionHistoryRef          = useRef(questionHistory);
   const lessonStartTimeRef          = useRef(lessonStartTime);
+  const remainingSecondsRef         = useRef(remainingSeconds);
 
-  // Keep refs in sync with state
+  // Keep refs in sync
   useEffect(() => { lessonRef.current = lesson; },                                     [lesson]);
   useEffect(() => { assessmentAttemptsRef.current = assessmentAttempts; },             [assessmentAttempts]);
   useEffect(() => { activityAttemptsRef.current = activityAttempts; },                 [activityAttempts]);
@@ -166,6 +227,88 @@ export default function DragBoardLesson() {
   useEffect(() => { currentMissingTypesRef.current = currentMissingTypes; },           [currentMissingTypes]);
   useEffect(() => { questionHistoryRef.current = questionHistory; },                   [questionHistory]);
   useEffect(() => { lessonStartTimeRef.current = lessonStartTime; },                   [lessonStartTime]);
+  useEffect(() => { remainingSecondsRef.current = remainingSeconds; },                 [remainingSeconds]);
+
+  // ── Restore assessment session after initial load ──────────────────────────
+  useEffect(() => {
+    if (!lesson || lesson.type !== "assessment" || lesson.isAIReview) return;
+
+    const saved = loadAssessmentSession(lessonId, itemId);
+    if (!saved) return;
+    if (saved.assessmentId !== (lesson._id || lesson.id)) return;
+
+    const pool = lesson.questionsPool || [];
+    const savedQuestion = pool.find((q) => q._id === saved.currentQuestionId)
+      || (lesson.currentQuestion?._id === saved.currentQuestionId ? lesson.currentQuestion : null);
+    if (!savedQuestion) return;
+
+    setLesson((prev) => ({
+      ...prev,
+      currentQuestion: savedQuestion,
+      answered: saved.answered || [],
+    }));
+    if (typeof saved.remainingSeconds === "number" && saved.remainingSeconds > 0) {
+      setRestoredTimerSeconds(saved.remainingSeconds);
+    }
+    if (Array.isArray(saved.questionHistory)) {
+      setQuestionHistory(saved.questionHistory);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson?._id, lesson?.type]);
+
+  // ── Persist assessment session ─────────────────────────────────────────────
+  useEffect(() => {
+    const currentLesson = lesson;
+    if (
+      !currentLesson ||
+      currentLesson.type !== "assessment" ||
+      currentLesson.isAIReview ||
+      !currentLesson.currentQuestion
+    ) return;
+
+    saveAssessmentSession(lessonId, itemId, {
+      assessmentId:      currentLesson._id || currentLesson.id,
+      currentQuestionId: currentLesson.currentQuestion._id,
+      answered:          currentLesson.answered || [],
+      remainingSeconds:  remainingSecondsRef.current,
+      questionHistory:   questionHistoryRef.current,
+    });
+  }, [
+    lesson?.currentQuestion?._id,
+    lesson?.answered,
+    remainingSeconds,
+    lessonId,
+    itemId,
+  ]);
+
+  // ✅ Restore activity timer session after initial load ──────────────────────
+  useEffect(() => {
+    if (!lesson || lesson.type !== "activity" || lesson.isAIReview) return;
+
+    const saved = loadActivitySession(lessonId, itemId);
+    if (!saved) return;
+    if (saved.activityId !== (lesson._id || lesson.id)) return;
+
+    if (typeof saved.remainingSeconds === "number" && saved.remainingSeconds > 0) {
+      setRestoredTimerSeconds(saved.remainingSeconds);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson?._id, lesson?.type]);
+
+  // ✅ Persist activity timer every tick ─────────────────────────────────────
+  useEffect(() => {
+    const currentLesson = lesson;
+    if (
+      !currentLesson ||
+      currentLesson.type !== "activity" ||
+      currentLesson.isAIReview
+    ) return;
+
+    saveActivitySession(lessonId, itemId, {
+      activityId:       currentLesson._id || currentLesson.id,
+      remainingSeconds: remainingSecondsRef.current,
+    });
+  }, [remainingSeconds, lesson?._id, lesson?.type, lessonId, itemId]);
 
   // ── Reset state when a new activity starts ──
   useEffect(() => {
@@ -190,7 +333,7 @@ export default function DragBoardLesson() {
     currentMissingTypesRef.current = [];
   }, [lesson?._id, lesson?.type]);
 
-  // ── Reset hints + attempts on new assessment question ──
+  // ── Reset hints + attempts on new assessment question + clear whiteboard ──
   useEffect(() => {
     if (lesson?.type === "assessment" && lesson?.currentQuestion) {
       setRevealedHints(0);
@@ -199,8 +342,10 @@ export default function DragBoardLesson() {
       assessmentAttemptsRef.current = 0;
       setQuestionStartTime(Date.now());
       questionStartTimeRef.current = Date.now();
+      setTimeout(clearWhiteboard, 50);
     }
-  }, [lesson?.currentQuestion]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson?.currentQuestion?._id]);
 
   // ── Track lesson start time ──
   useEffect(() => {
@@ -212,13 +357,7 @@ export default function DragBoardLesson() {
   // ── Clear whiteboard on lesson change ──
   useEffect(() => {
     if (!lesson) return;
-    const wb = document.getElementById("whiteboard");
-    if (!wb) return;
-    wb.querySelectorAll("[data-type]").forEach((b) => b.remove());
-    const out  = document.getElementById("outputArea");
-    const code = document.getElementById("codeArea");
-    if (out)  out.textContent  = "/* Results will appear here */";
-    if (code) code.textContent = "/* Build expressions on the whiteboard */";
+    clearWhiteboard();
   }, [lesson?._id, lesson?.type, lesson?.isAIReview]);
 
   // ── Lesson sound ──
@@ -257,9 +396,6 @@ export default function DragBoardLesson() {
         return;
       }
 
-      // ✅ FIX: Destroy any previous initDragAndDrop listeners before re-initialising.
-      // When only currentQuestion changes (same lesson _id / type) the effect re-runs,
-      // so we must tear down the old palette wiring first to avoid duplicate handlers.
       const destroy = initDragAndDrop({
         paletteSelector: ".elements img",
         whiteboard,
@@ -332,6 +468,7 @@ export default function DragBoardLesson() {
           questionHistoryRef.current = updatedHistory;
 
           const updatedAnswered = [...(currentLesson.answered || []), question._id];
+
           if (updatedAnswered.length < currentLesson.totalQuestions) {
             const suggestedDifficulty = await fetchSuggestedDifficulty(
               updatedHistory,
@@ -344,12 +481,14 @@ export default function DragBoardLesson() {
               updatedAnswered
             );
             if (nextQ) {
+              setRestoredTimerSeconds(null);
               setLesson((prev) => ({ ...prev, currentQuestion: nextQ, answered: updatedAnswered }));
               setAssessmentAttempts(0);
               assessmentAttemptsRef.current = 0;
               setRevealedHints(0);
               revealedHintsRef.current = 0;
             } else {
+              clearAssessmentSession(lessonId, itemId);
               setCharacterImg(getRandomImage(congratsImages));
               setShowCongratsModal(true);
               markAssessmentCompleted(currentLesson._id || currentLesson.id, currentLesson.isAIReview, updatedHistory);
@@ -361,6 +500,7 @@ export default function DragBoardLesson() {
               }
             }
           } else {
+            clearAssessmentSession(lessonId, itemId);
             setCharacterImg(getRandomImage(congratsImages));
             setShowCongratsModal(true);
             markAssessmentCompleted(currentLesson._id || currentLesson.id, currentLesson.isAIReview, updatedHistory);
@@ -461,6 +601,9 @@ export default function DragBoardLesson() {
         if (result.passedAll) {
           playSuccessSound();
           stopTimer();
+          // ✅ Clear session + whiteboard on correct answer
+          clearActivitySession(lessonId, itemId);
+          setTimeout(clearWhiteboard, 50);
           if (!currentLesson.isAIReview)
             markCompleted({ lessonType: "activity", lessonStartTime: lessonStartTimeRef.current });
           stopActivitySound();
@@ -475,6 +618,9 @@ export default function DragBoardLesson() {
           checkIfNeedsReview(attempts, updatedMissing);
         }
         if (attempts >= 3) {
+          // ✅ Clear session + whiteboard when showing answer modal
+          clearActivitySession(lessonId, itemId);
+          setTimeout(clearWhiteboard, 50);
           setAssessmentAnswer({
             expectedOutput:    currentLesson.expectedOutput,
             dataTypesRequired: currentLesson.dataTypesRequired,
@@ -516,13 +662,6 @@ export default function DragBoardLesson() {
       cancelled = true;
       if (cleanup) cleanup();
     };
-
-  // ✅ FIX: Added lesson?.currentQuestion?._id to dependency array.
-  // Previously, this effect only re-ran when lesson._id or lesson.type changed.
-  // But moving between questions only changes currentQuestion — same _id and type —
-  // so initDragAndDrop was never re-called, leaving the palette drag wiring from
-  // question 1 stale. Operators that weren't in question 1's palette (like '-')
-  // would drag but silently fail to drop because no fresh handler was registered.
   }, [lesson?.type, lesson?._id, lesson?.currentQuestion?._id]);
 
   // ── Lesson navigation ──────────────────────────────────────────────────────
@@ -595,14 +734,7 @@ export default function DragBoardLesson() {
   const handleStartAIActivity = () => {
     const activity = aiReviewData?.reviewContent?.activity;
     if (!activity) return;
-    const wb = document.getElementById("whiteboard");
-    if (wb) {
-      wb.querySelectorAll("[data-type]").forEach((b) => b.remove());
-      const out  = document.getElementById("outputArea");
-      const code = document.getElementById("codeArea");
-      if (out)  out.textContent  = "/* Results will appear here */";
-      if (code) code.textContent = "/* Build expressions on the whiteboard */";
-    }
+    clearWhiteboard();
     setShowAIReviewPanel(false);
     setShowCongratsModal(false);
     setShowAnswerModal(false);
@@ -697,7 +829,6 @@ export default function DragBoardLesson() {
   // ── Main render ──
   return (
     <div className="dragboard-wrapper">
-      {/* AI "need help?" overlay */}
       {showAIPrompt && aiRecommendation && (
         <AIPromptModal
           aiRecommendation={aiRecommendation}
@@ -705,21 +836,18 @@ export default function DragBoardLesson() {
         />
       )}
 
-      {/* Activity / Assessment instruction cards */}
       <InstructionsPanel
         lesson={lesson}
         revealedHints={revealedHints}
         setRevealedHints={setRevealedHints}
       />
 
-      {/* Whiteboard workspace */}
       <Workspace
         lessonType={lesson.type}
         timeFormatted={timerFormatted}
         dataTypesRequired={lesson.dataTypesRequired || lesson.currentQuestion?.dataTypesRequired || []}
       />
 
-      {/* All modals (lesson, activity intro, congrats, answer) */}
       <LessonModals
         showLessonModal={showLessonModal}
         lesson={lesson}

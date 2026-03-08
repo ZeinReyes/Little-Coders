@@ -64,9 +64,9 @@ body {
 
 /* ── Elements Palette ─────────────────────────────────────────── */
 .draggable {
-  width: 90px;
+  width: 160px;           /* wider — fits 2 per row comfortably */
   flex-shrink: 0;
-  padding: 12px 8px;
+  padding: 12px 10px;
   border-radius: var(--radius-lg);
   background: linear-gradient(170deg, #43e97b 0%, #38f9d7 100%);
   border: 3px solid var(--green-dark);
@@ -75,49 +75,79 @@ body {
   align-items: center;
   gap: 10px;
   overflow-y: auto;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.4) transparent;
 }
 
-.draggable::-webkit-scrollbar { display: none; }
+.draggable::-webkit-scrollbar        { width: 5px; }
+.draggable::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.45); border-radius: 4px; }
+.draggable::-webkit-scrollbar-track  { background: transparent; }
 
 .draggable h3 {
   font-family: var(--font-display);
-  font-size: 0.95rem;
-  margin: 0 0 8px;
+  font-size: 1rem;
+  margin: 0 0 10px;
   text-align: center;
   text-shadow: 0 1px 3px rgba(0,0,0,0.2);
   letter-spacing: 0.5px;
-}
-
-.elements {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: center;
   width: 100%;
 }
 
-.elements img {
-  width: 52px;
-  height: 52px;
-  cursor: grab;
-  border-radius: var(--radius-md);
-  background: rgba(255,255,255,0.9);
-  padding: 6px;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: var(--shadow-sm);
-  border: 2px solid rgba(255,255,255,0.6);
+/* 2-column grid */
+.elements {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
 }
 
-.elements img:hover {
-  transform: scale(1.15) rotate(-3deg);
+/* Each element: image + label stacked */
+.element-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: grab;
+}
+
+.element-item:active {
+  cursor: grabbing;
+}
+
+.element-item img {
+  width: 58px;
+  height: 58px;
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.92);
+  padding: 7px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s;
+  box-shadow: var(--shadow-sm);
+  border: 2px solid rgba(255,255,255,0.65);
+  display: block;
+}
+
+.element-item:hover img {
+  transform: scale(1.14) rotate(-3deg);
   box-shadow: var(--shadow-md);
   background: var(--white);
 }
 
-.elements img:active {
-  cursor: grabbing;
+.element-item:active img {
   transform: scale(1.05);
+}
+
+/* Label under image */
+.element-label {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.95);
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  line-height: 1.2;
+  word-break: break-word;
+  max-width: 64px;
+  letter-spacing: 0.2px;
 }
 
 /* ── Workspace / Whiteboard ───────────────────────────────────── */
@@ -304,7 +334,6 @@ body {
 #outputArea::-webkit-scrollbar { width: 4px; }
 #outputArea::-webkit-scrollbar-thumb { background: #f87171; border-radius: 4px; }
 
-/* Output states */
 #outputArea:not(:empty) {
   animation: fadeIn 0.2s ease;
 }
@@ -725,18 +754,47 @@ body {
   position: relative;
 }
 
-/* ── Tooltip ──────────────────────────────────────────────────── */
+/* ── Tooltip ─────────────────────────────────────────── */
 .tooltip {
   position: fixed;
-  background: #e0f2fe;
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  display: none;
-  font-size: 12px;
-  color: #075985;
-  border: 1px solid #7dd3fc;
-  box-shadow: var(--shadow-sm);
   z-index: 9999;
+  pointer-events: none;
+
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  background: #1e1e2e;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 7px 11px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+
+  max-width: 180px;
+
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.tooltip.tooltip-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tooltip-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e0e0ff;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.tooltip-desc {
+  font-size: 11px;
+  font-weight: 400;
+  color: #9999bb;
+  line-height: 1.4;
 }
 
 /* ── Print Modal ──────────────────────────────────────────────── */
@@ -844,4 +902,21 @@ body {
 .print-modal-btn.secondary:hover {
   background: #e2e8f0;
   transform: translateY(-1px);
+}
+
+.clear-board-button {
+  display: block;
+  margin: 8px auto 0;
+  padding: 6px 16px;
+  background: #e53e3e;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+
+.clear-board-button:hover {
+  background: #c53030;
 }

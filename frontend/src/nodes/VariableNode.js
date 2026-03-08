@@ -5,6 +5,7 @@ import { makeId } from '../utils/id';
 import { canNest, nestElement, showNestNotification } from '../utils/nesting.js';
 import { updateCode, updateVariableTooltips } from '../utils/codeGen';
 import { playVariableSound } from '../utils/sfx';
+import { addNodeTooltip } from '../utils/tooltip';
 
 // ✅ Global counter for variable naming
 let variableCounter = 1;
@@ -201,7 +202,7 @@ function updateSlotVisibility() {
     if (!node) return;
 
     if (!canNest(slot, node)) {
-      showNestNotification("You can’t drop that here!");
+      showNestNotification("You can't drop that here!");
       return;
     }
 
@@ -278,6 +279,14 @@ function updateSlotVisibility() {
     v,
     'Variable: Double-click name to rename, hover to show slot, click slot to type or drop nodes.'
   );
+
+  // ---------------- Kid-friendly tooltip ----------------
+  addNodeTooltip(v, {
+    emoji: '📦',
+    title: 'Variable',
+    desc: 'A box that stores a value! Double-click the name to rename it.',
+    example: 'myScore = 10',
+  });
 
   return v;
 }

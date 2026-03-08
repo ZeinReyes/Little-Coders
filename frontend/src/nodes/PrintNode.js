@@ -4,6 +4,7 @@ import { attachTooltip } from '../utils/helpers';
 import { makeId } from '../utils/id';
 import { updateCode } from '../utils/codeGen';
 import { playPrintSound } from '../utils/sfx';
+import { addNodeTooltip } from '../utils/tooltip';
 
 // ---------------- Helper: Extract Expression Recursively ----------------
 function extractExpression(node) {
@@ -172,7 +173,7 @@ export function createPrintNode(whiteboard, codeArea, dimOverlay) {
   p.dataset.type = "print";
 
   const printer = document.createElement("img");
-  printer.src = "/assets/images/printer.png";
+  printer.src = "/assets/images/print1.png";
   printer.alt = "Printer";
   printer.className = "printer-img";
   p.appendChild(printer);
@@ -311,6 +312,14 @@ export function createPrintNode(whiteboard, codeArea, dimOverlay) {
     p,
     "Print: Drop an operator or click paper slot to open modal and edit expression."
   );
+
+  // ---------------- Kid-friendly tooltip ----------------
+  addNodeTooltip(p, {
+    emoji: '🖨️',
+    title: 'Print',
+    desc: 'Shows a message or number on the screen for everyone to see!',
+    example: 'print("Hello!")',
+  });
 
   return p;
 }

@@ -4,6 +4,7 @@ import { makeMovable } from '../utils/movable';
 import { attachTooltip } from '../utils/helpers';
 import { makeId } from '../utils/id';
 import { playObjectSound } from '../utils/sfx';
+import { addNodeTooltip } from '../utils/tooltip';
 
 export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
 
@@ -226,6 +227,14 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
     makeMovable(ifNode, whiteboard, codeArea, dimOverlay);
     attachTooltip(ifNode, '🍦 IF: Ask a question — if TRUE, do the action inside!');
 
+    // ---------------- Kid-friendly tooltip ----------------
+    addNodeTooltip(ifNode, {
+      emoji: '🍦',
+      title: 'IF',
+      desc: 'Ask a yes/no question — if the answer is YES, do the action inside!',
+      example: 'if score > 5',
+    });
+
     return ifNode;
   }
 
@@ -360,6 +369,14 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
     makeMovable(elifNode, whiteboard, codeArea, dimOverlay);
     attachTooltip(elifNode, '🍫 ELIF: "What if THAT wasn\'t true but THIS is?"');
 
+    // ---------------- Kid-friendly tooltip ----------------
+    addNodeTooltip(elifNode, {
+      emoji: '🍫',
+      title: 'ELIF',
+      desc: "If the IF wasn't true, check THIS condition next!",
+      example: 'elif score == 5',
+    });
+
     return elifNode;
   }
 
@@ -483,6 +500,14 @@ export function createConditionalNode(type, whiteboard, codeArea, dimOverlay) {
     makeDraggable(elseNode);
     makeMovable(elseNode, whiteboard, codeArea, dimOverlay);
     attachTooltip(elseNode, '🪂 ELSE: The safety net — runs when nothing else matched!');
+
+    // ---------------- Kid-friendly tooltip ----------------
+    addNodeTooltip(elseNode, {
+      emoji: '🪂',
+      title: 'ELSE',
+      desc: 'The safety net — runs when NONE of the other conditions matched!',
+      example: 'else { ... }',
+    });
 
     return elseNode;
   }

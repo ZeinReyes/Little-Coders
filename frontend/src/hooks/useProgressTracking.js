@@ -1,5 +1,14 @@
 import axios from "axios";
 
+const SESSION_KEY_PREFIX = "dragboard_session_";
+
+const clearAllSessions = (lessonId, itemId) => {
+  try {
+    sessionStorage.removeItem(`${SESSION_KEY_PREFIX}assessment_${lessonId}_${itemId}`);
+    sessionStorage.removeItem(`${SESSION_KEY_PREFIX}activity_${lessonId}_${itemId}`);
+  } catch (_) {}
+};
+
 /**
  * useProgressTracking
  * Thin wrappers around the progress API endpoints.
@@ -30,9 +39,14 @@ export function useProgressTracking({ lessonId, itemId, user }) {
 
       if (!endpoint) return;
 
-      await axios.post(`https://little-coders-production.up.railway.app/api/progress/${endpoint}`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.post(
+        `https://little-coders-production.up.railway.app/api/progress/${endpoint}`,
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // ✅ Clear persisted session so reopening starts fresh
+      clearAllSessions(lessonId, itemId);
     } catch (err) {
       console.error("❌ Error marking item completed:", err);
     }

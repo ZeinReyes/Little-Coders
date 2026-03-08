@@ -7,9 +7,56 @@ import { initDragAndDrop } from "../utils/dragAndDrop";
 import { updateCode } from "../utils/codeGen";
 import { updateVariableState } from "../utils/state";
 import { runProgram } from "../utils/runner";
+import { saveWhiteboardState, restoreWhiteboardState } from "../utils/persistence";
 import LoadingScreen from "./LoadingScreen";
 import TutorialModal from "./TutorialModal";
 import NavbarComponent from "./userNavbar";
+
+const STORAGE_KEY = "dragboard_whiteboard_state";
+
+const TOOLTIP_DESCRIPTIONS = {
+  print:        { label: "Print",               desc: "Output a value to the console" },
+  variable:     { label: "Variable",            desc: "Store a value in a named container" },
+  multiply:     { label: "Multiply ×",          desc: "Multiply two values together" },
+  add:          { label: "Add +",               desc: "Add two values together" },
+  subtract:     { label: "Subtract −",          desc: "Subtract one value from another" },
+  divide:       { label: "Divide ÷",            desc: "Divide one value by another" },
+  equal:        { label: "Assign =",            desc: "Assign a value to a variable" },
+  equalto:      { label: "Equal To ==",         desc: "Check if two values are equal" },
+  notequal:     { label: "Not Equal !=",        desc: "Check if two values are not equal" },
+  less:         { label: "Less Than <",         desc: "Check if a value is less than another" },
+  lessequal:    { label: "Less or Equal <=",    desc: "Check if a value is less than or equal" },
+  greater:      { label: "Greater Than >",      desc: "Check if a value is greater than another" },
+  greaterequal: { label: "Greater or Equal >=", desc: "Check if a value is greater or equal" },
+  if:           { label: "If",                  desc: "Run a block only if a condition is true" },
+  elif:         { label: "Elif",                desc: "Add an alternate condition to an If block" },
+  else:         { label: "Else",                desc: "Run a block when no conditions matched" },
+  while:        { label: "While Loop",          desc: "Repeat a block while a condition is true" },
+  "do-while":   { label: "Do-While Loop",       desc: "Run a block at least once, then repeat" },
+  for:          { label: "For Loop",            desc: "Repeat a block a set number of times" },
+};
+
+const ALL_BLOCKS = [
+  { src: "/assets/images/print1.png",           type: "print",        alt: "Print"        },
+  { src: "/assets/images/container.png",        type: "variable",     alt: "Variable"     },
+  { src: "/assets/images/multiply.png",         type: "multiply",     alt: "Multiply"     },
+  { src: "/assets/images/add.png",              type: "add",          alt: "Add"          },
+  { src: "/assets/images/subtract.png",         type: "subtract",     alt: "Subtract"     },
+  { src: "/assets/images/divide.png",           type: "divide",       alt: "Divide"       },
+  { src: "/assets/images/equal.png",            type: "equal",        alt: "Assign"       },
+  { src: "/assets/images/equalto.png",          type: "equalto",      alt: "Equal =="     },
+  { src: "/assets/images/notequal.png",         type: "notequal",     alt: "Not Equal"    },
+  { src: "/assets/images/lessthan.png",         type: "less",         alt: "Less Than"    },
+  { src: "/assets/images/lessthanequal.png",    type: "lessequal",    alt: "Less or ="    },
+  { src: "/assets/images/greaterthan.png",      type: "greater",      alt: "Greater"      },
+  { src: "/assets/images/greaterthanequal.png", type: "greaterequal", alt: "Greater or =" },
+  { src: "/assets/images/if.png",               type: "if",           alt: "If"           },
+  { src: "/assets/images/elif.png",             type: "elif",         alt: "Elif"         },
+  { src: "/assets/images/else.png",             type: "else",         alt: "Else"         },
+  { src: "/assets/images/while.png",            type: "while",        alt: "While"        },
+  { src: "/assets/images/do_while.png",         type: "do-while",     alt: "Do While"     },
+  { src: "/assets/images/for.png",              type: "for",          alt: "For Loop"     },
+];
 
 export default function DragBoard() {
   const [loading, setLoading] = useState(true);
@@ -18,29 +65,25 @@ export default function DragBoard() {
 
   const { user, refreshUser } = useContext(AuthContext);
 
-  // 🔹 Fetch onboarding status from MongoDB
+  // 🔹 Fetch onboarding status
   useEffect(() => {
     const fetchOnboardingStatus = async () => {
       if (!user?._id) return;
-
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get(
           `https://little-coders-production.up.railway.app/api/users/${user._id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-
-        // Show tutorial only if onboarding not completed
         setShowTutorial(!res.data.hasCompletedOnboarding);
       } catch (err) {
         console.error("Error fetching onboarding status:", err);
       }
     };
-
     fetchOnboardingStatus();
   }, [user]);
 
-  // 🧩 Loading screen setup
+  // 🧩 Loading screen
   useEffect(() => {
     const timer = setTimeout(() => {
       setFadeOut(true);
@@ -49,41 +92,53 @@ export default function DragBoard() {
     return () => clearTimeout(timer);
   }, []);
 
-  // 🧠 Initialize drag-and-drop
+  // 🧠 Init drag-and-drop + restore + observe
   useEffect(() => {
     if (loading) return;
 
-    const whiteboard = document.getElementById("whiteboard");
-    const codeArea = document.getElementById("codeArea");
-    const trashCan = document.getElementById("trashCan");
+    const whiteboard   = document.getElementById("whiteboard");
+    const codeArea     = document.getElementById("codeArea");
+    const trashCan     = document.getElementById("trashCan");
+    const dimOverlay   = document.getElementById("dimOverlay");
     const notification = document.getElementById("notification");
-    const runButton = document.getElementById("runButton");
-    const outputArea = document.getElementById("outputArea");
+    const runButton    = document.getElementById("runButton");
+    const outputArea   = document.getElementById("outputArea");
 
-    if (!whiteboard) {
-      console.error("Whiteboard element not found!");
-      return;
-    }
+    if (!whiteboard) { console.error("Whiteboard not found!"); return; }
 
+    // 1️⃣ Wire drag-and-drop first
     const destroy = initDragAndDrop({
       paletteSelector: ".elements img",
       whiteboard,
       codeArea,
+      dimOverlay,
       trashCan,
       notification,
     });
 
+    // 2️⃣ Restore saved nodes — uses createElement so all listeners are live
+    restoreWhiteboardState(whiteboard, codeArea, dimOverlay, STORAGE_KEY);
+
     const onRun = () => runProgram(codeArea, outputArea);
     runButton.addEventListener("click", onRun);
 
+    // 3️⃣ Auto-save on every board change
     const observer = new MutationObserver(() => {
-      updateVariableState(whiteboard);
+      updateVariableState(whiteboard, dimOverlay);
       updateCode(whiteboard, codeArea);
+      saveWhiteboardState(whiteboard, STORAGE_KEY);
     });
 
-    observer.observe(whiteboard, { childList: true, subtree: true });
+    observer.observe(whiteboard, {
+      childList:       true,
+      subtree:         true,
+      attributes:      true,
+      characterData:   true,
+      attributeFilter: ["style", "class", "data-var-name", "data-value",
+                        "data-op", "data-nested", "data-type"],
+    });
 
-    updateVariableState(whiteboard);
+    updateVariableState(whiteboard, dimOverlay);
     updateCode(whiteboard, codeArea);
 
     return () => {
@@ -93,10 +148,67 @@ export default function DragBoard() {
     };
   }, [loading]);
 
-  // ✅ Handle tutorial close (update MongoDB + context)
+  // 🏷️ Tooltip logic
+  useEffect(() => {
+    if (loading) return;
+
+    const tooltip = document.getElementById("globalTooltip");
+    if (!tooltip) return;
+
+    const OFFSET = { x: 14, y: -8 };
+
+    const handleMouseMove = (e) => {
+      tooltip.style.left = `${e.clientX + OFFSET.x}px`;
+      tooltip.style.top  = `${e.clientY + OFFSET.y}px`;
+    };
+    const handleMouseEnter = (e) => {
+      const type = e.currentTarget.dataset.type;
+      const info = TOOLTIP_DESCRIPTIONS[type];
+      if (!info) return;
+      tooltip.innerHTML = `<span class="tooltip-label">${info.label}</span><span class="tooltip-desc">${info.desc}</span>`;
+      tooltip.classList.add("tooltip-visible");
+      document.addEventListener("mousemove", handleMouseMove);
+    };
+    const handleMouseLeave = () => {
+      tooltip.classList.remove("tooltip-visible");
+      document.removeEventListener("mousemove", handleMouseMove);
+    };
+
+    const imgs = document.querySelectorAll(".elements img");
+    imgs.forEach(img => {
+      img.addEventListener("mouseenter", handleMouseEnter);
+      img.addEventListener("mouseleave", handleMouseLeave);
+    });
+
+    return () => {
+      imgs.forEach(img => {
+        img.removeEventListener("mouseenter", handleMouseEnter);
+        img.removeEventListener("mouseleave", handleMouseLeave);
+      });
+      document.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, [loading]);
+
+  // 🧹 Clear board
+  const handleClearBoard = () => {
+    const whiteboard = document.getElementById("whiteboard");
+    const codeArea   = document.getElementById("codeArea");
+    const outputArea = document.getElementById("outputArea");
+    if (!whiteboard) return;
+
+    Array.from(whiteboard.children).forEach(child => {
+      if (child.id !== "trashCan") whiteboard.removeChild(child);
+    });
+
+    if (codeArea)   codeArea.textContent   = "/* Build expressions on the whiteboard */";
+    if (outputArea) outputArea.textContent = "/* Results will appear here */";
+
+    localStorage.removeItem(STORAGE_KEY);
+  };
+
+  // ✅ Tutorial close
   const handleTutorialClose = async () => {
     if (!user?._id) return;
-
     try {
       const token = localStorage.getItem("token");
       await axios.put(
@@ -104,8 +216,7 @@ export default function DragBoard() {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      await refreshUser(user._id); // refresh user context
+      await refreshUser(user._id);
       setShowTutorial(false);
     } catch (err) {
       console.error("Error updating onboarding status:", err);
@@ -116,51 +227,37 @@ export default function DragBoard() {
 
   return (
     <div>
-      {/* ✅ Tutorial modal */}
       {showTutorial && (
-        <TutorialModal
-          show={showTutorial}
-          onClose={handleTutorialClose} // close tutorial and mark onboarding complete
-        />
+        <TutorialModal show={showTutorial} onClose={handleTutorialClose} />
       )}
-
-      {/* Conditionally render Navbar only if onboarding is completed */}
       {!showTutorial && <NavbarComponent />}
 
       <div
         style={{
-          marginTop: !showTutorial ? "70px" : "0", // adjust margin dynamically
-          height: !showTutorial ? "calc(100vh - 70px)" : "100vh",
+          marginTop: !showTutorial ? "70px" : "0",
+          height:    !showTutorial ? "calc(100vh - 70px)" : "100vh",
         }}
         className="main-container"
       >
-        {/* ELEMENTS PANEL */}
+        {/* ── Elements Palette ── */}
         <div className="draggable" id="draggable">
           <h3>Elements</h3>
           <div className="elements">
-            <img src="/assets/images/print1.png" data-type="print" draggable="true" alt="Print" />
-            <img src="/assets/images/container.png" data-type="variable" draggable="true" alt="Variable" />
-            <img src="/assets/images/multiply.png" data-type="multiply" draggable="true" alt="Multiply" />
-            <img src="/assets/images/add.png" data-type="add" draggable="true" alt="Add" />
-            <img src="/assets/images/subtract.png" data-type="subtract" draggable="true" alt="Subtract" />
-            <img src="/assets/images/divide.png" data-type="divide" draggable="true" alt="Divide" />
-            <img src="/assets/images/equal.png" data-type="equal" draggable="true" alt="Equal ==" />
-            <img src="/assets/images/equalto.png" data-type="equalto" draggable="true" alt="Equal ==" />
-            <img src="/assets/images/notequal.png" data-type="notequal" draggable="true" alt="Not Equal !=" />
-            <img src="/assets/images/lessthan.png" data-type="less" draggable="true" alt="Less Than <" />
-            <img src="/assets/images/lessthanequal.png" data-type="lessequal" draggable="true" alt="Less or Equal <=" />
-            <img src="/assets/images/greaterthan.png" data-type="greater" draggable="true" alt="Greater Than >" />
-            <img src="/assets/images/greaterthanequal.png" data-type="greaterequal" draggable="true" alt="Greater or Equal >=" />
-            <img src="/assets/images/if.png" data-type="if" draggable="true" alt="If" />
-            <img src="/assets/images/elif.png" data-type="elif" draggable="true" alt="Elif" />
-            <img src="/assets/images/else.png" data-type="else" draggable="true" alt="Else" />
-            <img src="/assets/images/while.png" data-type="while" draggable="true" alt="While" />
-            <img src="/assets/images/do_while.png" data-type="do-while" draggable="true" alt="Do While Loop" />
-            <img src="/assets/images/for.png" data-type="for" draggable="true" alt="For Loop" />
+            {ALL_BLOCKS.map((block) => (
+              <div key={block.type} className="element-item">
+                <img
+                  src={block.src}
+                  data-type={block.type}
+                  draggable="true"
+                  alt={block.alt}
+                />
+                <span className="element-label">{block.alt}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* WORKSPACE */}
+        {/* ── Workspace ── */}
         <div className="workspace">
           <div className="whiteboard-wrap">
             <div id="whiteboard" className="whiteboard">
@@ -168,9 +265,12 @@ export default function DragBoard() {
             </div>
             <div id="dimOverlay" className="dim-overlay"></div>
           </div>
+          <button className="clear-board-button" onClick={handleClearBoard}>
+            🗑️ Clear Board
+          </button>
         </div>
 
-        {/* CODE + OUTPUT */}
+        {/* ── Code + Output ── */}
         <div className="right-panel" id="right-panel">
           <div className="code-panel">
             <button id="runButton" className="run-button">▶ Run Program</button>
