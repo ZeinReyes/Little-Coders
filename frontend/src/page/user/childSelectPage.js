@@ -143,10 +143,10 @@ export default function ChildSelectPage() {
       {/* Header */}
       <div style={styles.header}>
         <div style={styles.headerLeft}>
-          <span style={styles.logo}>🎮 Little Coders</span>
+          <span style={styles.logo}>Little Coders</span>
         </div>
         <div style={styles.headerRight}>
-          <span style={styles.parentName}>👋 Hi, {user?.name}!</span>
+          <span style={styles.parentName}>Hi, {user?.name}!</span>
           <button style={styles.logoutBtn} onClick={handleLogout}>Log out</button>
         </div>
       </div>
