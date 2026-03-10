@@ -2,6 +2,20 @@ import User from "../model/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
+// ── Helper: build safe user response (no password) ────────────────────────────
+function userResponse(user) {
+  return {
+    _id:                    user._id,
+    id:                     user._id,
+    name:                   user.name,
+    email:                  user.email,
+    role:                   user.role,
+    hasCompletedOnboarding: user.hasCompletedOnboarding,
+    isVerified:             user.isVerified,
+    children:               user.children ?? [],
+  };
+}
+
 // ==============================
 // GET all users
 // ==============================
@@ -46,17 +60,7 @@ export const loginUser = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    const userResponse = {
-      _id:                    user._id,
-      id:                     user._id, // ✅ include both for frontend compatibility
-      name:                   user.name,
-      email:                  user.email,
-      role:                   user.role,
-      hasCompletedOnboarding: user.hasCompletedOnboarding,
-      isVerified:             user.isVerified,
-    };
-
-    res.json({ message: "Login successful", user: userResponse, token });
+    res.json({ message: "Login successful", user: userResponse(user), token });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Server error" });
@@ -80,6 +84,7 @@ export const addUser = async (req, res) => {
       password: hashedPassword,
       role: role || "user",
       hasCompletedOnboarding: false,
+      children: [],
     });
 
     await newUser.save();
@@ -90,17 +95,7 @@ export const addUser = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    const userResponse = {
-      _id:                    newUser._id,
-      id:                     newUser._id,
-      name:                   newUser.name,
-      email:                  newUser.email,
-      role:                   newUser.role,
-      hasCompletedOnboarding: newUser.hasCompletedOnboarding,
-      isVerified:             newUser.isVerified,
-    };
-
-    res.status(201).json({ message: "User registered successfully", user: userResponse, token });
+    res.status(201).json({ message: "User registered successfully", user: userResponse(newUser), token });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
@@ -136,18 +131,7 @@ export const updateUser = async (req, res) => {
 
     await user.save();
 
-    // ✅ Return updated user (without password) so EditProfile can call setUser()
-    const userResponse = {
-      _id:                    user._id,
-      id:                     user._id,
-      name:                   user.name,
-      email:                  user.email,
-      role:                   user.role,
-      hasCompletedOnboarding: user.hasCompletedOnboarding,
-      isVerified:             user.isVerified,
-    };
-
-    res.json({ message: "User updated successfully", user: userResponse });
+    res.json({ message: "User updated successfully", user: userResponse(user) });
   } catch (err) {
     console.error("Error updating user:", err);
     res.status(500).json({ error: "Server error" });
@@ -189,7 +173,7 @@ export const completeOnboarding = async (req, res) => {
     if (!user) return res.status(404).json({ error: "User not found" });
     user.hasCompletedOnboarding = true;
     await user.save();
-    res.json({ message: "Onboarding marked as complete", user });
+    res.json({ message: "Onboarding marked as complete", user: userResponse(user) });
   } catch (err) {
     console.error("Error updating onboarding:", err);
     res.status(500).json({ error: "Server error" });

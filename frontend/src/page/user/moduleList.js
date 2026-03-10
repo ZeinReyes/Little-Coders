@@ -20,6 +20,18 @@ function ModuleList() {
   const [completedLessons, setCompletedLessons] = useState(new Set());
   const navigate = useNavigate();
 
+  // ✅ Read the active child from sessionStorage (set by ChildSelectPage)
+  const getChildId = () => {
+    try {
+      const raw = sessionStorage.getItem("activeChild");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed._id || parsed.id || null;
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     const unlockAudio = () => {
       playLessonListSound();
@@ -50,7 +62,10 @@ function ModuleList() {
 
   // ── Shared fetch helper ──────────────────────────────────────────────────────
   const fetchModulesAndStatus = async () => {
-    if (!user?._id) return;
+    const userId  = user?._id;
+    const childId = getChildId();
+    if (!userId || !childId) return;
+
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get("https://little-coders-production.up.railway.app/api/lessons", {
@@ -58,7 +73,7 @@ function ModuleList() {
       });
       const sortedModules = res.data.sort((a, b) => (a.order || 0) - (b.order || 0));
       setModules(sortedModules);
-      await checkUnlockAndCompletionStatus(sortedModules, user._id, token);
+      await checkUnlockAndCompletionStatus(sortedModules, userId, childId, token);
     } catch (err) {
       console.error("Error fetching modules:", err);
     } finally {
@@ -71,18 +86,14 @@ function ModuleList() {
     fetchModulesAndStatus();
   }, [user]);
 
-  // ✅ FIX: Re-fetch when the user navigates back to this page (window regains
-  //         focus). Without this, the module list shows stale unlock data from
-  //         before the lesson was completed because the component doesn't remount.
+  // Re-fetch when the user navigates back to this page (window regains focus)
   useEffect(() => {
-    const handleFocus = () => {
-      fetchModulesAndStatus();
-    };
+    const handleFocus = () => fetchModulesAndStatus();
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
   }, [user]);
 
-  const checkUnlockAndCompletionStatus = async (lessons, userId, token) => {
+  const checkUnlockAndCompletionStatus = async (lessons, userId, childId, token) => {
     try {
       const unlocked = new Set();
       const completed = new Set();
@@ -95,7 +106,7 @@ function ModuleList() {
       const unlockPromises = lessons.map((lesson) =>
         axios
           .get(`https://little-coders-production.up.railway.app/api/progress/check-unlock`, {
-            params: { userId, itemType: "lesson", itemId: lesson._id },
+            params: { userId, childId, itemType: "lesson", itemId: lesson._id },
             headers: { Authorization: `Bearer ${token}` },
           })
           .then((res) => ({ lessonId: lesson._id, isUnlocked: res.data.isUnlocked }))
@@ -107,7 +118,7 @@ function ModuleList() {
 
       const progressPromises = lessons.map((lesson) =>
         axios
-          .get(`https://little-coders-production.up.railway.app/api/progress/${userId}/${lesson._id}`, {
+          .get(`https://little-coders-production.up.railway.app/api/progress/${userId}/${childId}/${lesson._id}`, {
             headers: { Authorization: `Bearer ${token}` },
           })
           .then((res) => ({

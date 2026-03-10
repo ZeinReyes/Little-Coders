@@ -6,13 +6,8 @@ import { AuthContext } from "../../context/authContext";
 import TutorialModal from "../../component/TutorialModal";
 import { playLessonListSound, stopLessonListSound } from "../../utils/sfx";
 
-
 /**
  * LessonStatusBar — shown on the LESSON row only.
- * Tracks both the lesson material AND its child activities.
- * - Locked/not started  → "Tap to begin"
- * - In progress         → animated bar showing X/Y activities done + real %
- * - All done            → green Completed
  */
 function LessonStatusBar({ lessonCompleted, activities, isUnlocked, color }) {
   const totalActivities = activities.length;
@@ -20,17 +15,12 @@ function LessonStatusBar({ lessonCompleted, activities, isUnlocked, color }) {
   const allActivitiesDone = totalActivities === 0 || completedActivities === totalActivities;
   const fullyDone = lessonCompleted && allActivitiesDone;
 
-  // percent = lesson step + each activity step
   const totalSteps = 1 + totalActivities;
   const completedSteps = (lessonCompleted ? 1 : 0) + completedActivities;
   const percent = Math.round((completedSteps / totalSteps) * 100);
 
   if (!isUnlocked) {
-    return (
-      <span style={{ fontSize: "0.85rem", color: "#9E9E9E" }}>
-        Tap to begin
-      </span>
-    );
+    return <span style={{ fontSize: "0.85rem", color: "#9E9E9E" }}>Tap to begin</span>;
   }
 
   if (fullyDone) {
@@ -46,20 +36,10 @@ function LessonStatusBar({ lessonCompleted, activities, isUnlocked, color }) {
   return (
     <div style={{ marginTop: "5px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px", width: "160px" }}>
-        <span style={{ fontSize: "0.75rem", color: color, fontWeight: "bold" }}>
-          🔓 In Progress
-        </span>
+        <span style={{ fontSize: "0.75rem", color: color, fontWeight: "bold" }}>🔓 In Progress</span>
         <span style={{ fontSize: "0.72rem", color: "#9E9E9E" }}>{percent}%</span>
       </div>
-      <div
-        style={{
-          height: "7px",
-          borderRadius: "10px",
-          backgroundColor: "#e0e0e0",
-          overflow: "hidden",
-          width: "160px",
-        }}
-      >
+      <div style={{ height: "7px", borderRadius: "10px", backgroundColor: "#e0e0e0", overflow: "hidden", width: "160px" }}>
         <div
           style={{
             width: percent > 0 ? `${percent}%` : "8%",
@@ -92,6 +72,18 @@ function LessonList() {
   const { user, loading: userLoading, refreshUser, isOnboardingIncomplete } =
     useContext(AuthContext);
 
+  // ✅ Read the active child from sessionStorage (set by ChildSelectPage)
+  const getChildId = () => {
+    try {
+      const raw = sessionStorage.getItem("activeChild");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed._id || parsed.id || null;
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     const unlockAudio = () => {
       playLessonListSound();
@@ -110,8 +102,9 @@ function LessonList() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const userId = user?._id || user?.id;
-      if (!userId) return;
+      const userId  = user?._id || user?.id;
+      const childId = getChildId(); // ✅ scoped per child via sessionStorage
+      if (!userId || !childId) return;
 
       setLoadingData(true);
       try {
@@ -129,20 +122,18 @@ function LessonList() {
               `https://little-coders-production.up.railway.app/api/assessments/lessons/${lessonId}/assessments`,
               { headers: { Authorization: `Bearer ${token}` } }
             ),
+            // ✅ route is /:userId/:childId/:lessonId
             axios.get(
-              `https://little-coders-production.up.railway.app/api/progress/${userId}/${lessonId}`,
+              `https://little-coders-production.up.railway.app/api/progress/${userId}/${childId}/${lessonId}`,
               { headers: { Authorization: `Bearer ${token}` } }
             ),
           ]);
 
         setModule(moduleRes.data);
         const progress = progressRes.data || {};
-        const completedMaterialIds =
-          progress.completedMaterials?.map((m) => m._id) || [];
-        const completedActivityIds =
-          progress.completedActivities?.map((a) => a._id) || [];
-        const completedAssessmentIds =
-          progress.completedAssessments?.map((a) => a._id) || [];
+        const completedMaterialIds   = progress.completedMaterials?.map((m) => m._id)  || [];
+        const completedActivityIds   = progress.completedActivities?.map((a) => a._id) || [];
+        const completedAssessmentIds = progress.completedAssessments?.map((a) => a._id) || [];
 
         const activitiesByMaterial = {};
         for (const m of materialsRes.data) {
@@ -206,12 +197,8 @@ function LessonList() {
 
       lessons.forEach((lesson, i) => {
         const activities = activitiesByMaterial[lesson._id] || [];
-
-        // ── FIX: only unlock the next lesson when BOTH the lesson material
-        //    AND every one of its activities are completed ──
         const allActivitiesDone =
-          activities.length === 0 ||
-          activities.every((a) => a.isCompleted);
+          activities.length === 0 || activities.every((a) => a.isCompleted);
 
         if (lesson.isCompleted && allActivitiesDone && i + 1 < lessons.length) {
           unlocked.add(lessons[i + 1]._id);
@@ -253,10 +240,7 @@ function LessonList() {
         );
         const assessment = res.data;
         navigate(`/lessons/${lessonId}/${itemId}`, {
-          state: {
-            assessment,
-            questions: assessment.questions,
-          },
+          state: { assessment, questions: assessment.questions },
         });
       } catch (err) {
         console.error("Failed to load assessment:", err);
@@ -275,20 +259,12 @@ function LessonList() {
 
   const totalItems = items.length;
   const completedItems = items.filter((i) => i.isCompleted).length;
-  const progressPercent = totalItems
-    ? Math.round((completedItems / totalItems) * 100)
-    : 0;
+  const progressPercent = totalItems ? Math.round((completedItems / totalItems) * 100) : 0;
 
   const icons = {
-    lesson: (
-      <img src="/assets/images/book.png" alt="Lesson" style={{ width: "40px", height: "40px" }} />
-    ),
-    activity: (
-      <img src="/assets/images/task.png" alt="Activity" style={{ width: "40px", height: "40px" }} />
-    ),
-    assessment: (
-      <img src="/assets/images/assessment.png" alt="Assessment" style={{ width: "40px", height: "40px" }} />
-    ),
+    lesson:     <img src="/assets/images/book.png"       alt="Lesson"     style={{ width: "40px", height: "40px" }} />,
+    activity:   <img src="/assets/images/task.png"       alt="Activity"   style={{ width: "40px", height: "40px" }} />,
+    assessment: <img src="/assets/images/assessment.png" alt="Assessment" style={{ width: "40px", height: "40px" }} />,
   };
 
   const colors = {
@@ -297,9 +273,7 @@ function LessonList() {
     assessment: { bg: "#E8F5E9", border: "#81C784", text: "#2E7D32" },
   };
 
-  const lessonsAndActivities = items.filter(
-    (i) => i.type === "lesson" || i.type === "activity"
-  );
+  const lessonsAndActivities = items.filter((i) => i.type === "lesson" || i.type === "activity");
   const assessments = items.filter((i) => i.type === "assessment");
 
   return (
@@ -312,7 +286,6 @@ function LessonList() {
         paddingBottom: "10px",
       }}
     >
-      {/* Pulse animation for in-progress bar */}
       <style>{`
         @keyframes pulseBar {
           0%, 100% { opacity: 1; width: 15%; }
@@ -344,43 +317,23 @@ function LessonList() {
         <Button
           variant="warning"
           onClick={() => navigate("/module-list")}
-          style={{
-            fontWeight: "bold",
-            borderRadius: "20px",
-            background: "#FFD54F",
-            border: "none",
-            color: "#3C3C3C",
-          }}
+          style={{ fontWeight: "bold", borderRadius: "20px", background: "#FFD54F", border: "none", color: "#3C3C3C" }}
         >
           Back to Modules
         </Button>
-        <div
-          style={{
-            flexGrow: 1,
-            textAlign: "center",
-            fontSize: "1.8rem",
-            fontWeight: "bold",
-          }}
-        >
+        <div style={{ flexGrow: 1, textAlign: "center", fontSize: "1.8rem", fontWeight: "bold" }}>
           {module?.title?.replace(/^Module\s*\d+:\s*/i, "")}
         </div>
       </header>
 
       {/* PROGRESS BAR */}
       <div className="text-center mt-3">
-        <span className="fs-4" style={{ fontWeight: "bold", color: "#FF7043" }}>
-          Progress
-        </span>
+        <span className="fs-4" style={{ fontWeight: "bold", color: "#FF7043" }}>Progress</span>
         <ProgressBar
           now={progressPercent}
           label={`${progressPercent}%`}
           className="mx-auto"
-          style={{
-            width: "55%",
-            height: "1.3rem",
-            borderRadius: "10px",
-            backgroundColor: "#FFD55C",
-          }}
+          style={{ width: "55%", height: "1.3rem", borderRadius: "10px", backgroundColor: "#FFD55C" }}
           variant="success"
         />
       </div>
@@ -400,7 +353,6 @@ function LessonList() {
         <div style={{ display: "flex", flexDirection: "column", width: "100%", gap: "0" }}>
           <h3 className="my-3">Lessons</h3>
 
-          {/* LESSONS + ACTIVITIES */}
           {lessonsAndActivities
             .filter((i) => i.type === "lesson")
             .map((lesson) => {
@@ -413,13 +365,7 @@ function LessonList() {
               return (
                 <div
                   key={lesson._id}
-                  style={{
-                    borderRadius: "16px",
-                    overflow: "hidden",
-                    background: "#ffffff",
-                    marginBottom: "10px",
-                    transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                  }}
+                  style={{ borderRadius: "16px", overflow: "hidden", background: "#ffffff", marginBottom: "10px" }}
                 >
                   {/* LESSON BOX */}
                   <div
@@ -434,24 +380,17 @@ function LessonList() {
                       pointerEvents: isUnlocked ? "auto" : "none",
                       transition: "background 0.2s ease",
                     }}
-                    onMouseEnter={(e) =>
-                      isUnlocked && (e.currentTarget.style.background = "#ffecb3")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.background = lessonStyle.bg)
-                    }
+                    onMouseEnter={(e) => isUnlocked && (e.currentTarget.style.background = "#ffecb3")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = lessonStyle.bg)}
                   >
                     <div style={{ width: "55px", textAlign: "center", flexShrink: 0 }}>
                       {icons.lesson}
-                      {!isUnlocked && (
-                        <span role="img" aria-label="lock"> 🔒 </span>
-                      )}
+                      {!isUnlocked && <span role="img" aria-label="lock"> 🔒 </span>}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: "1rem", fontWeight: "bold", color: lessonStyle.text }}>
                         Lesson: {lesson.title}
                       </div>
-                      {/* LESSON STATUS BAR (reflects activity completion too) */}
                       <LessonStatusBar
                         lessonCompleted={lesson.isCompleted}
                         activities={relatedActivities}
@@ -465,7 +404,6 @@ function LessonList() {
                   {relatedActivities.map((activity) => {
                     const actStyle = colors.activity;
                     const isUnlocked = unlockedItems.has(activity._id);
-
                     return (
                       <div
                         key={activity._id}
@@ -480,18 +418,12 @@ function LessonList() {
                           pointerEvents: isUnlocked ? "auto" : "none",
                           transition: "background 0.2s ease",
                         }}
-                        onMouseEnter={(e) =>
-                          isUnlocked && (e.currentTarget.style.background = "#d0e7ff")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.background = actStyle.bg)
-                        }
+                        onMouseEnter={(e) => isUnlocked && (e.currentTarget.style.background = "#d0e7ff")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = actStyle.bg)}
                       >
                         <div style={{ width: "45px", textAlign: "center", flexShrink: 0 }}>
                           {icons.activity}
-                          {!isUnlocked && (
-                            <span role="img" aria-label="lock"> 🔒 </span>
-                          )}
+                          {!isUnlocked && <span role="img" aria-label="lock"> 🔒 </span>}
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: "0.95rem", fontWeight: "bold", color: actStyle.text }}>
@@ -508,13 +440,11 @@ function LessonList() {
               );
             })}
 
-          {/* ASSESSMENT SECTION */}
           {assessments.length > 0 && <h3 className="my-3">Assessment Tasks</h3>}
 
           {assessments.map((item) => {
             const style = colors.assessment;
             const isUnlocked = unlockedItems.has(item._id);
-
             return (
               <div
                 key={item._id}
@@ -532,18 +462,12 @@ function LessonList() {
                   boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
                   transition: "transform 0.2s ease, background 0.2s ease",
                 }}
-                onMouseEnter={(e) =>
-                  isUnlocked && (e.currentTarget.style.background = "#d7f5dc")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = style.bg)
-                }
+                onMouseEnter={(e) => isUnlocked && (e.currentTarget.style.background = "#d7f5dc")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = style.bg)}
               >
                 <div style={{ width: "50px", textAlign: "center", flexShrink: 0 }}>
                   {icons.assessment}
-                  {!isUnlocked && (
-                    <span role="img" aria-label="lock"> 🔒 </span>
-                  )}
+                  {!isUnlocked && <span role="img" aria-label="lock"> 🔒 </span>}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: "1rem", fontWeight: "bold", color: style.text }}>

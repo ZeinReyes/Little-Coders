@@ -23,7 +23,7 @@ function Login() {
         hasCompletedOnboarding: res.data.user.hasCompletedOnboarding ?? false,
       };
       login(userWithOnboarding, res.data.token);
-      navigate(userWithOnboarding.role === 'admin' ? '/admin' : '/home');
+      navigate(userWithOnboarding.role === 'admin' ? '/admin' : '/select-profile');
     } catch (err) {
       const message =
         err.response?.data?.error ||

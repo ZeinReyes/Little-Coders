@@ -8,9 +8,23 @@ const NavbarComponent = () => {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // ✅ Read active child from sessionStorage
+  const getActiveChild = () => {
+    try {
+      const raw = sessionStorage.getItem("activeChild");
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  };
+  const activeChild = getActiveChild();
+  const displayName = activeChild?.name || user?.name || "Profile";
+
   const handleLogout = () => {
     logout();
     localStorage.removeItem("token");
+    sessionStorage.removeItem("activeChild");
     navigate("/login");
   };
 
@@ -52,16 +66,19 @@ const NavbarComponent = () => {
         {/* Mobile Profile Links */}
         {user && (
           <div className="mobile-profile">
-            <Link
-              className="profile-link"
-              to={`/edit-profile/${user._id}`}
-              onClick={() => setMenuOpen(false)}
-            >
-              {user.name}
-            </Link>
-            <button className="logout-btn" onClick={handleLogout}>
-              Logout
-            </button>
+            <span className="profile-link">{displayName}</span>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <Link
+                to="/select-profile"
+                onClick={() => setMenuOpen(false)}
+                style={{ fontSize: "13px", color: "#111", textDecoration: "underline" }}
+              >
+                Switch
+              </Link>
+              <button className="logout-btn" onClick={handleLogout}>
+                Logout
+              </button>
+            </div>
           </div>
         )}
         {!user && (
@@ -80,12 +97,8 @@ const NavbarComponent = () => {
       <div className="nav-right">
         {!user ? (
           <>
-            <Link className="sign-in" to="/login">
-              Sign in
-            </Link>
-            <Link className="sign-up" to="/register">
-              Sign up
-            </Link>
+            <Link className="sign-in" to="/login">Sign in</Link>
+            <Link className="sign-up" to="/register">Sign up</Link>
           </>
         ) : (
           <div className="dropdown">
@@ -97,7 +110,8 @@ const NavbarComponent = () => {
               data-bs-toggle="dropdown"
               aria-expanded="false"
             >
-              {user?.name || "Profile"}
+              {/* ✅ Show active child name in dropdown button */}
+              {displayName}
             </button>
             <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
               <li>
@@ -105,6 +119,13 @@ const NavbarComponent = () => {
                   Edit Profile
                 </Link>
               </li>
+              {/* ✅ Switch Profile link */}
+              <li>
+                <Link className="dropdown-item" to="/select-profile">
+                  Switch Profile
+                </Link>
+              </li>
+              <li><hr className="dropdown-divider" /></li>
               <li>
                 <button className="dropdown-item" onClick={handleLogout}>
                   Logout
@@ -184,38 +205,33 @@ const NavbarComponent = () => {
     height: 3px;
     background-color: #222;
   }
-  /* Mobile profile inside menu */
-.mobile-profile {
-  display: none;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  width: 90%;
-  padding: 10px 20px;
-  margin-top: 10px;
-  background-color: #ffdd57; /* full yellow background */
-  border-radius: 8px;
-}
-
-.mobile-profile .profile-link {
-  font-weight: bold;
-  text-decoration: none;
-  color: #111; /* dark text for contrast */
-  font-size: 16px;
-}
-
-.mobile-profile .logout-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 20px;
-  color: #111; /* icon color */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-  /* Responsive */
+  .mobile-profile {
+    display: none;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 90%;
+    padding: 10px 20px;
+    margin-top: 10px;
+    background-color: #ffdd57;
+    border-radius: 8px;
+  }
+  .mobile-profile .profile-link {
+    font-weight: bold;
+    text-decoration: none;
+    color: #111;
+    font-size: 16px;
+  }
+  .mobile-profile .logout-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 20px;
+    color: #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
   @media (max-width: 992px) {
     .nav-links {
       position: absolute;
