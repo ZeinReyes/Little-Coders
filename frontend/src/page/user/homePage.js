@@ -34,8 +34,6 @@ function CodeBlock({ color, text, icon, style = {} }) {
   );
 }
 
-
-
 // ---- Step Card ----
 function StepCard({ number, icon, title, desc, color, borderColor }) {
   const [hovered, setHovered] = useState(false);
@@ -353,6 +351,10 @@ function HomePage() {
       75% { border-color: #4d96ff; }
       100% { border-color: #ff6b6b; }
     }
+    @keyframes floatBlock {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
 
     .hero-left { animation: slideInLeft 0.8s 0.1s both ease-out; }
     .hero-right { animation: slideInRight 0.8s 0.2s both ease-out; }
@@ -411,8 +413,6 @@ function HomePage() {
     ::-webkit-scrollbar-thumb { background: #ffd93d; border-radius: 10px; }
   `;
 
-
-
   return (
     <>
       {loading ? (
@@ -448,7 +448,7 @@ function HomePage() {
               overflow: "hidden",
             }}>
 
-              {/* Floating operator images (from original homepage) */}
+              {/* Floating operator images */}
               {[
                 { src: "add.png",          top: "1%",  left: "5%",  size: "12%", rotate: 10,  opacity: 0.18 },
                 { src: "subtract.png",     top: "15%", left: "25%", size: "14%", rotate: -10, opacity: 0.14 },
@@ -546,7 +546,6 @@ function HomePage() {
               position: "relative",
               overflow: "hidden",
             }}>
-              {/* Decorative dots grid */}
               <div style={{
                 position: "absolute", inset: 0,
                 backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px)",
@@ -562,7 +561,6 @@ function HomePage() {
                   Three easy steps to become a Python programmer!
                 </p>
 
-                {/* Blocks preview + Code preview side by side */}
                 <div style={{
                   display: "flex",
                   gap: "40px",
@@ -612,7 +610,6 @@ function HomePage() {
                   </div>
                 </div>
 
-                {/* Step cards */}
                 <div style={{ display: "flex", gap: "28px", flexWrap: "wrap", justifyContent: "center" }}>
                   <StepCard
                     number="1" icon="🎯"
@@ -726,15 +723,13 @@ function HomePage() {
               }}>
                 {[
                   { color: "#e91e8c", text: 'print("Hello!")', icon: "🖨️" },
-                  { color: "#3d5afe", text: "for loop", icon: "🔁" },
-                  { color: "#ff6f00", text: "if / else", icon: "❓" },
-                  { color: "#00bcd4", text: "variable", icon: "📦" },
-                  { color: "#43a047", text: "function", icon: "⚙️" },
-                  { color: "#9c27b0", text: "while loop", icon: "♾️" },
-                  { color: "#f44336", text: "list [ ]", icon: "📋" },
-                  { color: "#009688", text: "input( )", icon: "⌨️" },
-                  { color: "#ff5722", text: "return", icon: "↩️" },
-                  { color: "#607d8b", text: "import", icon: "📥" },
+                  { color: "#3d5afe", text: "for loop",        icon: "🔁" },
+                  { color: "#ff6f00", text: "if / else",       icon: "❓" },
+                  { color: "#00bcd4", text: "variable",        icon: "📦" },
+                  { color: "#9c27b0", text: "while loop",      icon: "♾️" },
+                  { color: "#43a047", text: "add  +",          icon: "➕" },
+                  { color: "#1e88e5", text: "subtract  −",     icon: "➖" },
+                  { color: "#fb8c00", text: "multiply  ×",     icon: "✖️" },
                 ].map((b, i) => (
                   <CodeBlock key={i} color={b.color} text={b.text} icon={b.icon}
                     style={{ animation: `floatUpDown ${2.5 + (i % 3) * 0.4}s ${i * 0.15}s ease-in-out infinite` }}
@@ -751,7 +746,6 @@ function HomePage() {
               position: "relative",
               overflow: "hidden",
             }}>
-              {/* Mascot (big emoji) */}
               <div className="mascot-wiggle" style={{ fontSize: "6rem", marginBottom: "24px", display: "inline-block" }}>
                 🤖
               </div>
@@ -798,4 +792,4 @@ function HomePage() {
   );
 }
 
-export default HomePage;
+export default HomePage;  
