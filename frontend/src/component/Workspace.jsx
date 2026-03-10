@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { saveWhiteboardState, restoreWhiteboardState } from "../utils/persistence";
 
 const STORAGE_KEY = "workspace_whiteboard_state";
@@ -47,13 +47,105 @@ const TOOLTIP_DESCRIPTIONS = {
   for:          { label: "For Loop",            desc: "Repeat a block a set number of times" },
 };
 
+const MIN_ZOOM = 0.3;
+const MAX_ZOOM = 2.0;
+const ZOOM_STEP = 0.1;
+
 const INTERNAL_STYLES = `
   .whiteboard-wrap {
     display: flex;
     flex-direction: column;
+    height: 100%;
   }
+
+  /* Zoom controls */
+  .zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.92);
+    border: 1.5px solid #e0e0e0;
+    border-radius: 30px;
+    padding: 4px 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    font-family: 'Fredoka One', cursive;
+    user-select: none;
+  }
+  .zoom-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    background: #f5f5f5;
+    color: #333;
+    transition: background 0.15s, transform 0.1s;
+    line-height: 1;
+  }
+  .zoom-btn:hover {
+    background: #e8e8e8;
+    transform: scale(1.1);
+  }
+  .zoom-btn:active {
+    transform: scale(0.95);
+  }
+  .zoom-label {
+    font-size: 13px;
+    color: #555;
+    min-width: 42px;
+    text-align: center;
+    font-family: 'Fredoka One', cursive;
+  }
+  .zoom-reset-btn {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1.5px solid #ccc;
+    background: #fff;
+    color: #777;
+    cursor: pointer;
+    font-family: 'Fredoka One', cursive;
+    transition: background 0.15s;
+  }
+  .zoom-reset-btn:hover {
+    background: #f0f0f0;
+    color: #333;
+  }
+
+  /* Whiteboard outer container: clips and scrolls */
+  .whiteboard-outer {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    border-radius: 0 0 var(--radius-md, 12px) var(--radius-md, 12px);
+    background: inherit;
+  }
+
+  /* Whiteboard inner scroller */
+  .whiteboard-scroller {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    cursor: default;
+  }
+
+  /* The actual whiteboard canvas — scaled via transform-origin top-left */
   .whiteboard {
-    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    transform-origin: 0 0;
+    position: relative;
+    /* width/height set by JS to fit zoomed content */
+  }
+
+  /* Toolbar row */
+  .whiteboard-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   /* ── Element item base ── */
@@ -150,10 +242,51 @@ export default function Workspace({
     typeof dt === "string" ? dt : dt.type
   );
 
-  // In activity/assessment with required types → show all but lock non-required
   const isRestricted =
     (lessonType === "activity" || lessonType === "assessment") &&
     requiredTypes.length > 0;
+
+  // ── Zoom state ──────────────────────────────────────────────────
+  const [zoom, setZoom] = useState(1.0);
+  const scrollerRef = useRef(null);
+
+  // Apply CSS transform to the whiteboard element whenever zoom changes
+  useEffect(() => {
+    const wb = document.getElementById("whiteboard");
+    if (!wb) return;
+    wb.style.transform = `scale(${zoom})`;
+    // Expand the scrollable area to match the zoomed content size
+    wb.style.width  = `${100 / zoom}%`;
+    wb.style.minHeight = `${100 / zoom}%`;
+  }, [zoom]);
+
+  const changeZoom = useCallback((delta) => {
+    setZoom(prev => {
+      const next = Math.round((prev + delta) * 10) / 10;
+      return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
+    });
+  }, []);
+
+  const resetZoom = useCallback(() => setZoom(1.0), []);
+
+  // Mouse-wheel zoom on the whiteboard scroller
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+
+    const onWheel = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return; // only zoom when Ctrl/Cmd held
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
+      setZoom(prev => {
+        const next = Math.round((prev + delta) * 10) / 10;
+        return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
+      });
+    };
+
+    scroller.addEventListener("wheel", onWheel, { passive: false });
+    return () => scroller.removeEventListener("wheel", onWheel);
+  }, []);
 
   // 💅 Inject internal styles once
   useEffect(() => {
@@ -170,7 +303,7 @@ export default function Workspace({
     };
   }, []);
 
-  // 💾 Restore after parent's initDragAndDrop runs, then observe for save
+  // 💾 Restore + observe for save
   useEffect(() => {
     const whiteboard = document.getElementById("whiteboard");
     const codeArea   = document.getElementById("codeArea");
@@ -215,7 +348,6 @@ export default function Workspace({
     const handleMouseEnter = (e) => {
       const type = e.currentTarget.closest(".element-item")?.dataset?.blockType;
       if (!type) return;
-      // Don't show tooltip for locked blocks
       if (isRestricted && !requiredTypes.includes(type)) return;
       const info = TOOLTIP_DESCRIPTIONS[type];
       if (!info) return;
@@ -281,7 +413,6 @@ export default function Workspace({
                   draggable={!isLocked}
                   alt={block.alt}
                 />
-                {/* Lock badge shown over locked blocks */}
                 {isLocked && (
                   <span className="lock-badge">🔒</span>
                 )}
@@ -296,15 +427,48 @@ export default function Workspace({
       <div className="workspace">
         <div className="whiteboard-wrap">
 
-          {/* Toolbar: trash can + clear board button side by side */}
+          {/* Toolbar: zoom controls + trash + clear */}
           <div className="whiteboard-toolbar ms-auto">
+
+            {/* Zoom controls */}
+            <div className="zoom-controls">
+              <button
+                className="zoom-btn"
+                onClick={() => changeZoom(-ZOOM_STEP)}
+                title="Zoom out"
+                aria-label="Zoom out"
+              >−</button>
+
+              <span className="zoom-label">{Math.round(zoom * 100)}%</span>
+
+              <button
+                className="zoom-btn"
+                onClick={() => changeZoom(ZOOM_STEP)}
+                title="Zoom in"
+                aria-label="Zoom in"
+              >+</button>
+
+              <button
+                className="zoom-reset-btn"
+                onClick={resetZoom}
+                title="Reset zoom to 100%"
+              >Reset</button>
+            </div>
+
             <div id="trashCan" className="trash-can">🗑️</div>
             <button className="clear-board-button" onClick={handleClearBoard}>
               Clear Board
             </button>
           </div>
 
-          <div id="whiteboard" className="whiteboard" />
+          {/* Scrollable outer container */}
+          <div className="whiteboard-outer">
+            <div className="whiteboard-scroller" ref={scrollerRef}>
+              {/* The actual whiteboard — scaled via CSS transform */}
+              <div id="whiteboard" className="whiteboard" />
+            </div>
+          </div>
+
         </div>
       </div>
 

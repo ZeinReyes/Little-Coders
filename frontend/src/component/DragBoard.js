@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useRef, useCallback } from "react";
 import "./DragBoard.css";
 import { AuthContext } from "../context/authContext";
 import axios from "axios";
@@ -13,6 +13,10 @@ import TutorialModal from "./TutorialModal";
 import NavbarComponent from "./userNavbar";
 
 const STORAGE_KEY = "dragboard_whiteboard_state";
+
+const MIN_ZOOM = 0.3;
+const MAX_ZOOM = 2.0;
+const ZOOM_STEP = 0.1;
 
 const TOOLTIP_DESCRIPTIONS = {
   print:        { label: "Print",               desc: "Output a value to the console" },
@@ -62,8 +66,52 @@ export default function DragBoard() {
   const [loading, setLoading] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [zoom, setZoom] = useState(1.0);
+
+  const scrollerRef = useRef(null);
 
   const { user, refreshUser } = useContext(AuthContext);
+
+  // ── Zoom helpers ────────────────────────────────────────────────
+  const changeZoom = useCallback((delta) => {
+    setZoom(prev => {
+      const next = Math.round((prev + delta) * 10) / 10;
+      return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
+    });
+  }, []);
+
+  const resetZoom = useCallback(() => setZoom(1.0), []);
+
+  // Apply transform whenever zoom changes
+  useEffect(() => {
+    const wb = document.getElementById("whiteboard");
+    if (!wb) return;
+    wb.style.transform       = `scale(${zoom})`;
+    wb.style.transformOrigin = "0 0";
+  }, [zoom]);
+
+  // Set initial transform on mount
+  useEffect(() => {
+    const wb = document.getElementById("whiteboard");
+    if (!wb) return;
+    wb.style.transform       = "scale(1)";
+    wb.style.transformOrigin = "0 0";
+  }, []);
+
+  // Ctrl/Cmd + scroll to zoom
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+
+    const onWheel = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      changeZoom(e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP);
+    };
+
+    scroller.addEventListener("wheel", onWheel, { passive: false });
+    return () => scroller.removeEventListener("wheel", onWheel);
+  }, [changeZoom]);
 
   // 🔹 Fetch onboarding status
   useEffect(() => {
@@ -106,7 +154,6 @@ export default function DragBoard() {
 
     if (!whiteboard) { console.error("Whiteboard not found!"); return; }
 
-    // 1️⃣ Wire drag-and-drop first
     const destroy = initDragAndDrop({
       paletteSelector: ".elements img",
       whiteboard,
@@ -116,13 +163,11 @@ export default function DragBoard() {
       notification,
     });
 
-    // 2️⃣ Restore saved nodes
     restoreWhiteboardState(whiteboard, codeArea, dimOverlay, STORAGE_KEY);
 
     const onRun = () => runProgram(codeArea, outputArea);
     runButton.addEventListener("click", onRun);
 
-    // 3️⃣ Auto-save on every board change
     const observer = new MutationObserver(() => {
       updateVariableState(whiteboard, dimOverlay);
       updateCode(whiteboard, codeArea);
@@ -261,15 +306,47 @@ export default function DragBoard() {
         <div className="workspace">
           <div className="whiteboard-wrap">
 
-            {/* ── Toolbar: trash can + clear board side by side ── */}
+            {/* ── Toolbar: zoom + trash + clear ── */}
             <div className="whiteboard-toolbar ms-auto">
+
+              {/* Zoom controls */}
+              <div className="zoom-controls">
+                <button
+                  className="zoom-btn"
+                  onClick={() => changeZoom(-ZOOM_STEP)}
+                  title="Zoom out"
+                  aria-label="Zoom out"
+                >−</button>
+
+                <span className="zoom-label">{Math.round(zoom * 100)}%</span>
+
+                <button
+                  className="zoom-btn"
+                  onClick={() => changeZoom(ZOOM_STEP)}
+                  title="Zoom in"
+                  aria-label="Zoom in"
+                >+</button>
+
+                <button
+                  className="zoom-reset-btn"
+                  onClick={resetZoom}
+                  title="Reset zoom to 100%"
+                >Reset</button>
+              </div>
+
               <div id="trashCan" className="trash-can">🗑️</div>
               <button className="clear-board-button" onClick={handleClearBoard}>
                 Clear Board
               </button>
             </div>
 
-            <div id="whiteboard" className="whiteboard" />
+            {/* Scrollable container that clips the zoomed whiteboard */}
+            <div className="whiteboard-outer">
+              <div className="whiteboard-scroller" ref={scrollerRef}>
+                <div id="whiteboard" className="whiteboard" />
+              </div>
+            </div>
+
             <div id="dimOverlay" className="dim-overlay" />
           </div>
         </div>
