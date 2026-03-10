@@ -6,9 +6,12 @@ import React from "react";
  * Props:
  *  - aiRecommendation  : { message, missingTypes }
  *  - onDecision(choice): called with "review" or "continue"
+ *  - attempts          : current attempt count (hides "No" button on attempt 3+)
  */
-export default function AIPromptModal({ aiRecommendation, onDecision }) {
+export default function AIPromptModal({ aiRecommendation, onDecision, attempts }) {
   if (!aiRecommendation) return null;
+
+  const isLastAttempt = attempts >= 3;
 
   return (
     <div
@@ -104,22 +107,42 @@ export default function AIPromptModal({ aiRecommendation, onDecision }) {
           >
             Yes, help me learn! 🎓
           </button>
-          <button
-            onClick={() => onDecision("continue")}
-            style={{
-              background: "#eee",
-              color: "#555",
-              border: "2px solid #ccc",
-              borderRadius: "24px",
-              padding: "0.9rem 2rem",
-              fontWeight: "bold",
-              cursor: "pointer",
-              fontSize: "1rem",
-              fontFamily: "inherit",
-            }}
-          >
-            No, I'll keep trying
-          </button>
+
+          {isLastAttempt ? (
+            <button
+              onClick={() => onDecision("continue")}
+              style={{
+                background: "#eee",
+                color: "#555",
+                border: "2px solid #ccc",
+                borderRadius: "24px",
+                padding: "0.9rem 2rem",
+                fontWeight: "bold",
+                cursor: "pointer",
+                fontSize: "1rem",
+                fontFamily: "inherit",
+              }}
+            >
+              Close ✕
+            </button>
+          ) : (
+            <button
+              onClick={() => onDecision("continue")}
+              style={{
+                background: "#eee",
+                color: "#555",
+                border: "2px solid #ccc",
+                borderRadius: "24px",
+                padding: "0.9rem 2rem",
+                fontWeight: "bold",
+                cursor: "pointer",
+                fontSize: "1rem",
+                fontFamily: "inherit",
+              }}
+            >
+              No, I'll keep trying
+            </button>
+          )}
         </div>
       </div>
     </div>

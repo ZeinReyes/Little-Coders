@@ -417,10 +417,23 @@ export default function DragBoardLesson() {
         }
 
         const question = currentLesson.currentQuestion;
+
+        // ── Snapshot board types SYNCHRONOUSLY before any await ──────────
+        const boardSnapshotArr = Array.from(whiteboard.querySelectorAll("[data-type]"))
+          .map((b) => b.getAttribute("data-type"))
+          .filter(Boolean);
+        const boardSnapshot = new Set(boardSnapshotArr);
+        console.log("🟦 [ASSESSMENT] Board snapshot at Run click:", boardSnapshotArr);
+        console.log("🟦 [ASSESSMENT] dataTypesRequired:", question.dataTypesRequired);
+
         const result = await codeChecker(whiteboard, codeArea, outputArea, {
           expectedOutput:    question.expectedOutput || null,
           dataTypesRequired: question.dataTypesRequired || [],
-        });
+        }, boardSnapshot);
+
+        console.log("🟦 [ASSESSMENT] result.missingNodes after codeChecker:", result.missingNodes);
+        console.log("🟦 [ASSESSMENT] result.passedNodes:", result.passedNodes);
+        console.log("🟦 [ASSESSMENT] result.passedOutput:", result.passedOutput);
 
         const timeTaken = Math.floor((Date.now() - questionStartTimeRef.current) / 1000);
         const attempts  = assessmentAttemptsRef.current + 1;
@@ -539,16 +552,57 @@ export default function DragBoardLesson() {
           notification.style.display = "block";
           setTimeout(() => (notification.style.display = "none"), 5000);
 
-          if (attempts >= 2 && !currentLesson.isAIReview) {
+          if (attempts >= 2 && attempts < 3 && !currentLesson.isAIReview) {
+            // Attempts 1–2: show the "would you like a review?" prompt
             checkIfNeedsReview(attempts, updatedMissing);
           }
           if (attempts >= 3) {
-            // ✅ Max attempts — clear board before showing answer modal
-            setTimeout(clearWhiteboard, 50);
+            // Attempt 3: auto-accept review silently — no prompt shown
+            if (!currentLesson.isAIReview) {
+              handleAIDecision("yes");
+            }
+            // ── Use result.missingNodes which was computed from the boardSnapshot ──
+            // boardSnapshot was captured synchronously before codeChecker was called,
+            // so this correctly reflects what the user had on the board when they clicked Run.
+            const required = question.dataTypesRequired || [];
+            const getLabel = (dt) =>
+              typeof dt === "object" ? (dt.type ?? dt.name ?? "") : dt;
+            const getMin = (dt) =>
+              typeof dt === "object" ? (dt.min ?? 1) : 1;
+            const missingThisAttempt = result.missingNodes || [];
+
+            // Split into: used but not enough vs never used at all
+            const notEnoughTypes = required.filter((dt) => {
+              const label = getLabel(dt);
+              const min   = getMin(dt);
+              const countOnBoard = Array.from(
+                whiteboard.querySelectorAll(`[data-type='${label}']`)
+              ).length;
+              return missingThisAttempt.includes(label) && countOnBoard > 0 && min > 1;
+            });
+            const neverUsedTypes = required.filter((dt) => {
+              const label = getLabel(dt);
+              const countOnBoard = Array.from(
+                whiteboard.querySelectorAll(`[data-type='${label}']`)
+              ).length;
+              return missingThisAttempt.includes(label) && countOnBoard === 0;
+            });
+            const usedButWrongTypes = required.filter(
+              (dt) => !missingThisAttempt.includes(getLabel(dt))
+            );
+
             setAssessmentAnswer({
               expectedOutput:    question.expectedOutput,
-              dataTypesRequired: question.dataTypesRequired,
+              dataTypesRequired: required,
+              usedButWrongTypes,
+              notEnoughTypes,
+              neverUsedTypes,
+              minCountMap: Object.fromEntries(
+                required.map((dt) => [getLabel(dt), getMin(dt)])
+              ),
             });
+
+            setTimeout(clearWhiteboard, 10000);
             setShowAnswerModal(true);
           }
         }
@@ -567,10 +621,22 @@ export default function DragBoardLesson() {
           return;
         }
 
+        // ── Snapshot board types SYNCHRONOUSLY before any await ──────────
+        const boardSnapshotArr = Array.from(whiteboard.querySelectorAll("[data-type]"))
+          .map((b) => b.getAttribute("data-type"))
+          .filter(Boolean);
+        const boardSnapshot = new Set(boardSnapshotArr);
+        console.log("🟩 [ACTIVITY] Board snapshot at Run click:", boardSnapshotArr);
+        console.log("🟩 [ACTIVITY] dataTypesRequired:", currentLesson.dataTypesRequired);
+
         const result = await codeChecker(whiteboard, codeArea, outputArea, {
           expectedOutput:    currentLesson.expectedOutput || null,
           dataTypesRequired: currentLesson.dataTypesRequired || [],
-        });
+        }, boardSnapshot);
+
+        console.log("🟩 [ACTIVITY] result.missingNodes after codeChecker:", result.missingNodes);
+        console.log("🟩 [ACTIVITY] result.passedNodes:", result.passedNodes);
+        console.log("🟩 [ACTIVITY] result.passedOutput:", result.passedOutput);
 
         const timeTaken = Math.floor((Date.now() - currentActivityStartTimeRef.current) / 1000);
         const attempts  = activityAttemptsRef.current + 1;
@@ -619,16 +685,57 @@ export default function DragBoardLesson() {
           return;
         }
 
-        if (attempts >= 2 && !currentLesson.isAIReview) {
+        if (attempts >= 2 && attempts < 3 && !currentLesson.isAIReview) {
+          // Attempts 1–2: show the "would you like a review?" prompt
           checkIfNeedsReview(attempts, updatedMissing);
         }
         if (attempts >= 3) {
+          // Attempt 3: auto-accept review silently — no prompt shown
+          if (!currentLesson.isAIReview) {
+            handleAIDecision("yes");
+          }
           clearActivitySession(lessonId, itemId);
-          setTimeout(clearWhiteboard, 50);
+
+          // ── Use result.missingNodes which was computed from the boardSnapshot ──
+          const required = currentLesson.dataTypesRequired || [];
+          const getLabel = (dt) =>
+            typeof dt === "object" ? (dt.type ?? dt.name ?? "") : dt;
+          const getMin = (dt) =>
+            typeof dt === "object" ? (dt.min ?? 1) : 1;
+          const missingThisAttempt = result.missingNodes || [];
+
+          // Split into: used but not enough vs never used at all
+          const notEnoughTypes = required.filter((dt) => {
+            const label = getLabel(dt);
+            const min   = getMin(dt);
+            const countOnBoard = Array.from(
+              whiteboard.querySelectorAll(`[data-type='${label}']`)
+            ).length;
+            return missingThisAttempt.includes(label) && countOnBoard > 0 && min > 1;
+          });
+          const neverUsedTypes = required.filter((dt) => {
+            const label = getLabel(dt);
+            const countOnBoard = Array.from(
+              whiteboard.querySelectorAll(`[data-type='${label}']`)
+            ).length;
+            return missingThisAttempt.includes(label) && countOnBoard === 0;
+          });
+          const usedButWrongTypes = required.filter(
+            (dt) => !missingThisAttempt.includes(getLabel(dt))
+          );
+
           setAssessmentAnswer({
             expectedOutput:    currentLesson.expectedOutput,
-            dataTypesRequired: currentLesson.dataTypesRequired,
+            dataTypesRequired: required,
+            usedButWrongTypes,
+            notEnoughTypes,
+            neverUsedTypes,
+            minCountMap: Object.fromEntries(
+              required.map((dt) => [getLabel(dt), getMin(dt)])
+            ),
           });
+
+          setTimeout(clearWhiteboard, 10000);
           setShowAnswerModal(true);
         } else {
           playErrorSound();
@@ -837,6 +944,7 @@ export default function DragBoardLesson() {
         <AIPromptModal
           aiRecommendation={aiRecommendation}
           onDecision={handleAIDecision}
+          attempts={assessmentAttempts || activityAttempts}
         />
       )}
 
@@ -844,6 +952,7 @@ export default function DragBoardLesson() {
         lesson={lesson}
         revealedHints={revealedHints}
         setRevealedHints={setRevealedHints}
+        onBack={() => navigate(`/lessons/${lessonId}`)}
       />
 
       <Workspace

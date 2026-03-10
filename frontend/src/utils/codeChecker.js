@@ -69,17 +69,19 @@ function findUnusedVariables(generatedCode) {
 /**
  * Check that all required block types are present AND meet minimum counts.
  *
+ * @param {Set}      topLevelTypes  — pre-captured snapshot of types on the board
  * @param {Element}  whiteboard
  * @param {string[]} requiredTypes  — plain type strings e.g. ["variable", "print"]
  * @param {string}   generatedCode
  * @param {Object}   meta           — { minCountMap: { variable: 2, print: 1, ... } }
  */
-function checkRequiredNodes(whiteboard, requiredTypes = [], generatedCode = "", meta = {}) {
-  const topLevelTypes = collectAllTypes(whiteboard);
+function checkRequiredNodes(topLevelTypes, whiteboard, requiredTypes = [], generatedCode = "", meta = {}) {
   const missingTypes = [];
 
   requiredTypes.forEach((req) => {
+    console.log(`🔬 [checkRequiredNodes] checking req="${req}", inSnapshot=${topLevelTypes.has(req)}, minCountMap[req]=${meta.minCountMap?.[req]}`);
     if (!topLevelTypes.has(req)) {
+      console.log(`🔬 NOT in snapshot → missing`);
       missingTypes.push(req);
       return;
     }
@@ -100,14 +102,16 @@ function checkRequiredNodes(whiteboard, requiredTypes = [], generatedCode = "", 
           ? meta.minVarsRequired
           : 1;
 
+      console.log(`🔬 [variable branch] usedVarNodes=${usedVarNodes.length}, minRequired=${minRequired}`);
       if (usedVarNodes.length < minRequired) {
         missingTypes.push(req);
       }
     } else {
       // For non-variable types, enforce min count if > 1
       const minRequired = meta.minCountMap?.[req];
+      const blockNodes = Array.from(whiteboard.querySelectorAll(`[data-type='${req}']`));
+      console.log(`🔬 [else branch] req="${req}", minRequired=${minRequired}, blockNodes.length=${blockNodes.length}, minRequired>1=${minRequired > 1}`);
       if (minRequired && minRequired > 1) {
-        const blockNodes = Array.from(whiteboard.querySelectorAll(`[data-type='${req}']`));
         if (blockNodes.length < minRequired) {
           missingTypes.push(req);
         }
@@ -116,7 +120,7 @@ function checkRequiredNodes(whiteboard, requiredTypes = [], generatedCode = "", 
   });
 
   console.log("Required:", requiredTypes);
-  console.log("Top-level types:", Array.from(topLevelTypes));
+  console.log("Top-level types (snapshot):", Array.from(topLevelTypes));
   console.log("Missing/unused:", missingTypes);
 
   return {
@@ -176,7 +180,7 @@ function normalizeString(str) {
  *   - new shape: [{ type: "variable", min: 2 }, { type: "print", min: 1 }]
  *   - old shape: ["variable", "print"]
  */
-export async function codeChecker(whiteboard, codeArea, outputArea, meta = {}) {
+export async function codeChecker(whiteboard, codeArea, outputArea, meta = {}, snapshotTypes = null) {
   if (!whiteboard || !codeArea)
     return { passedOutput: false, passedNodes: false, passedAll: false, missingNodes: [] };
 
@@ -187,11 +191,9 @@ export async function codeChecker(whiteboard, codeArea, outputArea, meta = {}) {
 
   rawRequired.forEach((item) => {
     if (typeof item === "string") {
-      // Old format
       requiredTypes.push(item);
       if (!minCountMap[item]) minCountMap[item] = 1;
     } else if (item && typeof item.type === "string") {
-      // New format: { type, min }
       requiredTypes.push(item.type);
       minCountMap[item.type] = item.min ?? 1;
     }
@@ -216,8 +218,17 @@ export async function codeChecker(whiteboard, codeArea, outputArea, meta = {}) {
 
   codeArea.textContent = generatedCode.trim() || "# No code built yet";
 
-  // ── Check required node types ────────────────────────────────────────────
+  // ── Use the pre-captured snapshot if provided, otherwise snapshot now ────
+  const boardTypeSnapshot = snapshotTypes instanceof Set
+    ? snapshotTypes
+    : collectAllTypes(whiteboard);
+  console.log("🔍 [codeChecker] snapshotTypes received:", snapshotTypes ? Array.from(snapshotTypes) : "NONE - falling back to live DOM");
+  console.log("🔍 [codeChecker] boardTypeSnapshot used:", Array.from(boardTypeSnapshot));
+  console.log("🔍 [codeChecker] requiredTypes:", requiredTypes);
+
+  // ── Check required node types (uses the snapshot, not live DOM) ─────────
   const { passed: passedNodes, missingNodes } = checkRequiredNodes(
+    boardTypeSnapshot,
     whiteboard,
     requiredTypes,
     generatedCode,
@@ -225,6 +236,8 @@ export async function codeChecker(whiteboard, codeArea, outputArea, meta = {}) {
   );
 
   // ── Run Python and check output ──────────────────────────────────────────
+  // NOTE: await here yields the JS thread — the board may be mutated after
+  // this point, but missingNodes is already captured above so it's safe.
   let passedOutput = true;
   let stdout = "";
   let stderr = "";
@@ -241,46 +254,78 @@ export async function codeChecker(whiteboard, codeArea, outputArea, meta = {}) {
     ? passedOutput && passedNodes
     : passedNodes;
 
-  // ── Build feedback ───────────────────────────────────────────────────────
-  let feedback = "";
+  // ── Build kid-friendly narrated feedback ────────────────────────────────
+  const unusedVars = findUnusedVariables(generatedCode);
+  const usedVarCount = Array.from(whiteboard.querySelectorAll("[data-type='variable']"))
+    .filter((n) => {
+      const name = n.dataset?.varName?.trim();
+      return name && !unusedVars.has(name);
+    }).length;
 
-  if (passedAll) {
-    feedback = "✅ Correct!";
-  } else {
-    feedback = "❌ Not quite:\n";
+  if (outputArea) {
+    // Clear previous content
+    outputArea.innerHTML = "";
+    outputArea.style.cssText = `
+      font-family: 'Comic Sans MS', cursive;
+      font-size: 0.92rem;
+      padding: 12px 14px;
+      border-radius: 14px;
+      line-height: 1.6;
+      background: ${passedAll ? "#ebfbee" : "#fff5f5"};
+      border: 2px solid ${passedAll ? "#69db7c" : "#ff6b6b"};
+      color: ${passedAll ? "#2f9e44" : "#c92a2a"};
+    `;
 
-    if (meta.expectedOutput && !passedOutput) {
-      feedback += `- Output doesn't match.\n`;
-      feedback += `  Got:      "${stdout}"\n`;
-      feedback += `  Expected: "${meta.expectedOutput}"\n`;
-    }
+    if (passedAll) {
+      outputArea.innerHTML = `
+        <div style="font-size:1.4rem; margin-bottom:6px;">🎉 Amazing job!</div>
+        <div>Your code ran perfectly! The computer understood exactly what you told it to do. Keep it up! ⭐</div>
+        ${stdout ? `<div style="margin-top:8px; padding:8px; background:#d3f9d8; border-radius:10px; font-family:'Courier New',monospace; color:#1c7c2a;">📤 Output:<br>${stdout.replace(/\n/g, "<br>")}</div>` : ""}
+      `;
+    } else {
+      let lines = [];
 
-    if (!passedNodes) {
-      const unusedVars = findUnusedVariables(generatedCode);
-      const usedVarCount = Array.from(whiteboard.querySelectorAll("[data-type='variable']"))
-        .filter((n) => {
-          const name = n.dataset?.varName?.trim();
-          return name && !unusedVars.has(name);
-        }).length;
-
-      const minVarsRequired = minCountMap["variable"] ?? 1;
-      const notEnoughVars =
-        missingNodes.includes("variable") && usedVarCount < minVarsRequired;
-
-      if (notEnoughVars && minVarsRequired > 1) {
-        feedback += `- This challenge requires at least ${minVarsRequired} variables to be used! You're only using ${usedVarCount}. 💡\n`;
-      } else if (missingNodes.includes("variable") && unusedVars.size > 0) {
-        feedback += `- You created a variable but didn't use it! Try printing the variable name instead of typing the value directly. 💡\n`;
-      } else {
-        feedback += `- Missing blocks: ${missingNodes.join(", ")}\n`;
+      // Output mismatch
+      if (meta.expectedOutput && !passedOutput) {
+        lines.push(`<div style="margin-bottom:6px;">🤔 Hmm, the computer printed something different than what we expected!</div>`);
+        lines.push(`<div style="padding:6px 10px; background:#fff0f0; border-radius:8px; margin-bottom:4px;">Got: <code style="color:#c92a2a;">"${stdout || "(nothing)"}"</code></div>`);
+        lines.push(`<div style="padding:6px 10px; background:#fff9db; border-radius:8px; margin-bottom:8px;">Expected: <code style="color:#e67700;">"${meta.expectedOutput}"</code></div>`);
       }
+
+      // Missing / unused block messages
+      if (!passedNodes) {
+        const minVarsRequired = minCountMap["variable"] ?? 1;
+        const notEnoughVars = missingNodes.includes("variable") && usedVarCount < minVarsRequired;
+
+        missingNodes.forEach((node) => {
+          if (node === "variable" && notEnoughVars && minVarsRequired > 1) {
+            lines.push(`<div>📦 You need to use at least <strong>${minVarsRequired} variable blocks</strong>, but right now you're only using <strong>${usedVarCount}</strong>. Try adding more! 💡</div>`);
+          } else if (node === "variable" && unusedVars.size > 0) {
+            lines.push(`<div>📦 You made a variable — great start! But you forgot to <strong>use it</strong> in your print block. Try typing the variable's name instead of the value directly! 💡</div>`);
+          } else if (node === "print") {
+            lines.push(`<div>🖨️ Looks like the <strong>print block</strong> isn't quite doing its job yet. Make sure it has something inside it to show! 💡</div>`);
+          } else if (node === "if") {
+            lines.push(`<div>🔀 You need an <strong>if block</strong> to make a decision in your code! Try adding one. 💡</div>`);
+          } else if (node === "while") {
+            lines.push(`<div>🔁 A <strong>while loop</strong> is missing! Loops help the computer repeat steps. Give it a try! 💡</div>`);
+          } else if (node === "for") {
+            lines.push(`<div>🔁 A <strong>for loop</strong> block is needed here. It helps you repeat things a set number of times! 💡</div>`);
+          } else if (node === "operator") {
+            lines.push(`<div>➕ Don't forget to use an <strong>operator block</strong> to do math or compare things! 💡</div>`);
+          } else {
+            lines.push(`<div>🧩 The <strong>${node}</strong> block is needed but hasn't been used yet. Try adding it to the board! 💡</div>`);
+          }
+        });
+      }
+
+      outputArea.innerHTML = `
+        <div style="font-size:1.1rem; font-weight:bold; margin-bottom:8px;">❌ Not quite!</div>
+        ${lines.join("")}
+        ${stdout ? `<div style="margin-top:8px; padding:8px; background:#fff3cd; border-radius:10px; font-family:'Courier New',monospace; color:#856404;">📤 Output:<br>${stdout.replace(/\n/g, "<br>")}</div>` : ""}
+        ${stderr ? `<div style="margin-top:8px; padding:8px; background:#f8d7da; border-radius:10px; font-family:'Courier New',monospace; color:#721c24;">⚠️ Error:<br>${stderr.replace(/\n/g, "<br>")}</div>` : ""}
+      `;
     }
   }
-
-  if (stdout) feedback += `\n📤 Output:\n${stdout}`;
-  if (stderr) feedback += `\n⚠️ Error:\n${stderr}`;
-
-  if (outputArea) outputArea.textContent = feedback;
 
   return {
     passedOutput,

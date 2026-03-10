@@ -8,12 +8,14 @@ import React from "react";
  *  - lesson        : the full lesson object (type === "activity")
  *  - revealedHints : number
  *  - setRevealedHints
+ *  - onBack        : () => void
  *
  * Props (assessment mode):
  *  - lesson        : the full lesson object (type === "assessment")
  *  - revealedHints / setRevealedHints
+ *  - onBack        : () => void
  */
-export default function InstructionsPanel({ lesson, revealedHints, setRevealedHints }) {
+export default function InstructionsPanel({ lesson, revealedHints, setRevealedHints, onBack }) {
   if (!lesson) return null;
 
   if (lesson.type === "activity") {
@@ -35,6 +37,11 @@ export default function InstructionsPanel({ lesson, revealedHints, setRevealedHi
             padding: "1rem",
           }}
         >
+          {/* ── Back button ── */}
+          {onBack && (
+            <BackButton onClick={onBack} color="#667eea" borderColor="#667eea" />
+          )}
+
           {lesson.isAIReview && (
             <AIReviewBadge label="🤖 AI Review Activity" />
           )}
@@ -111,6 +118,11 @@ export default function InstructionsPanel({ lesson, revealedHints, setRevealedHi
             padding: "1rem",
           }}
         >
+          {/* ── Back button ── */}
+          {onBack && (
+            <BackButton onClick={onBack} color="#f5576c" borderColor="#f5576c" />
+          )}
+
           {lesson.isAIReview && (
             <AIReviewBadge label="🤖 AI Review Assessment" />
           )}
@@ -195,6 +207,40 @@ export default function InstructionsPanel({ lesson, revealedHints, setRevealedHi
 }
 
 // ── Shared sub-components ─────────────────────────────────────────────────────
+
+function BackButton({ onClick, color, borderColor }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+        background: "transparent",
+        color: color,
+        border: `2px solid ${borderColor}`,
+        borderRadius: "50px",
+        padding: "5px 16px",
+        fontFamily: "'Fredoka One', 'Comic Sans MS', cursive",
+        fontSize: "0.9rem",
+        fontWeight: "700",
+        cursor: "pointer",
+        marginBottom: "12px",
+        transition: "background 0.15s, color 0.15s",
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.background = color;
+        e.currentTarget.style.color = "#fff";
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.background = "transparent";
+        e.currentTarget.style.color = color;
+      }}
+    >
+      ◀ Back
+    </button>
+  );
+}
 
 function AIReviewBadge({ label }) {
   return (

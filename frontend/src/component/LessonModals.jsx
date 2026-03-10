@@ -204,34 +204,168 @@ export default function LessonModals({
       {/* ── Answer Modal ── */}
       {showAnswerModal && (
         <Modal show={showAnswerModal} backdrop="static" size="lg" style={{ top: "100px" }}>
-          <Modal.Header className="lmjsx-header-answer">
-            <Modal.Title className="lmjsx-title">
-              🔍 Correct Answer
+
+          <Modal.Header style={{
+            background: "linear-gradient(135deg, #63e6be 0%, #74c0fc 100%)",
+            borderBottom: "none",
+            padding: "14px 20px",
+          }}>
+            <Modal.Title style={{
+              fontFamily: "'Fredoka One', 'Comic Sans MS', cursive",
+              fontSize: "1.55rem",
+              color: "#fff",
+              textShadow: "2px 2px 4px rgba(0,0,0,0.15)",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}>
+              🔍 Here's What Happened!
             </Modal.Title>
           </Modal.Header>
 
-          <Modal.Body className="lmjsx-body-answer">
-            <h5 className="lmjsx-answer-section-title">🗂️ Required Data Types:</h5>
-            <ul className="lmjsx-answer-list">
-              {assessmentAnswer.dataTypesRequired?.map((dt, i) => (
-                <li key={i} className="lmjsx-answer-item">
-                  <span className="lmjsx-answer-bullet">🔹</span> {dt}
-                </li>
-              ))}
-            </ul>
+          <Modal.Body style={{
+            maxHeight: "65vh",
+            overflowY: "auto",
+            padding: "1.5rem",
+            background: "#f0fff4",
+            fontFamily: "'Comic Sans MS', cursive",
+          }}>
+
+            {/* ── Intro ── */}
+            <p style={{ fontSize: "1rem", color: "#555", marginBottom: "16px", textAlign: "center" }}>
+              Don't worry — every mistake is a step closer to getting it right! 💪
+            </p>
+
+            {/* ── Used but output wrong ── */}
+            {assessmentAnswer.usedButWrongTypes?.length > 0 && (
+              <div style={{ marginBottom: "18px" }}>
+                <p style={{
+                  fontFamily: "'Fredoka One', 'Comic Sans MS', cursive",
+                  fontSize: "1.05rem", color: "#e67700", marginBottom: "8px",
+                }}>
+                  ⚠️ You used these blocks — but the output wasn't right yet:
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "6px" }}>
+                  {assessmentAnswer.usedButWrongTypes.map((dt, i) => {
+                    const label = typeof dt === "object" ? (dt.type ?? dt.name ?? JSON.stringify(dt)) : dt;
+                    return (
+                      <span key={i} style={{
+                        display: "inline-flex", alignItems: "center", gap: "6px",
+                        padding: "6px 16px", background: "#fff9f0",
+                        border: "2px solid #ffa94d", borderRadius: "30px",
+                        fontSize: "0.95rem", color: "#e67700",
+                        boxShadow: "2px 2px 0 #ffe8cc", fontWeight: "bold",
+                      }}>
+                        ⚠️ {label}
+                      </span>
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: "0.87rem", color: "#888", margin: 0 }}>
+                  💡 Try checking what's inside the block — maybe something needs to change!
+                </p>
+              </div>
+            )}
+
+            {/* ── Not enough of a type ── */}
+            {assessmentAnswer.notEnoughTypes?.length > 0 && (
+              <div style={{ marginBottom: "18px" }}>
+                <p style={{
+                  fontFamily: "'Fredoka One', 'Comic Sans MS', cursive",
+                  fontSize: "1.05rem", color: "#7950f2", marginBottom: "8px",
+                }}>
+                  🔢 You need more of these blocks:
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "6px" }}>
+                  {assessmentAnswer.notEnoughTypes.map((dt, i) => {
+                    const label = typeof dt === "object" ? (dt.type ?? dt.name ?? JSON.stringify(dt)) : dt;
+                    const needed = assessmentAnswer.minCountMap?.[label] ?? 2;
+                    return (
+                      <span key={i} style={{
+                        display: "inline-flex", alignItems: "center", gap: "6px",
+                        padding: "6px 16px", background: "#f3f0ff",
+                        border: "2px solid #9775fa", borderRadius: "30px",
+                        fontSize: "0.95rem", color: "#7950f2",
+                        boxShadow: "2px 2px 0 #e5dbff", fontWeight: "bold",
+                      }}>
+                        🔢 {label} <span style={{ fontWeight: "normal", fontSize: "0.82rem" }}>(need {needed}x)</span>
+                      </span>
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: "0.87rem", color: "#888", margin: 0 }}>
+                  💡 Drag more of these blocks onto the board!
+                </p>
+              </div>
+            )}
+
+            {/* ── Never placed at all ── */}
+            {assessmentAnswer.missingTypes?.length > 0 && (
+              <div style={{ marginBottom: "18px" }}>
+                <p style={{
+                  fontFamily: "'Fredoka One', 'Comic Sans MS', cursive",
+                  fontSize: "1.05rem", color: "#c92a2a", marginBottom: "8px",
+                }}>
+                  ❌ These blocks were needed but weren't placed on the board:
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "6px" }}>
+                  {assessmentAnswer.missingTypes.map((dt, i) => {
+                    const label = typeof dt === "object" ? (dt.type ?? dt.name ?? JSON.stringify(dt)) : dt;
+                    return (
+                      <span key={i} style={{
+                        display: "inline-flex", alignItems: "center", gap: "6px",
+                        padding: "6px 16px", background: "#fff5f5",
+                        border: "2px solid #ff6b6b", borderRadius: "30px",
+                        fontSize: "0.95rem", color: "#c92a2a",
+                        boxShadow: "2px 2px 0 #ffc9c9", fontWeight: "bold",
+                      }}>
+                        ❌ {label}
+                      </span>
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: "0.87rem", color: "#888", margin: 0 }}>
+                  💡 Look in the Elements panel on the left and drag these blocks onto the board!
+                </p>
+              </div>
+            )}
+
+            {/* ── Expected output ── */}
             {assessmentAnswer.expectedOutput && (
-              <>
-                <h5 className="lmjsx-answer-section-title">💻 Expected Output:</h5>
-                <pre className="lmjsx-answer-pre">
+              <div>
+                <p style={{
+                  fontFamily: "'Fredoka One', 'Comic Sans MS', cursive",
+                  fontSize: "1.05rem", color: "#087f5b", marginBottom: "8px",
+                }}>
+                  💻 This is what the computer should have printed:
+                </p>
+                <pre style={{
+                  background: "#fff", border: "3px dashed #63e6be",
+                  borderRadius: "14px", padding: "14px",
+                  fontFamily: "'Courier New', monospace", fontSize: "0.95rem",
+                  color: "#087f5b", textAlign: "left",
+                  boxShadow: "3px 3px 0 #b2f2e0", whiteSpace: "pre-wrap", margin: 0,
+                }}>
                   {assessmentAnswer.expectedOutput}
                 </pre>
-              </>
+              </div>
             )}
           </Modal.Body>
 
-          <Modal.Footer className="lmjsx-footer-answer">
-            <Button className="lmjsx-btn lmjsx-btn-teal" onClick={onAnswerClose}>
-              Continue 👍
+          <Modal.Footer style={{
+            background: "#f0fff4", borderTop: "none", padding: "12px 20px", justifyContent: "flex-end",
+          }}>
+            <Button
+              onClick={onAnswerClose}
+              style={{
+                fontFamily: "'Fredoka One', 'Comic Sans MS', cursive",
+                fontSize: "1.05rem", borderRadius: "50px", padding: "8px 28px",
+                border: "3px solid #0ca678", boxShadow: "0 5px 0 rgba(0,0,0,0.18)",
+                color: "#fff", background: "linear-gradient(135deg, #20c997, #4dabf7)",
+                cursor: "pointer",
+              }}
+            >
+              Got it! Let's try again 🚀
             </Button>
           </Modal.Footer>
         </Modal>
@@ -276,12 +410,6 @@ export default function LessonModals({
         .typing-line {
           display: inline-block;
           overflow: hidden;
-          /* 
-            ch units approximate character count.
-            We use a generous max so it always finishes.
-            The text is guaranteed single-line inside the
-            speech bubble so nowrap is safe here.
-          */
           max-width: 100%;
           white-space: normal;
           border-right: 3px solid #5f3dc4;
@@ -420,6 +548,10 @@ export default function LessonModals({
         .lmjsx-answer-section-title { font-family: 'Fredoka One', 'Comic Sans MS', cursive; font-size: 1.15rem; color: #087f5b; margin-bottom: 10px; }
         .lmjsx-answer-list          { list-style: none; padding: 0; display: inline-block; text-align: left; margin-bottom: 14px; }
         .lmjsx-answer-item          { font-size: 1rem; padding: 6px 14px; margin-bottom: 6px; background: #fff; border: 2px solid #63e6be; border-radius: 30px; box-shadow: 2px 2px 0 #b2f2e0; }
+        .lmjsx-answer-item--wrong    { border-color: #ffa94d !important; box-shadow: 2px 2px 0 #ffe8cc !important; background: #fff9f0 !important; }
+        .lmjsx-answer-item--missing  { border-color: #ff6b6b !important; box-shadow: 2px 2px 0 #ffc9c9 !important; background: #fff5f5 !important; }
+        .lmjsx-answer-item--notenough{ border-color: #cc5de8 !important; box-shadow: 2px 2px 0 #f3d9fa !important; background: #fdf4ff !important; }
+        .lmjsx-answer-hint           { font-size: 0.85rem; color: #ae3ec9; font-style: italic; margin-left: 4px; }
         .lmjsx-answer-pre           { background: #fff; border: 3px dashed #63e6be; border-radius: 14px; padding: 14px; font-family: 'Courier New', monospace; font-size: 0.95rem; color: #087f5b; text-align: left; box-shadow: 3px 3px 0 #b2f2e0; }
         .lmjsx-footer-answer        { background: #f0fff4 !important; border-top: none !important; padding: 12px 20px !important; justify-content: flex-end; }
 

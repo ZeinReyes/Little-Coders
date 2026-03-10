@@ -55,6 +55,75 @@ const INTERNAL_STYLES = `
   .whiteboard {
     border-radius: 0 0 var(--radius-md) var(--radius-md);
   }
+
+  /* ── Element item base ── */
+  .element-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ── Unlocked block ── */
+  .element-item.unlocked img {
+    cursor: grab;
+    opacity: 1;
+    filter: none;
+    transition: transform 0.15s, filter 0.15s;
+  }
+  .element-item.unlocked img:hover {
+    transform: scale(1.08);
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25));
+  }
+  .element-item.unlocked .element-label {
+    color: inherit;
+  }
+
+  /* ── Locked block ── */
+  .element-item.locked {
+    cursor: not-allowed;
+  }
+  .element-item.locked img {
+    opacity: 0.28;
+    filter: grayscale(100%) blur(0.6px);
+    cursor: not-allowed;
+    pointer-events: none;
+    user-select: none;
+  }
+  .element-item.locked .element-label {
+    opacity: 0.4;
+    color: #888;
+  }
+
+  /* ── Lock badge overlay ── */
+  .lock-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -60%);
+    font-size: 1.25rem;
+    pointer-events: none;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+    line-height: 1;
+  }
+
+  /* ── Lock tooltip on hover ── */
+  .element-item.locked:hover::after {
+    content: "🔒 Not available for this challenge";
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.78);
+    color: #fff;
+    font-size: 0.72rem;
+    font-family: 'Comic Sans MS', cursive;
+    white-space: nowrap;
+    padding: 4px 10px;
+    border-radius: 8px;
+    pointer-events: none;
+    z-index: 999;
+  }
 `;
 
 /**
@@ -80,12 +149,11 @@ export default function Workspace({
   const requiredTypes = dataTypesRequired.map(dt =>
     typeof dt === "string" ? dt : dt.type
   );
+
+  // In activity/assessment with required types → show all but lock non-required
   const isRestricted =
     (lessonType === "activity" || lessonType === "assessment") &&
     requiredTypes.length > 0;
-  const visibleBlocks = isRestricted
-    ? ALL_BLOCKS.filter(b => requiredTypes.includes(b.type))
-    : ALL_BLOCKS;
 
   // 💅 Inject internal styles once
   useEffect(() => {
@@ -133,7 +201,7 @@ export default function Workspace({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveKey]);
 
-  // 🏷️ Tooltip logic
+  // 🏷️ Tooltip logic — only for unlocked blocks
   useEffect(() => {
     const tooltip = document.getElementById("globalTooltip");
     if (!tooltip) return;
@@ -145,7 +213,10 @@ export default function Workspace({
       tooltip.style.top  = `${e.clientY + OFFSET.y}px`;
     };
     const handleMouseEnter = (e) => {
-      const type = e.currentTarget.dataset.type;
+      const type = e.currentTarget.closest(".element-item")?.dataset?.blockType;
+      if (!type) return;
+      // Don't show tooltip for locked blocks
+      if (isRestricted && !requiredTypes.includes(type)) return;
       const info = TOOLTIP_DESCRIPTIONS[type];
       if (!info) return;
       tooltip.innerHTML = `<span class="tooltip-label">${info.label}</span><span class="tooltip-desc">${info.desc}</span>`;
@@ -170,7 +241,7 @@ export default function Workspace({
       });
       document.removeEventListener("mousemove", handleMouseMove);
     };
-  }, [visibleBlocks]);
+  }, [isRestricted, requiredTypes]);
 
   // 🧹 Clear board
   const handleClearBoard = () => {
@@ -196,17 +267,28 @@ export default function Workspace({
       <div className="draggable" id="draggable">
         <h3>Elements</h3>
         <div className="elements">
-          {visibleBlocks.map((block) => (
-            <div key={block.type} className="element-item">
-              <img
-                src={block.src}
-                data-type={block.type}
-                draggable
-                alt={block.alt}
-              />
-              <span className="element-label">{block.alt}</span>
-            </div>
-          ))}
+          {ALL_BLOCKS.map((block) => {
+            const isLocked = isRestricted && !requiredTypes.includes(block.type);
+            return (
+              <div
+                key={block.type}
+                className={`element-item ${isLocked ? "locked" : "unlocked"}`}
+                data-block-type={block.type}
+              >
+                <img
+                  src={block.src}
+                  data-type={block.type}
+                  draggable={!isLocked}
+                  alt={block.alt}
+                />
+                {/* Lock badge shown over locked blocks */}
+                {isLocked && (
+                  <span className="lock-badge">🔒</span>
+                )}
+                <span className="element-label">{block.alt}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
