@@ -8,6 +8,7 @@ import {
   markAssessmentAttempt,
   markActivityAttempt,
   getLessonProgress,
+  getAllProgressByChild
 } from "../controller/lessonProgressController.js";
 
 const router = express.Router();
@@ -19,7 +20,7 @@ router.get("/check-unlock", checkItemUnlocked);
 // ── Get all unlocked items for a child in a lesson ───────────────────────────
 // GET /api/progress/:userId/:childId/:lessonId/unlocked
 router.get("/:userId/:childId/:lessonId/unlocked", getUnlockedItems);
-
+router.get("/:userId/:childId", getAllProgressByChild);
 // ── Get progress for a child in a lesson ─────────────────────────────────────
 // GET /api/progress/:userId/:childId/:lessonId
 router.get("/:userId/:childId/:lessonId", getLessonProgress);
