@@ -28,14 +28,17 @@ async function recalculateProgress(progress, lessonId) {
     ? Math.min((completedItems / totalItems) * 100, 100)
     : 0;
 
-  // ✅ FIX 4: require totalItems > 0 so an empty lesson is never auto-completed
   progress.isLessonCompleted =
-    totalItems > 0 &&
     completedMaterialsCount   === totalMaterials   &&
     completedActivitiesCount  === totalActivities  &&
     completedAssessmentsCount === totalAssessments;
 
   return progress;
+}
+
+// ── Helper: extract childId from request body or query ───────────────────────
+function getChildId(source) {
+  return source.childId || null;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -247,21 +250,18 @@ export const markMaterialCompleted = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields (userId, childId, lessonId, materialId)" });
     }
 
-    const key = {
-      userId:   userId.toString(),
-      childId:  childId.toString(),
-      lessonId: lessonId.toString(),
-    };
+    const key = { userId: userId.toString(), childId: childId.toString(), lessonId: lessonId.toString() };
     const materialIdStr = materialId.toString();
 
-    // ✅ FIX 1: atomic upsert — eliminates duplicate key race condition
-    let progress = await UserLessonProgress.findOneAndUpdate(
-      key,
-      { $addToSet: { completedMaterials: materialIdStr } },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
-    );
+    let progress = await UserLessonProgress.findOne(key);
+    if (!progress) {
+      progress = new UserLessonProgress({ ...key, completedMaterials: [], materialTime: [] });
+    }
 
-    // Handle materialTime (needs read-modify-write, safe after upsert)
+    if (!progress.completedMaterials.some(m => m.toString() === materialIdStr)) {
+      progress.completedMaterials.push(materialIdStr);
+    }
+
     const existingTimeIndex = progress.materialTime.findIndex(
       m => m.materialId.toString() === materialIdStr
     );
@@ -332,16 +332,9 @@ export const markAssessmentCompleted = async (req, res) => {
 
     progress = await recalculateProgress(progress, lessonId);
 
-    // ✅ FIX 5: only force 100% if the lesson genuinely has no materials or activities
-    // (assessment-only lessons). Otherwise trust recalculateProgress.
-    if (!progress.isLessonCompleted) {
-      const totalMaterials  = await LessonMaterial.countDocuments({ lessonId });
-      const totalActivities = await LessonActivity.countDocuments({ lessonId });
-      if (totalMaterials === 0 && totalActivities === 0) {
-        progress.isLessonCompleted  = true;
-        progress.progressPercentage = 100;
-      }
-    }
+    // ✅ Assessment is the final gate — force 100% complete
+    progress.isLessonCompleted  = true;
+    progress.progressPercentage = 100;
 
     await progress.save();
 
@@ -368,34 +361,33 @@ export const markAssessmentAttempt = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // ✅ FIX 3: atomic upsert — eliminates duplicate key race condition
-    let progress = await UserLessonProgress.findOneAndUpdate(
-      { userId, childId, lessonId },
-      {},
-      { new: true, upsert: true, setDefaultsOnInsert: true }
-    );
+    let progress = await UserLessonProgress.findOne({ userId, childId, lessonId });
+    if (!progress) {
+      progress = new UserLessonProgress({ userId, childId, lessonId });
+    }
 
     const existingIndex = progress.assessmentAttempts.findIndex(
       a => a.assessmentId.toString() === assessmentId && a.questionId.toString() === questionId
     );
 
+    const attemptData = {
+      assessmentId, questionId,
+      timeSeconds:   timeSeconds   ?? 0,
+      totalAttempts: totalAttempts ?? 1,
+      correct:       correct       ?? false,
+      difficulty:    difficulty    || "Easy",
+      attemptedAt:   new Date(),
+    };
+
     if (existingIndex >= 0) {
       const existing = progress.assessmentAttempts[existingIndex];
       existing.totalAttempts += 1;
-      existing.timeSeconds   += timeSeconds ?? 0;
+      existing.timeSeconds   += attemptData.timeSeconds;
       existing.correct        = existing.correct || correct;
       existing.difficulty     = difficulty || existing.difficulty;
       existing.attemptedAt    = new Date();
     } else {
-      progress.assessmentAttempts.push({
-        assessmentId,
-        questionId,
-        timeSeconds:   timeSeconds   ?? 0,
-        totalAttempts: totalAttempts ?? 1,
-        correct:       correct       ?? false,
-        difficulty:    difficulty    || "Easy",
-        attemptedAt:   new Date(),
-      });
+      progress.assessmentAttempts.push(attemptData);
     }
 
     await progress.save();
@@ -432,31 +424,31 @@ export const markActivityAttempt = async (req, res) => {
     };
     const activityIdStr = activityId.toString();
 
-    // ✅ FIX 2: atomic upsert — eliminates duplicate key race condition
-    let progress = await UserLessonProgress.findOneAndUpdate(
-      key,
-      {},
-      { new: true, upsert: true, setDefaultsOnInsert: true }
-    );
+    let progress = await UserLessonProgress.findOne(key);
+    if (!progress) {
+      progress = new UserLessonProgress({ ...key, activityAttempts: [] });
+    }
 
     const existingIndex = progress.activityAttempts.findIndex(
       a => a.activityId.toString() === activityIdStr
     );
 
+    const attemptData = {
+      activityId:    activityIdStr,
+      timeSeconds:   timeSeconds   ?? 0,
+      totalAttempts: totalAttempts ?? 1,
+      correct:       correct       ?? false,
+      attemptedAt:   new Date(),
+    };
+
     if (existingIndex >= 0) {
       const existing = progress.activityAttempts[existingIndex];
       existing.totalAttempts += 1;
-      existing.timeSeconds   += timeSeconds ?? 0;
+      existing.timeSeconds   += attemptData.timeSeconds;
       existing.correct        = existing.correct || correct;
       existing.attemptedAt    = new Date();
     } else {
-      progress.activityAttempts.push({
-        activityId:    activityIdStr,
-        timeSeconds:   timeSeconds   ?? 0,
-        totalAttempts: totalAttempts ?? 1,
-        correct:       correct       ?? false,
-        attemptedAt:   new Date(),
-      });
+      progress.activityAttempts.push(attemptData);
     }
 
     await progress.save();
@@ -495,27 +487,5 @@ export const getLessonProgress = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error fetching progress", error: err.message });
-  }
-};
-
-// ══════════════════════════════════════════════════════════════════════════════
-// GET ALL PROGRESS FOR A CHILD
-// GET /api/progress/:userId/:childId
-// ══════════════════════════════════════════════════════════════════════════════
-export const getAllProgressByChild = async (req, res) => {
-  try {
-    const { userId, childId } = req.params;
-    if (!userId || !childId)
-      return res.status(400).json({ message: "Missing userId or childId" });
-
-    const progresses = await UserLessonProgress.find({ userId, childId })
-      .populate("completedMaterials",   "title order")
-      .populate("completedActivities",  "name order")
-      .populate("completedAssessments", "title difficulty");
-
-    res.status(200).json(progresses);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error fetching child progress", error: err.message });
   }
 };
