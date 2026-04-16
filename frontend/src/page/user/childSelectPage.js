@@ -20,7 +20,7 @@ const GENDER_COLORS = {
   other: { bg: "#F3E5F5", accent: "#7B1FA2" },
 };
 
-const API = "https://little-coders-production.up.railway.app/api";
+const API = "https://little-coders-backend.onrender.com/api";
 
 export default function ChildSelectPage() {
   const navigate  = useNavigate();

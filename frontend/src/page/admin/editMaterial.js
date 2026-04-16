@@ -63,7 +63,7 @@ export default function EditMaterial() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const API_BASE = "https://little-coders-production.up.railway.app/api";
+  const API_BASE = "https://little-coders-backend.onrender.com/api";
 
   const countWords = (text) => {
     const plain = text.replace(/<[^>]+>/g, "").trim();

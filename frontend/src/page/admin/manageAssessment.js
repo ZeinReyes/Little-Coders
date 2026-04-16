@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-const API_BASE = "https://little-coders-production.up.railway.app/api/assessments";
-const LESSON_API = "https://little-coders-production.up.railway.app/api/lessons";
+const API_BASE = "https://little-coders-backend.onrender.com/api/assessments";
+const LESSON_API = "https://little-coders-backend.onrender.com/api/lessons";
 
 const DS = `
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');

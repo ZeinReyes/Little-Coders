@@ -58,7 +58,7 @@ export function EditLesson() {
     const fetchLesson = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get(`https://little-coders-production.up.railway.app/api/lessons/${id}`, {
+        const res = await axios.get(`https://little-coders-backend.onrender.com/api/lessons/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const selectedTopic = topicKeys.find((k) => res.data.topics?.[k]) || "";
@@ -74,7 +74,7 @@ export function EditLesson() {
     try {
       const token = localStorage.getItem("token");
       const topics = topicKeys.reduce((acc, k) => { acc[k] = k === lesson.topic; return acc; }, {});
-      await axios.put(`https://little-coders-production.up.railway.app/api/lessons/${id}`,
+      await axios.put(`https://little-coders-backend.onrender.com/api/lessons/${id}`,
         { ...lesson, topics }, { headers: { Authorization: `Bearer ${token}` } });
       navigate("/admin/lessons");
     } catch { setError("Failed to update lesson."); setSaving(false); }

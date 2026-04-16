@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const API = "https://little-coders-production.up.railway.app/api";
+const API = "https://little-coders-backend.onrender.com/api";
 const token = () => localStorage.getItem("token");
 const authHeaders = () => ({ Authorization: `Bearer ${token()}` });
 

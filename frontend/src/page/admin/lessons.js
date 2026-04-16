@@ -80,7 +80,7 @@ export default function LessonsList() {
   const [menuMeta, setMenuMeta] = useState(null);
 
   const navigate = useNavigate();
-  const API_BASE = "https://little-coders-production.up.railway.app/api";
+  const API_BASE = "https://little-coders-backend.onrender.com/api";
 
   useEffect(() => { fetchLessons(); }, []);
 

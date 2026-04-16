@@ -4,7 +4,7 @@ import axios from "axios";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
-const API = "https://little-coders-production.up.railway.app/api";
+const API = "https://little-coders-backend.onrender.com/api";
 
 const DATA_TYPES = [
   "print","variable","multiply","add","subtract","divide",

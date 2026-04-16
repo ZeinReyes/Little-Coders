@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const SESSION_KEY_PREFIX = "dragboard_session_";
-const API_BASE = "https://little-coders-production.up.railway.app/api/progress";
+const API_BASE = "https://little-coders-backend.onrender.com/api/progress";
 
 const clearAllSessions = (lessonId, itemId) => {
   try {

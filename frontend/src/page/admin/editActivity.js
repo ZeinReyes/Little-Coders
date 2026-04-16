@@ -78,7 +78,7 @@ export default function EditActivity() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const API_BASE = "https://little-coders-production.up.railway.app/api";
+  const API_BASE = "https://little-coders-backend.onrender.com/api";
 
   useEffect(() => { fetchActivity(); }, []);
 

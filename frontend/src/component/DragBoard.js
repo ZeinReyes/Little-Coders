@@ -120,7 +120,7 @@ export default function DragBoard() {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          `https://little-coders-production.up.railway.app/api/users/${user._id}`,
+          `https://little-coders-backend.onrender.com/api/users/${user._id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setShowTutorial(!res.data.hasCompletedOnboarding);
@@ -257,7 +257,7 @@ export default function DragBoard() {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `https://little-coders-production.up.railway.app/api/users/${user._id}/complete-onboarding`,
+        `https://little-coders-backend.onrender.com/api/users/${user._id}/complete-onboarding`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );

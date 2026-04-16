@@ -4,7 +4,7 @@ import axios from "axios";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
-const API = "https://little-coders-production.up.railway.app/api";
+const API = "https://little-coders-backend.onrender.com/api";
 
 const countWords = (text) => {
   const plain = text.replace(/<[^>]+>/g, "").trim();

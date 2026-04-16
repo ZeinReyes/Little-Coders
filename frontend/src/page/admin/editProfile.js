@@ -3,7 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/authContext";
 
-const API = "https://little-coders-production.up.railway.app/api";
+const API = "https://little-coders-backend.onrender.com/api";
 
 function EditProfile() {
   const { user, refreshUser } = useContext(AuthContext);

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const API = "https://little-coders-production.up.railway.app/api";
+const API = "https://little-coders-backend.onrender.com/api";
 
 const TOPICS = ["variables", "operators", "conditionals", "loops", "overview"];
 const TOPIC_STYLE = {
