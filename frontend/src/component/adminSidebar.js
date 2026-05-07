@@ -95,6 +95,18 @@ function Sidebar() {
             </ul>
           </div>
         </li>
+        <li className="nav-item mb-3 fs-5">
+          <NavLink
+            to="/admin/ai-review-feedback-report"
+            className={({ isActive }) =>
+              `nav-link text-dark d-flex align-items-center gap-2 ${
+                isActive ? "fw-semibold bg-light rounded px-2" : ""
+              }`
+            }
+          >
+            <i className="bi bi-speedometer2"></i> AI Review Feedback Report
+          </NavLink>
+        </li>
       </ul>
     </div>
   );

@@ -36,6 +36,7 @@ import EditActivity from "./page/admin/editActivity";
 import AddAssessment from "./page/admin/addAssessment";
 import ManageAssessment from "./page/admin/manageAssessment";
 import EditAssessment from "./page/admin/editAssessment";
+import AiReviewFeedbackReport from "./page/admin/aiReviewFeedbackReport";
 
 // Others
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -138,6 +139,7 @@ function App() {
         <Route path="add-assessment"                        element={<AddAssessment />} />
         <Route path="manage-assessment"                     element={<ManageAssessment />} />
         <Route path="edit-assessment/:id"                   element={<EditAssessment />} />
+        <Route path="ai-review-feedback-report"              element={<AiReviewFeedbackReport />} />
       </Route>
 
       {/* ── Catch-all: smart redirect ── */}

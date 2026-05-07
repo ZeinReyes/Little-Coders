@@ -1,5 +1,16 @@
-import React from "react";
+import React, { useState } from "react";
 import { Spinner } from "react-bootstrap";
+
+// ── Feedback reasons shown when user says "Not helpful"
+const NOT_HELPFUL_REASONS = [
+  "Too hard to understand 😕",
+  "Too easy / I already knew this 😴",
+  "Instructions were confusing 🤔",
+  "Examples didn't make sense 📖",
+  "Hints weren't useful 💡",
+  "Activity didn't match the lesson ❌",
+  "Something else...",
+];
 
 export default function AIReviewPanel({
   loading,
@@ -15,7 +26,13 @@ export default function AIReviewPanel({
   onStartAssessment,
   onBackToActivity,
   onSkip,
+  onSubmitFeedback, // (feedbackPayload) => Promise<void>
 }) {
+  const [feedbackState, setFeedbackState]       = useState("idle"); // idle | helpful | not-helpful | custom | submitted
+  const [selectedReasons, setSelectedReasons]   = useState([]);
+  const [customReason, setCustomReason]         = useState("");
+  const [submitting, setSubmitting]             = useState(false);
+
   // ── Loading ──
   if (loading) {
     return (
@@ -48,28 +65,161 @@ export default function AIReviewPanel({
   const { reviewContent, currentLessonTitle, missingTypes: reviewMissingTypes } = aiReviewData || {};
   const { lessonMaterial, activity, assessmentQuestions } = reviewContent || {};
 
+  // ── Feedback helpers ──
+  const toggleReason = (r) =>
+    setSelectedReasons(prev =>
+      prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
+    );
+
+  const handleFeedbackSubmit = async (helpful) => {
+    setSubmitting(true);
+    const reasons = helpful
+      ? []
+      : selectedReasons.includes("Something else...")
+        ? [...selectedReasons.filter(r => r !== "Something else..."), customReason].filter(Boolean)
+        : selectedReasons;
+
+    try {
+      await onSubmitFeedback?.({
+        helpful,
+        reasons,
+        lessonId:    aiReviewData?.currentLessonId,
+        missingTypes: reviewMissingTypes,
+        timestamp:   new Date().toISOString(),
+      });
+      setFeedbackState("submitted");
+    } catch {
+      setFeedbackState("submitted"); // still dismiss gracefully
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ── Step: Feedback ──
+  if (aiReviewStep === "feedback") {
+    // Submitted
+    if (feedbackState === "submitted") {
+      return (
+        <CenterCard>
+          <div style={{ fontSize: "3.5rem", marginBottom: "0.5rem" }}>🙏</div>
+          <h3 style={{ color: "#667eea", fontSize: "1.2rem", marginBottom: "0.5rem" }}>
+            Thanks for your feedback!
+          </h3>
+          <p style={{ color: "#888", fontSize: "0.9rem", marginBottom: "1.5rem" }}>
+            It helps us make lessons better for every student. 💪
+          </p>
+          <Btn gradient="linear-gradient(135deg, #667eea, #764ba2)" onClick={onBackToActivity} full>
+            Back to Lesson 🎓
+          </Btn>
+        </CenterCard>
+      );
+    }
+
+    // Not helpful — reason picker
+    if (feedbackState === "not-helpful") {
+      return (
+        <Wrap>
+          <Header gradient="linear-gradient(135deg, #ff6b6b, #ee5a24)" icon="💬">
+            <Chip>Your Feedback</Chip>
+            <h2 style={{ margin: 0, color: "#fff", fontSize: "1.3rem" }}>What went wrong?</h2>
+          </Header>
+
+          <Card>
+            <SectionLabel color="#ee5a24">🔍 Pick all that apply</SectionLabel>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem" }}>
+              {NOT_HELPFUL_REASONS.map((reason) => {
+                const selected = selectedReasons.includes(reason);
+                return (
+                  <ReasonChip
+                    key={reason}
+                    selected={selected}
+                    onClick={() => toggleReason(reason)}
+                  >
+                    {reason}
+                  </ReasonChip>
+                );
+              })}
+            </div>
+
+            {selectedReasons.includes("Something else...") && (
+              <textarea
+                placeholder="Tell us more... (optional)"
+                value={customReason}
+                onChange={e => setCustomReason(e.target.value)}
+                style={textareaStyle}
+              />
+            )}
+          </Card>
+
+          <Btn
+            gradient="linear-gradient(135deg, #ee5a24, #ff6b6b)"
+            onClick={() => handleFeedbackSubmit(false)}
+            full
+            disabled={submitting || selectedReasons.length === 0}
+          >
+            {submitting ? "Sending..." : "Submit Feedback 📨"}
+          </Btn>
+          <Btn ghost onClick={() => setFeedbackState("idle")} full>
+            ← Go back
+          </Btn>
+        </Wrap>
+      );
+    }
+
+    // Default feedback prompt
+    return (
+      <CenterCard>
+        <div style={{ fontSize: "3.5rem", marginBottom: "0.75rem" }}>💬</div>
+        <h3 style={{ color: "#333", fontSize: "1.25rem", marginBottom: "0.4rem", fontFamily }}>
+          Was this review helpful?
+        </h3>
+        <p style={{ color: "#888", fontSize: "0.9rem", marginBottom: "1.75rem", fontFamily }}>
+          Your answer helps us make lessons better! 🌟
+        </p>
+        <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
+          <ThumbBtn
+            emoji="👍"
+            label="Yes!"
+            color="#4CAF50"
+            onClick={() => handleFeedbackSubmit(true)}
+            disabled={submitting}
+          />
+          <ThumbBtn
+            emoji="👎"
+            label="Not really"
+            color="#f44336"
+            onClick={() => setFeedbackState("not-helpful")}
+            disabled={submitting}
+          />
+        </div>
+        <button
+          onClick={onBackToActivity}
+          style={{ marginTop: "1.25rem", background: "none", border: "none", color: "#bbb", cursor: "pointer", fontSize: "0.85rem", fontFamily }}
+        >
+          Skip &amp; go back
+        </button>
+      </CenterCard>
+    );
+  }
+
   // ── Step: Lesson ──
   if (aiReviewStep === "lesson") {
     return (
       <Wrap>
-        {/* Header */}
         <Header gradient="linear-gradient(135deg, #667eea, #764ba2)" icon="📚">
           <Chip>AI Review</Chip>
           <h2 style={{ margin: 0, color: "#fff", fontSize: "1.3rem" }}>{lessonMaterial?.title}</h2>
         </Header>
 
-        {/* Topic pill */}
         <Pill color="#5c35cc" bg="#ede9ff">
           🎯 Practising: <strong>{reviewMissingTypes?.join(", ")}</strong>
         </Pill>
 
-        {/* Overview */}
         <Card>
           <SectionLabel color="#667eea">📖 What we'll learn</SectionLabel>
           <OverviewBox>{lessonMaterial?.overview}</OverviewBox>
         </Card>
 
-        {/* Content paragraphs — max 2, keep them short */}
         {lessonMaterial?.contents?.slice(0, 2).map((para, i) => (
           <Card key={i} style={{ padding: "1rem 1.25rem" }}>
             <p style={{ margin: 0, color: "#444", lineHeight: "1.65", fontSize: "0.95rem" }}>
@@ -78,7 +228,6 @@ export default function AIReviewPanel({
           </Card>
         ))}
 
-        {/* What's next */}
         <Pill color="#2e7d32" bg="#e8f5e9">
           ✅ Next: 1 practice activity + 1 quick quiz
         </Pill>
@@ -102,7 +251,6 @@ export default function AIReviewPanel({
           <h2 style={{ margin: 0, color: "#fff", fontSize: "1.3rem" }}>{activity?.name}</h2>
         </Header>
 
-        {/* Mission */}
         <Card>
           <SectionLabel color="#4CAF50">📋 Your Mission</SectionLabel>
           <MissionBox>{activity?.instructions}</MissionBox>
@@ -126,7 +274,6 @@ export default function AIReviewPanel({
           )}
         </Card>
 
-        {/* Hints */}
         {activity?.hints?.length > 0 && (
           <Card style={{ background: "#f0fff4", border: "2px solid #a5d6a7" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
@@ -161,38 +308,106 @@ export default function AIReviewPanel({
   }
 
   // ── Step: Assessment ──
-  return (
-    <Wrap>
-      <Header gradient="linear-gradient(135deg, #f093fb, #f5576c)" icon="📝">
-        <Chip>Mini Quiz</Chip>
-        <h2 style={{ margin: 0, color: "#fff", fontSize: "1.3rem" }}>Time to show what you know!</h2>
-      </Header>
+  if (aiReviewStep === "assessment") {
+    return (
+      <Wrap>
+        <Header gradient="linear-gradient(135deg, #f093fb, #f5576c)" icon="📝">
+          <Chip>Mini Quiz</Chip>
+          <h2 style={{ margin: 0, color: "#fff", fontSize: "1.3rem" }}>Time to show what you know!</h2>
+        </Header>
 
-      <Card>
-        <SectionLabel color="#f5576c">🎯 Quick Quiz</SectionLabel>
-        <p style={{ color: "#555", fontSize: "0.95rem", marginBottom: "1rem" }}>
-          <strong>{assessmentQuestions?.length} questions</strong> about{" "}
-          {reviewMissingTypes?.join(", ")}. You've got this! 💪
-        </p>
+        <Card>
+          <SectionLabel color="#f5576c">🎯 Quick Quiz</SectionLabel>
+          <p style={{ color: "#555", fontSize: "0.95rem", marginBottom: "1rem" }}>
+            <strong>{assessmentQuestions?.length} questions</strong> about{" "}
+            {reviewMissingTypes?.join(", ")}. You've got this! 💪
+          </p>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-          {assessmentQuestions?.map((q, i) => (
-            <QuizCard key={i} num={i + 1} difficulty={q.difficulty} text={q.instructions} />
-          ))}
-        </div>
-      </Card>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            {assessmentQuestions?.map((q, i) => (
+              <QuizCard key={i} num={i + 1} difficulty={q.difficulty} text={q.instructions} />
+            ))}
+          </div>
+        </Card>
 
-      <Btn gradient="linear-gradient(135deg, #f093fb, #f5576c)" onClick={onStartAssessment} full>
-        Start Quiz! 📝
-      </Btn>
-      <Btn ghost onClick={onSkip} full>
-        Skip & go back
-      </Btn>
-    </Wrap>
-  );
+        <Btn gradient="linear-gradient(135deg, #f093fb, #f5576c)" onClick={onStartAssessment} full>
+          Start Quiz! 📝
+        </Btn>
+        {/* Skip goes to feedback, not directly back */}
+        <Btn ghost onClick={() => setAiReviewStep("feedback")} full>
+          Skip &amp; give feedback
+        </Btn>
+      </Wrap>
+    );
+  }
+
+  return null;
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+
+function ThumbBtn({ emoji, label, color, onClick, disabled }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        background: color + "18",
+        border: `3px solid ${color}55`,
+        borderRadius: "20px",
+        padding: "0.85rem 1.75rem",
+        cursor: "pointer",
+        fontFamily,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "0.3rem",
+        transition: "transform 0.15s, box-shadow 0.15s",
+        minWidth: "110px",
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.08)"; e.currentTarget.style.boxShadow = `0 4px 18px ${color}44`; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "none"; }}
+    >
+      <span style={{ fontSize: "2.2rem" }}>{emoji}</span>
+      <span style={{ color, fontWeight: "700", fontSize: "0.9rem" }}>{label}</span>
+    </button>
+  );
+}
+
+function ReasonChip({ children, selected, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: selected ? "#ee5a2418" : "#f8f8f8",
+        border: `2px solid ${selected ? "#ee5a24" : "#e0e0e0"}`,
+        borderRadius: "12px",
+        padding: "0.55rem 1rem",
+        textAlign: "left",
+        cursor: "pointer",
+        fontFamily,
+        fontSize: "0.9rem",
+        color: selected ? "#ee5a24" : "#555",
+        fontWeight: selected ? "700" : "400",
+        transition: "all 0.15s",
+        display: "flex",
+        alignItems: "center",
+        gap: "0.5rem",
+      }}
+    >
+      <span style={{
+        width: "18px", height: "18px", borderRadius: "50%",
+        border: `2px solid ${selected ? "#ee5a24" : "#bbb"}`,
+        background: selected ? "#ee5a24" : "transparent",
+        flexShrink: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        {selected && <span style={{ color: "#fff", fontSize: "0.6rem", fontWeight: "900" }}>✓</span>}
+      </span>
+      {children}
+    </button>
+  );
+}
 
 function QuizCard({ num, difficulty, text }) {
   const diffColor = difficulty === "Easy" ? "#4caf50" : difficulty === "Medium" ? "#ff9800" : "#f44336";
@@ -311,10 +526,11 @@ function HintBtn({ onClick, children }) {
   );
 }
 
-function Btn({ children, gradient, onClick, full, ghost }) {
+function Btn({ children, gradient, onClick, full, ghost, disabled }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       style={{
         background: ghost ? "transparent" : (gradient || "#eee"),
         color: ghost ? "#999" : (gradient ? "#fff" : "#666"),
@@ -322,7 +538,8 @@ function Btn({ children, gradient, onClick, full, ghost }) {
         borderRadius: "22px",
         padding: "0.8rem 1.75rem",
         fontWeight: "bold",
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.6 : 1,
         fontSize: "0.95rem",
         fontFamily,
         width: full ? "100%" : "auto",
@@ -344,4 +561,19 @@ const preStyle = {
   fontFamily: "monospace",
   color: "#333",
   margin: 0,
+};
+
+const textareaStyle = {
+  width: "100%",
+  marginTop: "0.75rem",
+  padding: "0.75rem",
+  borderRadius: "10px",
+  border: "2px solid #ee5a2455",
+  fontFamily,
+  fontSize: "0.9rem",
+  color: "#333",
+  resize: "vertical",
+  minHeight: "80px",
+  boxSizing: "border-box",
+  outline: "none",
 };
