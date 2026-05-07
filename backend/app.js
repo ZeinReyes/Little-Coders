@@ -43,10 +43,11 @@ app.use("/api/activities",              activityRoute);
 app.use("/api/assessments",             assessmentRoute);
 app.use("/api/progress",                lessonProgressRoutes);
 app.use("/api/contact",                 contactRoute);
-app.use("/api/ai",                      aiRoute);
-
 // Student: POST /api/ai/review-feedback
 app.use("/api/ai/review-feedback",      studentFeedbackRouter);
+app.use("/api/ai",                      aiRoute);
+
+
 
 // Admin: GET /api/admin/ai-review-feedback  +  GET /api/admin/ai-review-feedback/summary
 // Protected by adminOnly middleware — unauthenticated or non-admin requests are rejected before

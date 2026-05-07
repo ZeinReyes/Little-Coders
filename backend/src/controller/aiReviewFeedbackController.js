@@ -9,6 +9,7 @@ import AIReviewFeedback from "../model/AiReviewFeedback.js";
 // Called by the student after the review session
 // ─────────────────────────────────────────────
 export const submitReviewFeedback = async (req, res) => {
+  console.log("📥 Feedback route hit:", req.body);
   try {
     const { userId, lessonId, missingTypes, helpful, reasons, sessionId } = req.body;
 
