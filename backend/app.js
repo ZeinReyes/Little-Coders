@@ -24,16 +24,15 @@ import lessonProgressRoutes  from "./src/route/lessonProgressRoute.js";
 import contactRoute          from "./src/route/contactRoute.js";
 import aiRoute               from "./src/route/aiRoute.js";
 
-// FIX: was a single shared router mounted on two prefixes — now split into two
-// separate routers so student POST and admin GETs are cleanly separated.
 import {
   studentFeedbackRouter,
   adminFeedbackRouter,
 } from "./src/route/aiReviewFeedbackRoute.js";
 
-// FIX: admin routes need auth protection — import your existing admin middleware.
-// Replace this with whatever middleware you already use for admin-only routes.
-import { adminOnly } from "./src/middleware/auth.js";
+// FIX: import verifyToken alongside adminOnly so the JWT is decoded
+// before the admin role check runs. Without verifyToken, req.user is
+// always undefined and adminOnly always returns 403.
+import { verifyToken, adminOnly } from "./src/middleware/auth.js";
 
 app.use("/api/auth",                    authRoute);
 app.use("/api/users",                   userRoute);
@@ -43,16 +42,16 @@ app.use("/api/activities",              activityRoute);
 app.use("/api/assessments",             assessmentRoute);
 app.use("/api/progress",                lessonProgressRoutes);
 app.use("/api/contact",                 contactRoute);
+
 // Student: POST /api/ai/review-feedback
 app.use("/api/ai/review-feedback",      studentFeedbackRouter);
 app.use("/api/ai",                      aiRoute);
 
-
-
 // Admin: GET /api/admin/ai-review-feedback  +  GET /api/admin/ai-review-feedback/summary
-// Protected by adminOnly middleware — unauthenticated or non-admin requests are rejected before
-// they reach the controller.
-app.use("/api/admin/ai-review-feedback", adminOnly, adminFeedbackRouter);
+// FIX: verifyToken must run first to populate req.user, then adminOnly
+// checks req.user.role === "admin". Previously only adminOnly was listed,
+// so req.user was always undefined and every request returned 403.
+app.use("/api/admin/ai-review-feedback", verifyToken, adminOnly, adminFeedbackRouter);
 
 // ── MongoDB ─────────────────────────────────────────────────────────────────
 mongoose
