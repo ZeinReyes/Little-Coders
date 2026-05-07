@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 
 // ── Palette & fonts ───────────────────────────────────────────────────────────
 const C = {
@@ -19,19 +19,25 @@ const font = "'Segoe UI', system-ui, sans-serif";
 const pct = (n, t) => (t ? Math.round((n / t) * 100) : 0);
 const fmt  = (d) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
-// ── Mock fetch (replace with real API calls) ──────────────────────────────────
+// ── API ───────────────────────────────────────────────────────────────────────
 const API_BASE = "https://little-coders-backend.onrender.com/api/admin/ai-review-feedback";
 
 async function fetchSummary(days) {
-  const res = await fetch(`${API_BASE}/summary?days=${days}`);
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${API_BASE}/summary?days=${days}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return res.json();
 }
 
 async function fetchList({ page, helpful, lessonId }) {
+  const token = localStorage.getItem("token");
   const params = new URLSearchParams({ page, limit: 15 });
   if (helpful !== "all") params.set("helpful", helpful);
   if (lessonId) params.set("lessonId", lessonId);
-  const res = await fetch(`${API_BASE}?${params}`);
+  const res = await fetch(`${API_BASE}?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return res.json();
 }
 
@@ -42,20 +48,46 @@ export default function AIReviewFeedbackReport() {
   const [summary, setSummary] = useState(null);
   const [list,    setList]    = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState(null);
   const [filters, setFilters] = useState({ helpful: "all", lessonId: "", page: 1 });
 
   // Load summary
   useEffect(() => {
     setLoading(true);
+    setError(null);
     fetchSummary(days)
-      .then(setSummary)
+      .then(data => {
+        if (data && typeof data === "object" && !data.message) {
+          setSummary(data);
+        } else {
+          setError(data?.message || "Failed to load summary.");
+          setSummary(null);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        setError("Network error loading summary.");
+        setSummary(null);
+      })
       .finally(() => setLoading(false));
   }, [days]);
 
   // Load list when on Responses tab
   useEffect(() => {
     if (tab !== "responses") return;
-    fetchList(filters).then(setList);
+    setList(null);
+    fetchList(filters)
+      .then(data => {
+        if (data && typeof data === "object" && !data.message) {
+          setList(data);
+        } else {
+          setList({ items: [], total: 0, page: 1, totalPages: 1 });
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        setList({ items: [], total: 0, page: 1, totalPages: 1 });
+      });
   }, [tab, filters]);
 
   return (
@@ -93,26 +125,37 @@ export default function AIReviewFeedbackReport() {
 
       {loading && <LoadingState />}
 
+      {/* ── Error state ── */}
+      {!loading && error && (
+        <div style={{ background: "#fff0f0", border: `1.5px solid #ffcdd2`, borderRadius: "12px", padding: "1.25rem", color: C.red, textAlign: "center" }}>
+          <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>⚠️</div>
+          <p style={{ margin: 0, fontWeight: "600" }}>{error}</p>
+          <p style={{ margin: "6px 0 0", fontSize: "0.85rem", color: C.muted }}>
+            Make sure you are logged in as an admin.
+          </p>
+        </div>
+      )}
+
       {/* ── OVERVIEW ── */}
-      {!loading && tab === "overview" && summary && (
+      {!loading && !error && tab === "overview" && summary && (
         <>
           {/* ── KPI row ── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-            <KpiCard icon="📬" label="Total Feedback" value={summary.totalFeedback} color={C.purple} />
-            <KpiCard icon="👍" label="Helpful" value={summary.helpfulCount} color={C.green} />
-            <KpiCard icon="👎" label="Not Helpful" value={summary.notHelpfulCount} color={C.red} />
-            <KpiCard icon="⭐" label="Helpful Rate" value={`${summary.helpfulRate}%`} color={summary.helpfulRate >= 70 ? C.green : C.orange} big />
+            <KpiCard icon="📬" label="Total Feedback" value={summary.totalFeedback ?? 0} color={C.purple} />
+            <KpiCard icon="👍" label="Helpful" value={summary.helpfulCount ?? 0} color={C.green} />
+            <KpiCard icon="👎" label="Not Helpful" value={summary.notHelpfulCount ?? 0} color={C.red} />
+            <KpiCard icon="⭐" label="Helpful Rate" value={`${summary.helpfulRate ?? 0}%`} color={(summary.helpfulRate ?? 0) >= 70 ? C.green : C.orange} big />
           </div>
 
           {/* ── Helpful-rate bar ── */}
           <Section title="Overall Rating">
-            <RatingBar helpful={summary.helpfulCount} total={summary.totalFeedback} />
+            <RatingBar helpful={summary.helpfulCount ?? 0} total={summary.totalFeedback ?? 0} />
           </Section>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
             {/* ── Top reasons ── */}
             <Section title="🔍 Top 'Not Helpful' Reasons">
-              {summary.topReasons.length === 0
+              {!summary.topReasons?.length
                 ? <Empty>No negative feedback in this period 🎉</Empty>
                 : summary.topReasons.map((r, i) => (
                   <ReasonRow key={i} reason={r.reason} count={r.count} max={summary.topReasons[0].count} />
@@ -122,7 +165,7 @@ export default function AIReviewFeedbackReport() {
 
             {/* ── Problematic blocks ── */}
             <Section title="🧩 Block Types in Poor Reviews">
-              {summary.problematicBlocks.length === 0
+              {!summary.problematicBlocks?.length
                 ? <Empty>No data yet</Empty>
                 : summary.problematicBlocks.map((b, i) => (
                   <BlockRow key={i} block={b.block} count={b.count} max={summary.problematicBlocks[0].count} />
@@ -133,7 +176,7 @@ export default function AIReviewFeedbackReport() {
 
           {/* ── Worst lessons ── */}
           <Section title="📉 Lessons with Most Negative Feedback">
-            {summary.worstLessons.length === 0
+            {!summary.worstLessons?.length
               ? <Empty>All lessons seem great! 🌟</Empty>
               : (
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
@@ -165,7 +208,7 @@ export default function AIReviewFeedbackReport() {
 
           {/* ── Daily trend ── */}
           <Section title="📅 Daily Trend">
-            {summary.dailyTrend.length === 0
+            {!summary.dailyTrend?.length
               ? <Empty>No data for this period</Empty>
               : <DailyChart data={summary.dailyTrend} />
             }
@@ -196,7 +239,7 @@ export default function AIReviewFeedbackReport() {
 
           {!list
             ? <LoadingState />
-            : list.items.length === 0
+            : !list.items?.length
               ? <Empty>No responses match these filters</Empty>
               : (
                 <>
@@ -274,7 +317,7 @@ function FeedbackRow({ item }) {
               </ul>
             </div>
           )}
-          {!isHelpful && item.reasons?.length === 0 && (
+          {!isHelpful && !item.reasons?.length && (
             <p style={{ color: C.muted, fontSize: "0.85rem", margin: 0 }}>No specific reason given.</p>
           )}
           {isHelpful && (
@@ -344,16 +387,14 @@ function BlockRow({ block, count, max }) {
   );
 }
 
-// Minimal CSS-only daily chart (bar chart via divs)
 function DailyChart({ data }) {
   const maxVal = Math.max(...data.map(d => d.helpful + d.notHelpful), 1);
   return (
     <div style={{ overflowX: "auto" }}>
       <div style={{ display: "flex", alignItems: "flex-end", gap: "6px", minWidth: `${data.length * 42}px`, height: "130px", paddingBottom: "24px", position: "relative" }}>
         {data.map((d, i) => {
-          const total  = d.helpful + d.notHelpful;
-          const hH     = (d.helpful     / maxVal) * 100;
-          const nH     = (d.notHelpful  / maxVal) * 100;
+          const hH = (d.helpful    / maxVal) * 100;
+          const nH = (d.notHelpful / maxVal) * 100;
           return (
             <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "1px" }} title={`${d.date}: 👍${d.helpful} 👎${d.notHelpful}`}>
               <div style={{ width: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100px" }}>
