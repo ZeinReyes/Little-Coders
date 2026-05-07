@@ -12,6 +12,9 @@ const NOT_HELPFUL_REASONS = [
   "Something else...",
 ];
 
+// ── Steps where the persistent feedback bar should appear
+const STEPS_WITH_FEEDBACK_BAR = ["lesson", "activity", "assessment"];
+
 export default function AIReviewPanel({
   loading,
   error,
@@ -28,10 +31,10 @@ export default function AIReviewPanel({
   onSkip,
   onSubmitFeedback, // (feedbackPayload) => Promise<void>
 }) {
-  const [feedbackState, setFeedbackState]       = useState("idle"); // idle | helpful | not-helpful | custom | submitted
-  const [selectedReasons, setSelectedReasons]   = useState([]);
-  const [customReason, setCustomReason]         = useState("");
-  const [submitting, setSubmitting]             = useState(false);
+  const [feedbackState, setFeedbackState]     = useState("idle"); // idle | not-helpful | submitted
+  const [selectedReasons, setSelectedReasons] = useState([]);
+  const [customReason, setCustomReason]       = useState("");
+  const [submitting, setSubmitting]           = useState(false);
 
   // ── Loading ──
   if (loading) {
@@ -83,21 +86,95 @@ export default function AIReviewPanel({
       await onSubmitFeedback?.({
         helpful,
         reasons,
-        lessonId:    aiReviewData?.currentLessonId,
+        lessonId:     aiReviewData?.currentLessonId,
         missingTypes: reviewMissingTypes,
-        timestamp:   new Date().toISOString(),
+        timestamp:    new Date().toISOString(),
       });
       setFeedbackState("submitted");
     } catch {
-      setFeedbackState("submitted"); // still dismiss gracefully
+      setFeedbackState("submitted"); // dismiss gracefully on error too
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ── Step: Feedback ──
+  // ── Persistent feedback bar rendered at the bottom of lesson/activity/assessment steps ──
+  // Only shown if feedback hasn't been submitted yet in this session
+  const FeedbackBar = () => {
+    if (feedbackState === "submitted") return null;
+
+    // Reason picker expanded inline
+    if (feedbackState === "not-helpful") {
+      return (
+        <div style={feedbackBarStyle}>
+          <p style={{ margin: "0 0 0.6rem", fontWeight: "700", fontSize: "0.9rem", color: "#ee5a24", fontFamily }}>
+            💬 What went wrong? Pick all that apply:
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "0.75rem" }}>
+            {NOT_HELPFUL_REASONS.map((reason) => {
+              const selected = selectedReasons.includes(reason);
+              return (
+                <ReasonChip key={reason} selected={selected} onClick={() => toggleReason(reason)}>
+                  {reason}
+                </ReasonChip>
+              );
+            })}
+          </div>
+
+          {selectedReasons.includes("Something else...") && (
+            <textarea
+              placeholder="Tell us more... (optional)"
+              value={customReason}
+              onChange={e => setCustomReason(e.target.value)}
+              style={textareaStyle}
+            />
+          )}
+
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+            <Btn
+              gradient="linear-gradient(135deg, #ee5a24, #ff6b6b)"
+              onClick={() => handleFeedbackSubmit(false)}
+              disabled={submitting || selectedReasons.length === 0}
+            >
+              {submitting ? "Sending..." : "Submit 📨"}
+            </Btn>
+            <Btn ghost onClick={() => setFeedbackState("idle")}>
+              ← Back
+            </Btn>
+          </div>
+        </div>
+      );
+    }
+
+    // Default: thumbs prompt
+    return (
+      <div style={feedbackBarStyle}>
+        <p style={{ margin: "0 0 0.65rem", fontWeight: "700", fontSize: "0.9rem", color: "#444", fontFamily }}>
+          💬 Was this review helpful so far?
+        </p>
+        <div style={{ display: "flex", gap: "0.75rem" }}>
+          <ThumbBtn
+            emoji="👍"
+            label="Yes!"
+            color="#4CAF50"
+            onClick={() => handleFeedbackSubmit(true)}
+            disabled={submitting}
+          />
+          <ThumbBtn
+            emoji="👎"
+            label="Not really"
+            color="#f44336"
+            onClick={() => setFeedbackState("not-helpful")}
+            disabled={submitting}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  // ── Step: dedicated Feedback page (reached via "Skip & give feedback") ──
   if (aiReviewStep === "feedback") {
-    // Submitted
+    // Already submitted (from bar or this page)
     if (feedbackState === "submitted") {
       return (
         <CenterCard>
@@ -115,7 +192,7 @@ export default function AIReviewPanel({
       );
     }
 
-    // Not helpful — reason picker
+    // Not helpful — reason picker (full page)
     if (feedbackState === "not-helpful") {
       return (
         <Wrap>
@@ -130,11 +207,7 @@ export default function AIReviewPanel({
               {NOT_HELPFUL_REASONS.map((reason) => {
                 const selected = selectedReasons.includes(reason);
                 return (
-                  <ReasonChip
-                    key={reason}
-                    selected={selected}
-                    onClick={() => toggleReason(reason)}
-                  >
+                  <ReasonChip key={reason} selected={selected} onClick={() => toggleReason(reason)}>
                     {reason}
                   </ReasonChip>
                 );
@@ -166,7 +239,7 @@ export default function AIReviewPanel({
       );
     }
 
-    // Default feedback prompt
+    // Default feedback prompt (full page)
     return (
       <CenterCard>
         <div style={{ fontSize: "3.5rem", marginBottom: "0.75rem" }}>💬</div>
@@ -238,6 +311,9 @@ export default function AIReviewPanel({
         <Btn ghost onClick={onBackToActivity} full>
           ← Back to Activity
         </Btn>
+
+        {/* ── Persistent feedback bar ── */}
+        <FeedbackBar />
       </Wrap>
     );
   }
@@ -303,6 +379,9 @@ export default function AIReviewPanel({
         <Btn gradient="linear-gradient(135deg, #4CAF50, #66BB6A)" onClick={() => { setAiReviewRevealedHints(0); onStartActivity(); }} full>
           Start Activity! 🎯
         </Btn>
+
+        {/* ── Persistent feedback bar ── */}
+        <FeedbackBar />
       </Wrap>
     );
   }
@@ -330,13 +409,26 @@ export default function AIReviewPanel({
           </div>
         </Card>
 
-        <Btn gradient="linear-gradient(135deg, #f093fb, #f5576c)" onClick={onStartAssessment} full>
+        <Btn
+          gradient="linear-gradient(135deg, #f093fb, #f5576c)"
+          onClick={() => {
+            onStartAssessment();
+            // After starting the quiz, transition to feedback step when done.
+            // The parent should call setAiReviewStep("feedback") on assessment completion.
+            // As a fallback, also expose it here via the skip button below.
+          }}
+          full
+        >
           Start Quiz! 📝
         </Btn>
-        {/* Skip goes to feedback, not directly back */}
+
+        {/* Skip goes directly to the feedback step */}
         <Btn ghost onClick={() => setAiReviewStep("feedback")} full>
           Skip &amp; give feedback
         </Btn>
+
+        {/* ── Persistent feedback bar (also visible here before starting quiz) ── */}
+        <FeedbackBar />
       </Wrap>
     );
   }
@@ -551,6 +643,14 @@ function Btn({ children, gradient, onClick, full, ghost, disabled }) {
     </button>
   );
 }
+
+const feedbackBarStyle = {
+  marginTop: "1rem",
+  background: "#f9f7ff",
+  border: "2px solid #e0d9ff",
+  borderRadius: "16px",
+  padding: "1rem 1.25rem",
+};
 
 const preStyle = {
   background: "#f4f4f4",

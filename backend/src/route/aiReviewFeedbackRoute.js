@@ -1,3 +1,6 @@
+// ══════════════════════════════════════════════════════════
+// route/aiReviewFeedbackRoute.js
+// ══════════════════════════════════════════════════════════
 import express from "express";
 import {
   submitReviewFeedback,
@@ -5,18 +8,13 @@ import {
   getAdminFeedbackSummary,
 } from "../controller/aiReviewFeedbackController.js";
 
-const router = express.Router();
+// ── Student router ─────────────────────────────────────────
+// Mounted at: POST /api/ai/review-feedback
+export const studentFeedbackRouter = express.Router();
+studentFeedbackRouter.post("/", submitReviewFeedback);
 
-// ── Student: submit feedback after a review session ──
-// POST /api/ai/review-feedback
-router.post("/", submitReviewFeedback);
-
-// ── Admin: paginated list of all feedback responses ──
-// GET /api/admin/ai-review-feedback?page=1&helpful=false&lessonId=...
-router.get("/", getAdminFeedbackList);
-
-// ── Admin: aggregated stats for the reports dashboard ──
-// GET /api/admin/ai-review-feedback/summary?days=30
-router.get("/summary", getAdminFeedbackSummary);
-
-export default router;
+// ── Admin router ───────────────────────────────────────────
+// Mounted at: /api/admin/ai-review-feedback  (protected by adminAuth in server.js)
+export const adminFeedbackRouter = express.Router();
+adminFeedbackRouter.get("/",        getAdminFeedbackList);
+adminFeedbackRouter.get("/summary", getAdminFeedbackSummary);
