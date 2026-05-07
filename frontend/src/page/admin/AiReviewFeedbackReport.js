@@ -20,7 +20,7 @@ const pct = (n, t) => (t ? Math.round((n / t) * 100) : 0);
 const fmt  = (d) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
 // ── Mock fetch (replace with real API calls) ──────────────────────────────────
-const API_BASE = "/api/admin/ai-review-feedback";
+const API_BASE = "https://little-coders-backend.onrender.com/api/admin/ai-review-feedback";
 
 async function fetchSummary(days) {
   const res = await fetch(`${API_BASE}/summary?days=${days}`);
