@@ -55,33 +55,52 @@ export const getAdminFeedbackList = async (req, res) => {
     const {
       page        = 1,
       limit       = 20,
-      helpful,          // "true" | "false" | undefined
+      helpful,        // "true" | "false" | "all" | undefined
       lessonId,
-      missingType,      // filter by a single block type
+      missingType,    // filter by a single block type
     } = req.query;
 
     const filter = {};
-    if (helpful !== undefined)  filter.helpful      = helpful === "true";
-    if (missingType)            filter.missingTypes  = missingType; // MongoDB matches array element
+
+    // FIX: only set helpful filter when it's explicitly "true" or "false"
+    // Previously "all" was not undefined so it set helpful=false incorrectly,
+    // causing wrong results and potential 500s
+    if (helpful === "true")  filter.helpful = true;
+    if (helpful === "false") filter.helpful = false;
+
+    if (missingType) filter.missingTypes = missingType;
 
     // Validate lessonId before querying — avoids Mongoose CastError 500
     if (lessonId) {
       if (!mongoose.Types.ObjectId.isValid(lessonId)) {
         return res.status(400).json({ message: "Invalid lessonId" });
       }
-      filter.lessonId = lessonId;
+      filter.lessonId = new mongoose.Types.ObjectId(lessonId);
     }
 
     const skip  = (Number(page) - 1) * Number(limit);
     const total = await AIReviewFeedback.countDocuments(filter);
 
-    const items = await AIReviewFeedback.find(filter)
-      .populate("userId",   "name email")
-      .populate("lessonId", "title")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(Number(limit))
-      .lean();
+    // FIX: wrap populate in try/catch separately so a missing User or Lesson
+    // model doesn't crash the whole request — it just returns null for those fields
+    let items = [];
+    try {
+      items = await AIReviewFeedback.find(filter)
+        .populate("userId",   "name email")
+        .populate("lessonId", "title")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .lean();
+    } catch (populateErr) {
+      console.error("⚠️ Populate failed, falling back to raw query:", populateErr.message);
+      // Fallback: return items without populated fields
+      items = await AIReviewFeedback.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .lean();
+    }
 
     return res.status(200).json({
       total,
@@ -133,8 +152,6 @@ export const getAdminFeedbackSummary = async (req, res) => {
           as:           "lesson",
         },
       },
-      // FIX: was "preserveNullAndEmpty" (invalid) — correct option is "preserveNullAndEmptyArrays"
-      // Without this fix, lessons with a deleted/missing Lesson doc are silently dropped
       { $unwind: { path: "$lesson", preserveNullAndEmptyArrays: true } },
       { $project: { lessonTitle: "$lesson.title", notHelpfulCount: 1 } },
     ]);
