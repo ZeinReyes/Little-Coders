@@ -36,7 +36,7 @@ import EditActivity from "./page/admin/editActivity";
 import AddAssessment from "./page/admin/addAssessment";
 import ManageAssessment from "./page/admin/manageAssessment";
 import EditAssessment from "./page/admin/editAssessment";
-import AiReviewFeedbackReport from "./page/admin/aiReviewFeedbackReport";
+import AiReviewFeedbackReport from "./page/admin/AiReviewFeedbackReport";
 
 // Others
 import "bootstrap/dist/css/bootstrap.min.css";
