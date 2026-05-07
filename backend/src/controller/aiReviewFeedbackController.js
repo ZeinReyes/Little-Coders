@@ -4,6 +4,11 @@
 import mongoose from "mongoose";
 import AIReviewFeedback from "../model/AiReviewFeedback.js";
 
+// These imports are required so Mongoose registers the User and Lesson models
+// before .populate() runs. Without them, populate silently returns null.
+import "../model/User.js";
+import "../model/Lesson.js";
+
 // ─────────────────────────────────────────────
 // POST /api/ai/review-feedback
 // Called by the student after the review session
