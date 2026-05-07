@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════════════════
 // controllers/aiReviewFeedbackController.js
 // ══════════════════════════════════════════════════════════
-import AIReviewFeedback from "../model/AIReviewFeedback.js";
+import AIReviewFeedback from "../model/AiReviewFeedback.js";
  
 // ─────────────────────────────────────────────
 // POST /api/ai/review-feedback
