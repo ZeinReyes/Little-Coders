@@ -5,7 +5,7 @@ import mongoose from "mongoose";
 
 const AIReviewFeedbackSchema = new mongoose.Schema(
   {
-    userId:       { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    userId:       { type: mongoose.Schema.Types.ObjectId, ref: "users", required: true },
     lessonId:     { type: mongoose.Schema.Types.ObjectId, ref: "Lesson", required: true },
     missingTypes: { type: [String], default: [] },       // e.g. ["if", "while"]
     helpful:      { type: Boolean, required: true },      // thumbs up / down
