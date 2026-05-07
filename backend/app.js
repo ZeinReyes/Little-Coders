@@ -33,7 +33,7 @@ import {
 
 // FIX: admin routes need auth protection — import your existing admin middleware.
 // Replace this with whatever middleware you already use for admin-only routes.
-import { adminAuth } from "./src/middleware/adminAuth.js";
+import { adminOnly } from "./src/middleware/auth.js";
 
 app.use("/api/auth",                    authRoute);
 app.use("/api/users",                   userRoute);
@@ -49,9 +49,9 @@ app.use("/api/ai",                      aiRoute);
 app.use("/api/ai/review-feedback",      studentFeedbackRouter);
 
 // Admin: GET /api/admin/ai-review-feedback  +  GET /api/admin/ai-review-feedback/summary
-// Protected by adminAuth — unauthenticated or non-admin requests are rejected before
+// Protected by adminOnly middleware — unauthenticated or non-admin requests are rejected before
 // they reach the controller.
-app.use("/api/admin/ai-review-feedback", adminAuth, adminFeedbackRouter);
+app.use("/api/admin/ai-review-feedback", adminOnly, adminFeedbackRouter);
 
 // ── MongoDB ─────────────────────────────────────────────────────────────────
 mongoose
