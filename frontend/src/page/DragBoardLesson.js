@@ -109,6 +109,9 @@ const clearWhiteboard = () => {
   if (code) code.textContent = "/* Build expressions on the whiteboard */";
 };
 
+// ── Backend base URL ───────────────────────────────────────────────────────────
+const API_BASE = "https://little-coders-backend.onrender.com";
+
 // ══════════════════════════════════════════════════════════════════════════════
 export default function DragBoardLesson() {
   const { lessonId, itemId } = useParams();
@@ -685,7 +688,7 @@ export default function DragBoardLesson() {
     try {
       const token      = localStorage.getItem("token");
       const res        = await fetch(
-        `https://little-coders-backend.onrender.com/api/activities/materials/${itemId}/activities`,
+        `${API_BASE}/api/activities/materials/${itemId}/activities`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const activities = await res.json();
@@ -719,7 +722,7 @@ export default function DragBoardLesson() {
       try {
         const token      = localStorage.getItem("token");
         const res        = await fetch(
-          `https://little-coders-backend.onrender.com/api/activities/materials/${itemId}/activities`,
+          `${API_BASE}/api/activities/materials/${itemId}/activities`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const activities = await res.json();
@@ -778,24 +781,22 @@ export default function DragBoardLesson() {
     setQuestionStartTime(Date.now());
   };
 
-  // ── FIX: Submit feedback to the backend ───────────────────────────────────
-  // Previously onSubmitFeedback was never passed to AIReviewPanel — the prop
-  // was undefined so feedback was silently discarded.
+  // ── Submit feedback to the backend ────────────────────────────────────────
   const handleSubmitFeedback = async (payload) => {
     const token = localStorage.getItem("token");
-    const res   = await fetch("/api/ai/review-feedback", {
+    const res   = await fetch(`${API_BASE}/api/ai/review-feedback`, {
       method:  "POST",
       headers: {
-        "Content-Type":  "application/json",
-        Authorization:   `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Authorization:  `Bearer ${token}`,
       },
       body: JSON.stringify({
-        userId:      user?._id || user?.id,
-        lessonId:    payload.lessonId || lessonId,
+        userId:       user?._id || user?.id,
+        lessonId:     payload.lessonId || lessonId,
         missingTypes: payload.missingTypes || [],
-        helpful:     payload.helpful,
-        reasons:     payload.reasons || [],
-        sessionId:   payload.sessionId,
+        helpful:      payload.helpful,
+        reasons:      payload.reasons || [],
+        sessionId:    payload.sessionId,
       }),
     });
     if (!res.ok) {
@@ -805,11 +806,7 @@ export default function DragBoardLesson() {
     return res.json();
   };
 
-  // ── FIX: Congrats close ────────────────────────────────────────────────────
-  // Was: after AI review assessment finishes → goes back to panel at "assessment" step
-  //      (student sees the quiz preview again, never gets to leave feedback)
-  // Now: after AI review activity finishes → show assessment step on panel
-  //      after AI review assessment finishes → show FEEDBACK step on panel
+  // ── Congrats close ────────────────────────────────────────────────────────
   const handleCongratsClose = () => {
     setShowCongratsModal(false);
 
@@ -865,7 +862,6 @@ export default function DragBoardLesson() {
         onStartAssessment={handleStartAIAssessment}
         onBackToActivity={() => { setShowAIReviewPanel(false); setAiReviewData(null); }}
         onSkip={() => navigate(`/lessons/${lessonId}`)}
-        // FIX: was missing entirely — feedback submissions were silently dropped
         onSubmitFeedback={handleSubmitFeedback}
       />
     );
