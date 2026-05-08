@@ -23,6 +23,7 @@ import assessmentRoute       from "./src/route/assessmentRoute.js";
 import lessonProgressRoutes  from "./src/route/lessonProgressRoute.js";
 import contactRoute          from "./src/route/contactRoute.js";
 import aiRoute               from "./src/route/aiRoute.js";
+import ttsRoute from "./src/route/tts.js";
 
 import {
   studentFeedbackRouter,
@@ -42,7 +43,7 @@ app.use("/api/activities",              activityRoute);
 app.use("/api/assessments",             assessmentRoute);
 app.use("/api/progress",                lessonProgressRoutes);
 app.use("/api/contact",                 contactRoute);
-app.use("/api", require("./src/route/tts"));
+app.use("/api", ttsRoute);
 
 // Student: POST /api/ai/review-feedback
 app.use("/api/ai/review-feedback",      studentFeedbackRouter);
