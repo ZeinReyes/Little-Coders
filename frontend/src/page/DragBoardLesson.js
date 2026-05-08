@@ -319,7 +319,7 @@ export default function DragBoardLesson() {
         return;
       }
 
-      const audioBlob = await response.blob();
+      const audioBlob = new Blob([await response.arrayBuffer()], { type: "audio/wav" });
       const audioUrl  = URL.createObjectURL(audioBlob);
       const audio     = new Audio(audioUrl);
       currentAudioRef.current = audio;
