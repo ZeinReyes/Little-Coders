@@ -5,6 +5,8 @@ import { verifyToken } from "../middleware/auth.js"; // adjust path if different
 const router = express.Router();
 
 router.post("/tts", verifyToken, async (req, res) => {
+  console.log("VOICE_ID:", process.env.ELEVENLABS_VOICE_ID);
+  console.log("API_KEY:", process.env.ELEVENLABS_API_KEY ? "loaded ✅" : "MISSING ❌");
   const { text } = req.body;
   if (!text || typeof text !== "string" || !text.trim())
     return res.status(400).json({ message: "text is required" });
