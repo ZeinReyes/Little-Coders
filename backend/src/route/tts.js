@@ -16,59 +16,61 @@ router.post("/tts", verifyToken, async (req, res) => {
     }
 
     // Environment variables
-    const VOICE_ID =
-      process.env.ELEVENLABS_VOICE_ID ||
-      "IKne3meq5aSn9XLyUdCD";
-
-    const API_KEY = process.env.ELEVENLABS_API_KEY;
+    const API_KEY = process.env.FISH_AUDIO_API_KEY;
+    const VOICE_ID = process.env.FISH_AUDIO_VOICE_ID;
 
     // Debug logs
-    console.log("VOICE_ID:", VOICE_ID);
-
     console.log(
-      "ELEVENLABS_API_KEY:",
+      "FISH_AUDIO_API_KEY:",
       API_KEY ? "loaded ✅" : "MISSING ❌"
     );
+
+    console.log("FISH_AUDIO_VOICE_ID:", VOICE_ID);
 
     // Prevent request if API key missing
     if (!API_KEY) {
       return res.status(500).json({
-        message: "Missing ElevenLabs API key",
+        message: "Missing Fish Audio API key",
       });
     }
 
-    // Request to ElevenLabs
+    // Prevent request if voice id missing
+    if (!VOICE_ID) {
+      return res.status(500).json({
+        message: "Missing Fish Audio Voice ID",
+      });
+    }
+
+    // Request to Fish Audio
     const upstream = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
+      "https://api.fish.audio/v1/tts",
       {
         method: "POST",
         headers: {
-          "xi-api-key": API_KEY,
+          Authorization: `Bearer ${API_KEY}`,
           "Content-Type": "application/json",
           Accept: "audio/mpeg",
         },
+
         body: JSON.stringify({
           text: text.trim(),
 
-          // More stable model
-          model_id: "eleven_multilingual_v2",
+          // Your cloned/custom voice
+          voice_id: VOICE_ID,
 
-          voice_settings: {
-            stability: 0.75,
-            similarity_boost: 0.85,
-            style: 0.4,
-            use_speaker_boost: true,
-          },
+          // Optional settings
+          format: "mp3",
+          speed: 1,
         }),
       }
     );
 
-    // Handle ElevenLabs errors
+    // Handle Fish Audio errors
     if (!upstream.ok) {
       const errText = await upstream.text();
 
       console.error(
-        "ElevenLabs API Error:",
+        "Fish Audio API Error:",
         errText
       );
 
@@ -78,7 +80,7 @@ router.post("/tts", verifyToken, async (req, res) => {
       });
     }
 
-    // Convert audio stream to buffer
+    // Convert audio response to buffer
     const audioBuffer = Buffer.from(
       await upstream.arrayBuffer()
     );
