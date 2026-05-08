@@ -39,7 +39,7 @@ errorSound.preload = 'auto';
 
 // --- Lesson sound ---
 const lessonSound = new Audio('/assets/sounds/lesson.mp3');
-lessonSound.volume = 0.6;
+lessonSound.volume = 0.1;
 lessonSound.preload = 'auto';
 lessonSound.loop = true;
 
