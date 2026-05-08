@@ -1,5 +1,5 @@
 // src/component/DragBoardLesson.js
-import React, { useEffect, useState, useContext, useRef } from "react";
+import React, { useEffect, useState, useContext, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Spinner } from "react-bootstrap";
 import { AuthContext } from "../context/authContext";
@@ -112,6 +112,21 @@ const clearWhiteboard = () => {
 // ── Backend base URL ───────────────────────────────────────────────────────────
 const API_BASE = "https://little-coders-backend.onrender.com";
 
+// ── TTS: strip HTML to plain readable text ────────────────────────────────────
+/**
+ * Converts HTML content to plain text safe for speech synthesis.
+ * Inserts spaces after block elements so words do not run together.
+ */
+const htmlToPlainText = (html) => {
+  if (!html) return "";
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  tmp.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6, br, div").forEach((el) => {
+    el.insertAdjacentText("afterend", " ");
+  });
+  return (tmp.innerText || tmp.textContent || "").replace(/\s+/g, " ").trim();
+};
+
 // ══════════════════════════════════════════════════════════════════════════════
 export default function DragBoardLesson() {
   const { lessonId, itemId } = useParams();
@@ -152,6 +167,16 @@ export default function DragBoardLesson() {
 
   // ── Persisted timer seconds (restored from sessionStorage on refresh) ──
   const [restoredTimerSeconds, setRestoredTimerSeconds] = useState(null);
+
+  // ── TTS state ──────────────────────────────────────────────────────────────
+  // ttsEnabled    : whether the user wants narration on/off
+  // ttsSpeaking   : true while audio is actively playing
+  // ttsEnabledRef : ref mirror so async callbacks always read current value
+  // currentAudioRef : holds the active HTMLAudioElement so we can stop it
+  const [ttsEnabled,  setTtsEnabled]  = useState(true);
+  const [ttsSpeaking, setTtsSpeaking] = useState(false);
+  const ttsEnabledRef   = useRef(true);
+  const currentAudioRef = useRef(null);
 
   // ── Progress tracking ──
   const { markCompleted, recordAssessmentAttempt, recordActivityAttempt } =
@@ -225,6 +250,173 @@ export default function DragBoardLesson() {
   useEffect(() => { questionHistoryRef.current          = questionHistory; },      [questionHistory]);
   useEffect(() => { lessonStartTimeRef.current          = lessonStartTime; },      [lessonStartTime]);
   useEffect(() => { remainingSecondsRef.current         = remainingSeconds; },     [remainingSeconds]);
+
+  // Keep ttsEnabled ref in sync with state so async fetch callbacks read the right value
+  useEffect(() => { ttsEnabledRef.current = ttsEnabled; }, [ttsEnabled]);
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // ── ElevenLabs TTS helpers ────────────────────────────────────────────────────
+  //
+  //  Voice: "Charlie"  (IKne3meq5aSn9XLyUdCD) — warm, soft, patient male.
+  //  The API key is stored in your backend .env as ELEVENLABS_API_KEY.
+  //  The backend exposes POST /api/tts which proxies to ElevenLabs and
+  //  streams back the audio — see the backend snippet at the bottom of this file.
+  //
+  //  To change the voice, update ELEVENLABS_VOICE_ID in your backend .env.
+  //  Other great options:
+  //    Liam   TX3LPaxmHKxFdv7VOQHJ  gentle, clear
+  //    Brian  nPczCjzI2devNBz1zQrb  calm, warm, deep
+  //    Will   bIHbv24MWmeRgasZH58o  soft, friendly
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Stop whatever is currently playing and clear speaking state.
+   */
+  const ttsStop = useCallback(() => {
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current.src = "";
+      currentAudioRef.current = null;
+    }
+    setTtsSpeaking(false);
+  }, []);
+
+  /**
+   * Convert HTML to speech via the backend /api/tts proxy.
+   * Cancels any currently playing audio first.
+   */
+  const ttsSpeak = useCallback(async (html) => {
+    // Stop anything already playing
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current.src = "";
+      currentAudioRef.current = null;
+    }
+    setTtsSpeaking(false);
+
+    if (!ttsEnabledRef.current || !html) return;
+
+    const text = htmlToPlainText(html);
+    if (!text) return;
+
+    try {
+      setTtsSpeaking(true);
+
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(`${API_BASE}/api/tts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization:  `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        console.error("TTS request failed:", response.status);
+        setTtsSpeaking(false);
+        return;
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl  = URL.createObjectURL(audioBlob);
+      const audio     = new Audio(audioUrl);
+      currentAudioRef.current = audio;
+
+      audio.onended = () => {
+        setTtsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+        currentAudioRef.current = null;
+      };
+      audio.onerror = () => {
+        setTtsSpeaking(false);
+        URL.revokeObjectURL(audioUrl);
+        currentAudioRef.current = null;
+      };
+
+      // Guard: user may have toggled off while the fetch was in flight
+      if (ttsEnabledRef.current) {
+        audio.play().catch((err) => {
+          console.warn("TTS autoplay blocked:", err);
+          setTtsSpeaking(false);
+        });
+      } else {
+        URL.revokeObjectURL(audioUrl);
+        currentAudioRef.current = null;
+        setTtsSpeaking(false);
+      }
+    } catch (err) {
+      console.error("TTS error:", err);
+      setTtsSpeaking(false);
+    }
+  }, []);
+
+  /**
+   * Toggle narration on/off.
+   * Turning off stops audio immediately.
+   * Turning on re-reads the current lesson slide.
+   */
+  const ttsToggle = useCallback(() => {
+    const next = !ttsEnabledRef.current;
+    ttsEnabledRef.current = next;
+    setTtsEnabled(next);
+
+    if (!next) {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.src = "";
+        currentAudioRef.current = null;
+      }
+      setTtsSpeaking(false);
+    } else {
+      const l = lessonRef.current;
+      if (l?.type === "lesson") {
+        const html =
+          l.currentContentIndex === 0
+            ? l.overview || ""
+            : l.contents[l.currentContentIndex - 1] || "";
+        ttsSpeak(html);
+      }
+    }
+  }, [ttsSpeak]);
+
+  // ── Auto-speak when the lesson slide changes ──────────────────────────────
+  useEffect(() => {
+    if (!lesson || lesson.type !== "lesson" || !showLessonModal) return;
+
+    const html =
+      lesson.currentContentIndex === 0
+        ? lesson.overview || ""
+        : lesson.contents[lesson.currentContentIndex - 1] || "";
+
+    ttsSpeak(html);
+
+    return () => {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.src = "";
+        currentAudioRef.current = null;
+      }
+      setTtsSpeaking(false);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson?.currentContentIndex, showLessonModal, lesson?.type]);
+
+  // ── Stop TTS when the lesson modal closes ─────────────────────────────────
+  useEffect(() => {
+    if (!showLessonModal) ttsStop();
+  }, [showLessonModal, ttsStop]);
+
+  // ── Stop TTS on unmount ───────────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.src = "";
+      }
+    };
+  }, []);
 
   // ── Restore assessment session ─────────────────────────────────────────────
   useEffect(() => {
@@ -346,7 +538,7 @@ export default function DragBoardLesson() {
 
   // ── Drag & drop + run button wiring ───────────────────────────────────────
   useEffect(() => {
-    let cleanup  = null;
+    let cleanup   = null;
     let cancelled = false;
 
     const init = () => {
@@ -508,10 +700,10 @@ export default function DragBoardLesson() {
           if (attempts >= 3) {
             if (!currentLesson.isAIReview) handleAIDecision("yes");
 
-            const required     = question.dataTypesRequired || [];
-            const getLabel     = (dt) => typeof dt === "object" ? (dt.type ?? dt.name ?? "") : dt;
-            const getMin       = (dt) => typeof dt === "object" ? (dt.min ?? 1) : 1;
-            const missingThis  = result.missingNodes || [];
+            const required    = question.dataTypesRequired || [];
+            const getLabel    = (dt) => typeof dt === "object" ? (dt.type ?? dt.name ?? "") : dt;
+            const getMin      = (dt) => typeof dt === "object" ? (dt.min ?? 1) : 1;
+            const missingThis = result.missingNodes || [];
 
             const notEnoughTypes = required.filter((dt) => {
               const label = getLabel(dt); const min = getMin(dt);
@@ -651,7 +843,7 @@ export default function DragBoardLesson() {
       const onRun = async () => {
         const currentLesson = lessonRef.current;
         if (!currentLesson) return;
-        if (currentLesson.type === "assessment")   await handleAssessmentRun();
+        if (currentLesson.type === "assessment")    await handleAssessmentRun();
         else if (currentLesson.type === "activity") await handleActivityRun();
       };
 
@@ -678,6 +870,8 @@ export default function DragBoardLesson() {
 
   // ── Lesson navigation ──────────────────────────────────────────────────────
   const handleNextContent = async () => {
+    ttsStop();
+
     if (lesson?.type === "lesson" && lesson.currentContentIndex < lesson.contents.length) {
       setLesson((prev) => ({ ...prev, currentContentIndex: prev.currentContentIndex + 1 }));
       return;
@@ -709,6 +903,7 @@ export default function DragBoardLesson() {
   };
 
   const handlePreviousContent = () => {
+    ttsStop();
     if (lesson?.type === "lesson" && lesson.currentContentIndex > 0)
       setLesson((prev) => ({ ...prev, currentContentIndex: prev.currentContentIndex - 1 }));
   };
@@ -745,6 +940,7 @@ export default function DragBoardLesson() {
   const handleStartAIActivity = () => {
     const activity = aiReviewData?.reviewContent?.activity;
     if (!activity) return;
+    ttsStop();
     clearWhiteboard();
     setShowAIReviewPanel(false);
     setShowCongratsModal(false);
@@ -762,6 +958,7 @@ export default function DragBoardLesson() {
   const handleStartAIAssessment = () => {
     const qs = aiReviewData?.reviewContent?.assessmentQuestions || [];
     if (!qs.length) return;
+    ttsStop();
     const pool          = [...qs];
     const firstQuestion = pool.splice(0, 1)[0];
     setShowAIReviewPanel(false);
@@ -812,12 +1009,9 @@ export default function DragBoardLesson() {
 
     if (lesson?.isAIReview) {
       setShowAIReviewPanel(true);
-
       if (lesson?.type === "activity" && aiReviewData?.reviewContent?.assessmentQuestions) {
-        // Activity done → move to the quiz preview
         setAiReviewStep("assessment");
       } else {
-        // Assessment done → move to feedback so the student can rate the session
         setAiReviewStep("feedback");
       }
     } else {
@@ -909,7 +1103,85 @@ export default function DragBoardLesson() {
         assessmentAnswer={assessmentAnswer}
         onAnswerClose={() => { setShowAnswerModal(false); navigate(`/lessons/${lessonId}`); }}
         characterImg={characterImg}
+        // ── TTS props ──
+        ttsEnabled={ttsEnabled}
+        ttsSpeaking={ttsSpeaking}
+        onTtsToggle={ttsToggle}
+        onTtsStop={ttsStop}
       />
     </div>
   );
 }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  BACKEND ROUTE  —  paste this into your Express backend
+//
+//  1. Add to your backend .env:
+//       ELEVENLABS_API_KEY=your_api_key_here
+//       ELEVENLABS_VOICE_ID=IKne3meq5aSn9XLyUdCD
+//
+//     Voice ID options (all soft male, great for children):
+//       IKne3meq5aSn9XLyUdCD  Charlie — warm, patient  ← default
+//       TX3LPaxmHKxFdv7VOQHJ  Liam    — gentle, clear
+//       nPczCjzI2devNBz1zQrb  Brian   — calm, deep
+//       bIHbv24MWmeRgasZH58o  Will    — soft, friendly
+//
+//  2. Create  routes/tts.js  with the code below and mount it:
+//       app.use("/api", require("./routes/tts"));
+//
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//
+//  const express = require("express");
+//  const router  = express.Router();
+//  const fetch   = require("node-fetch"); // npm i node-fetch@2  (or use axios)
+//  const { verifyToken } = require("../middleware/auth"); // your existing auth middleware
+//
+//  router.post("/tts", verifyToken, async (req, res) => {
+//    const { text } = req.body;
+//    if (!text || typeof text !== "string" || !text.trim())
+//      return res.status(400).json({ message: "text is required" });
+//
+//    const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "IKne3meq5aSn9XLyUdCD";
+//    const API_KEY  = process.env.ELEVENLABS_API_KEY;
+//
+//    try {
+//      const upstream = await fetch(
+//        `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}/stream`,
+//        {
+//          method:  "POST",
+//          headers: {
+//            "xi-api-key":   API_KEY,
+//            "Content-Type": "application/json",
+//            "Accept":       "audio/mpeg",
+//          },
+//          body: JSON.stringify({
+//            text: text.trim(),
+//            model_id: "eleven_turbo_v2",
+//            voice_settings: {
+//              stability:         0.75,
+//              similarity_boost:  0.85,
+//              style:             0.40,
+//              use_speaker_boost: true,
+//            },
+//          }),
+//        }
+//      );
+//
+//      if (!upstream.ok) {
+//        const err = await upstream.text();
+//        console.error("ElevenLabs error:", err);
+//        return res.status(502).json({ message: "TTS service error" });
+//      }
+//
+//      res.setHeader("Content-Type", "audio/mpeg");
+//      res.setHeader("Cache-Control", "no-store");
+//      upstream.body.pipe(res);   // stream audio straight to the browser
+//    } catch (err) {
+//      console.error("TTS route error:", err);
+//      res.status(500).json({ message: "Internal server error" });
+//    }
+//  });
+//
+//  module.exports = router;
+//
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

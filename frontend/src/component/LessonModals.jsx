@@ -4,10 +4,16 @@ import { Modal, Button } from "react-bootstrap";
 /**
  * LessonModals
  * Bundles the four Bootstrap modals used in DragBoardLesson:
- *   1. LessonModal       — slides through lesson content
+ *   1. LessonModal       — slides through lesson content (with TTS)
  *   2. ActivityModal     — "thinking / solving" intro before the activity
  *   3. CongratsModal     — shown on success
  *   4. AnswerModal       — reveals the answer after max attempts
+ *
+ * TTS props:
+ *   ttsEnabled   {boolean}  — whether narration is on
+ *   ttsSpeaking  {boolean}  — true while the browser is reading aloud
+ *   onTtsToggle  {function} — called when the user clicks the 🔊/🔇 button
+ *   onTtsStop    {function} — called when the user clicks the ⏹ button
  */
 export default function LessonModals({
   // Lesson modal
@@ -34,8 +40,18 @@ export default function LessonModals({
 
   // Character image (shared)
   characterImg,
+
+  // TTS props
+  ttsEnabled  = true,
+  ttsSpeaking = false,
+  onTtsToggle = () => {},
+  onTtsStop   = () => {},
 }) {
   const isLesson = lesson?.type === "lesson";
+
+  // Total slide count: overview (index 0) + contents
+  const totalSlides = lesson ? (lesson.contents?.length ?? 0) + 1 : 1;
+  const currentSlide = lesson?.currentContentIndex ?? 0;
 
   return (
     <>
@@ -48,23 +64,103 @@ export default function LessonModals({
           size="lg"
         >
           <Modal.Header className="lmjsx-header-lesson">
-            <Modal.Title className="lmjsx-title">
-              <span className="lmjsx-spin-star">⭐</span>
-              {lesson.title}
-              <span className="lmjsx-spin-star">⭐</span>
-            </Modal.Title>
+            {/* Title row */}
+            <div className="lmjsx-header-inner">
+              <Modal.Title className="lmjsx-title">
+                <span className="lmjsx-spin-star">⭐</span>
+                {lesson.title}
+                <span className="lmjsx-spin-star">⭐</span>
+              </Modal.Title>
+
+              {/* ── TTS controls ── */}
+              <div className="lmjsx-tts-controls">
+                {/* Speaking pulse indicator */}
+                {ttsSpeaking && (
+                  <div className="lmjsx-tts-speaking" title="Reading aloud…">
+                    <span className="lmjsx-tts-bar" style={{ animationDelay: "0s" }}   />
+                    <span className="lmjsx-tts-bar" style={{ animationDelay: "0.15s" }} />
+                    <span className="lmjsx-tts-bar" style={{ animationDelay: "0.3s" }}  />
+                    <span className="lmjsx-tts-bar" style={{ animationDelay: "0.45s" }} />
+                  </div>
+                )}
+
+                {/* Stop button — only shown while speaking */}
+                {ttsSpeaking && (
+                  <button
+                    className="lmjsx-tts-btn lmjsx-tts-stop"
+                    onClick={onTtsStop}
+                    title="Stop reading"
+                  >
+                    ⏹
+                  </button>
+                )}
+
+                {/* Toggle mute/unmute */}
+                <button
+                  className={`lmjsx-tts-btn ${ttsEnabled ? "lmjsx-tts-on" : "lmjsx-tts-off"}`}
+                  onClick={onTtsToggle}
+                  title={ttsEnabled ? "Turn off narration" : "Turn on narration"}
+                >
+                  {ttsEnabled ? "🔊" : "🔇"}
+                </button>
+              </div>
+            </div>
+
+            {/* Slide progress bar */}
+            <div className="lmjsx-progress-bar-track">
+              <div
+                className="lmjsx-progress-bar-fill"
+                style={{ width: `${((currentSlide + 1) / totalSlides) * 100}%` }}
+              />
+            </div>
           </Modal.Header>
 
           <Modal.Body
             key={lesson.currentContentIndex}
             className="lmjsx-body-lesson"
           >
+            {/* TTS status banner */}
+            {ttsEnabled && (
+              <div className={`lmjsx-tts-banner ${ttsSpeaking ? "lmjsx-tts-banner--active" : "lmjsx-tts-banner--idle"}`}>
+                {ttsSpeaking ? (
+                  <>
+                    <span className="lmjsx-tts-banner-icon">🎙️</span>
+                    <span>Reading aloud… follow along!</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="lmjsx-tts-banner-icon">🔊</span>
+                    <span>Narration is on — it will read each slide for you!</span>
+                  </>
+                )}
+              </div>
+            )}
+
+            {!ttsEnabled && (
+              <div className="lmjsx-tts-banner lmjsx-tts-banner--muted">
+                <span className="lmjsx-tts-banner-icon">🔇</span>
+                <span>Narration is off. Press 🔊 in the header to turn it on.</span>
+              </div>
+            )}
+
             <div className="lmjsx-content-card">
+              {/* Highlight overlay shimmer while speaking */}
+              {ttsSpeaking && <div className="lmjsx-reading-shimmer" />}
               <div className="typing-container">{renderLessonContent()}</div>
+            </div>
+
+            {/* Slide counter dots */}
+            <div className="lmjsx-dot-row">
+              {Array.from({ length: totalSlides }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`lmjsx-dot ${i === currentSlide ? "lmjsx-dot--active" : ""}`}
+                />
+              ))}
             </div>
           </Modal.Body>
 
-          <Modal.Footer className="lmjsx-footer-lesson d-flex justify-content-between">
+          <Modal.Footer className="lmjsx-footer-lesson d-flex justify-content-between align-items-center">
             <Button
               className="lmjsx-btn lmjsx-btn-blue"
               onClick={onPreviousContent}
@@ -72,6 +168,12 @@ export default function LessonModals({
             >
               ◀ Back
             </Button>
+
+            {/* Slide counter text */}
+            <span className="lmjsx-slide-counter">
+              {currentSlide + 1} / {totalSlides}
+            </span>
+
             <Button className="lmjsx-btn lmjsx-btn-orange" onClick={onNextContent}>
               {lesson.currentContentIndex >= lesson.contents.length
                 ? "🏁 Finish!"
@@ -386,16 +488,8 @@ export default function LessonModals({
 
         /* ════════════════════════════════════════════════
            TYPING ANIMATIONS
-           typing-container : used for rich/HTML lesson content
-                              fades in lines one by one using
-                              a staggered opacity reveal so it
-                              works with any content length.
-           typing-line      : used for the single activity text
-                              line — slides in from left with a
-                              blinking caret, works on one line.
          ════════════════════════════════════════════════ */
 
-        /* --- typing-container (multi-line HTML content) --- */
         .typing-container {
           display: block;
           animation: lmjsxFadeReveal 0.8s ease forwards;
@@ -406,7 +500,6 @@ export default function LessonModals({
           100% { opacity: 1; transform: translateY(0); }
         }
 
-        /* --- typing-line (single short line with caret) --- */
         .typing-line {
           display: inline-block;
           overflow: hidden;
@@ -428,16 +521,194 @@ export default function LessonModals({
           51%, 100%{ border-right-color: transparent; }
         }
 
+        /* ════════════════════════════════════════════════
+           TTS CONTROLS
+         ════════════════════════════════════════════════ */
+
+        /* Header layout */
+        .lmjsx-header-inner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+          gap: 8px;
+        }
+
+        /* TTS button group */
+        .lmjsx-tts-controls {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-shrink: 0;
+        }
+
+        /* Individual TTS button */
+        .lmjsx-tts-btn {
+          background: rgba(255,255,255,0.55);
+          border: 2px solid rgba(74,46,5,0.18);
+          border-radius: 50px;
+          padding: 4px 13px;
+          font-size: 1.15rem;
+          cursor: pointer;
+          font-family: 'Comic Sans MS', cursive;
+          transition: background 0.2s, transform 0.15s;
+          line-height: 1;
+        }
+        .lmjsx-tts-btn:hover {
+          background: rgba(255,255,255,0.9);
+          transform: scale(1.1);
+        }
+        .lmjsx-tts-btn.lmjsx-tts-off {
+          opacity: 0.7;
+        }
+        .lmjsx-tts-stop {
+          background: rgba(255,100,100,0.25);
+          border-color: rgba(200,50,50,0.35);
+        }
+        .lmjsx-tts-stop:hover {
+          background: rgba(255,100,100,0.55);
+        }
+
+        /* Speaking bars (animated equaliser) */
+        .lmjsx-tts-speaking {
+          display: flex;
+          align-items: flex-end;
+          gap: 3px;
+          height: 22px;
+          padding: 2px 4px;
+          background: rgba(255,255,255,0.45);
+          border-radius: 30px;
+          border: 2px solid rgba(74,46,5,0.15);
+        }
+        .lmjsx-tts-bar {
+          display: inline-block;
+          width: 4px;
+          border-radius: 3px;
+          background: #4A2E05;
+          animation: lmjsxBarBounce 0.6s ease-in-out infinite alternate;
+        }
+        .lmjsx-tts-bar:nth-child(1) { height: 8px;  }
+        .lmjsx-tts-bar:nth-child(2) { height: 14px; }
+        .lmjsx-tts-bar:nth-child(3) { height: 10px; }
+        .lmjsx-tts-bar:nth-child(4) { height: 16px; }
+        @keyframes lmjsxBarBounce {
+          from { transform: scaleY(0.4); opacity: 0.7; }
+          to   { transform: scaleY(1.0); opacity: 1;   }
+        }
+
+        /* Progress bar under header */
+        .lmjsx-progress-bar-track {
+          width: 100%;
+          height: 6px;
+          background: rgba(255,255,255,0.35);
+          border-radius: 0 0 4px 4px;
+          margin-top: 10px;
+          overflow: hidden;
+        }
+        .lmjsx-progress-bar-fill {
+          height: 100%;
+          background: rgba(255,255,255,0.85);
+          border-radius: 4px;
+          transition: width 0.4s ease;
+        }
+
+        /* TTS status banner */
+        .lmjsx-tts-banner {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 7px 14px;
+          border-radius: 30px;
+          font-size: 0.82rem;
+          font-family: 'Comic Sans MS', cursive;
+          margin-bottom: 12px;
+          font-weight: bold;
+          transition: all 0.3s;
+        }
+        .lmjsx-tts-banner--active {
+          background: #e3f9e5;
+          border: 2px solid #69db7c;
+          color: #2b8a3e;
+          animation: lmjsxBannerPulse 2s ease-in-out infinite;
+        }
+        .lmjsx-tts-banner--idle {
+          background: #e7f5ff;
+          border: 2px dashed #74c0fc;
+          color: #1971c2;
+        }
+        .lmjsx-tts-banner--muted {
+          background: #f8f9fa;
+          border: 2px dashed #ced4da;
+          color: #868e96;
+        }
+        .lmjsx-tts-banner-icon {
+          font-size: 1rem;
+        }
+        @keyframes lmjsxBannerPulse {
+          0%,100% { box-shadow: 0 0 0 0 rgba(105,219,124,0); }
+          50%      { box-shadow: 0 0 0 6px rgba(105,219,124,0.25); }
+        }
+
+        /* Reading shimmer overlay on the content card */
+        .lmjsx-reading-shimmer {
+          position: absolute;
+          inset: 0;
+          border-radius: 18px;
+          background: linear-gradient(
+            90deg,
+            rgba(255,255,255,0)   0%,
+            rgba(255,214,100,0.18) 50%,
+            rgba(255,255,255,0)   100%
+          );
+          background-size: 200% 100%;
+          animation: lmjsxShimmer 2s linear infinite;
+          pointer-events: none;
+          z-index: 1;
+        }
+        @keyframes lmjsxShimmer {
+          0%   { background-position: -200% 0; }
+          100% { background-position:  200% 0; }
+        }
+
+        /* Slide dot row */
+        .lmjsx-dot-row {
+          display: flex;
+          justify-content: center;
+          gap: 8px;
+          margin-top: 14px;
+        }
+        .lmjsx-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #ffd8a8;
+          transition: all 0.3s;
+        }
+        .lmjsx-dot--active {
+          width: 22px;
+          border-radius: 4px;
+          background: #ffa94d;
+        }
+
+        /* Slide counter text */
+        .lmjsx-slide-counter {
+          font-family: 'Fredoka One', 'Comic Sans MS', cursive;
+          font-size: 0.95rem;
+          color: #a0522d;
+          user-select: none;
+        }
+
         /* ── Shared title ── */
         .lmjsx-title {
           font-family: 'Fredoka One', 'Comic Sans MS', cursive;
-          font-size: 1.55rem;
+          font-size: 1.45rem;
           color: #fff;
           text-shadow: 2px 2px 4px rgba(0,0,0,0.15);
           display: flex;
           align-items: center;
           gap: 8px;
-          width: 100%;
+          flex: 1;
+          min-width: 0;
         }
         .lmjsx-title-center { justify-content: center; }
 
@@ -485,9 +756,9 @@ export default function LessonModals({
         }
 
         /* ════ LESSON ════ */
-        .lmjsx-header-lesson  { background: linear-gradient(135deg, #74c0fc 0%, #a9e34b 100%); border-bottom: none !important; padding: 14px 20px !important; }
+        .lmjsx-header-lesson  { background: linear-gradient(135deg, #74c0fc 0%, #a9e34b 100%); border-bottom: none !important; padding: 14px 20px 6px !important; flex-direction: column !important; }
         .lmjsx-body-lesson    { max-height: 65vh; overflow-y: auto; padding: 1.5rem; background: #FFF8F2; font-family: 'Comic Sans MS', cursive; }
-        .lmjsx-content-card   { position: relative; background: #fff; border: 4px solid #ffa94d; border-radius: 18px; padding: 20px 18px 16px; box-shadow: 5px 5px 0 #ffd8a8; }
+        .lmjsx-content-card   { position: relative; background: #fff; border: 4px solid #ffa94d; border-radius: 18px; padding: 20px 18px 16px; box-shadow: 5px 5px 0 #ffd8a8; overflow: hidden; }
         .lmjsx-footer-lesson  { background: #fff9f0 !important; border-top: none !important; padding: 12px 20px !important; }
 
         /* ════ ACTIVITY ════ */
@@ -559,6 +830,7 @@ export default function LessonModals({
         .lmjsx-spin-star {
           display: inline-block;
           animation: lmjsxSpinStar 3s linear infinite;
+          flex-shrink: 0;
         }
         @keyframes lmjsxSpinStar {
           0%   { transform: rotate(0deg) scale(1); }
