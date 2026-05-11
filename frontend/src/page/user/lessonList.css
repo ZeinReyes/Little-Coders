@@ -1,0 +1,589 @@
+@import url("https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;800;900&display=swap");
+
+/* ═══════════════════════════════════════
+   BASE
+═══════════════════════════════════════ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ═══════════════════════════════════════
+   PAGE
+═══════════════════════════════════════ */
+.level-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg,
+    #0d0020 0%,
+    #1a0533 30%,
+    #0a1a3a 65%,
+    #0a2a0a 100%
+  );
+  font-family: "Nunito", sans-serif;
+  position: relative;
+  overflow-x: hidden;
+  padding-bottom: 60px;
+}
+
+/* ═══════════════════════════════════════
+   STARFIELD
+═══════════════════════════════════════ */
+.level-stars {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.star-dot {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  animation: starTwinkle ease-in-out infinite;
+}
+
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.4); }
+}
+
+/* ═══════════════════════════════════════
+   FLOATING COINS
+═══════════════════════════════════════ */
+.level-coins {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.floating-coin {
+  position: absolute;
+  bottom: -30px;
+  font-size: 16px;
+  animation: coinRise linear infinite;
+  opacity: 0;
+}
+
+@keyframes coinRise {
+  0%   { bottom: -30px;  opacity: 0;   transform: rotate(0deg); }
+  10%  {                 opacity: 0.7; }
+  85%  {                 opacity: 0.4; }
+  100% { bottom: 110vh;  opacity: 0;   transform: rotate(360deg); }
+}
+
+/* ═══════════════════════════════════════
+   LOADING
+═══════════════════════════════════════ */
+.level-loading {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #0d0020, #1a0533);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.loading-orb {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,215,0,0.2), transparent 70%);
+  display: flex; align-items: center; justify-content: center;
+  animation: orbPulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes orbPulse {
+  0%   { box-shadow: 0 0 20px rgba(255,215,0,0.2); }
+  100% { box-shadow: 0 0 50px rgba(255,215,0,0.5); }
+}
+
+.loading-text {
+  font-family: "Fredoka One", cursive;
+  font-size: 18px;
+  color: #FFD700;
+  text-shadow: 0 0 12px rgba(255,215,0,0.5);
+  animation: loadingPulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes loadingPulse { 0% { opacity: 0.5; } 100% { opacity: 1; } }
+
+/* ═══════════════════════════════════════
+   HEADER
+═══════════════════════════════════════ */
+.level-header {
+  position: relative;
+  z-index: 20;
+  background: linear-gradient(135deg, #1a0066, #3a0099, #5500cc);
+  border-bottom: 4px solid #FFD700;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+}
+
+.level-back-btn {
+  font-family: "Fredoka One", cursive;
+  font-size: 14px;
+  color: #1a0066;
+  background: linear-gradient(180deg, #FFD700, #FFA500);
+  border: 3px solid #8B5E00;
+  border-radius: 14px;
+  padding: 8px 18px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #8B5E00;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  white-space: nowrap;
+}
+
+.level-back-btn:hover  { transform: translateY(-2px); box-shadow: 0 6px 0 #8B5E00; }
+.level-back-btn:active { transform: translateY(3px);  box-shadow: 0 1px 0 #8B5E00; }
+
+.level-header-title {
+  flex: 1;
+  text-align: center;
+  padding: 0 12px;
+}
+
+.level-header-world {
+  font-family: "Fredoka One", cursive;
+  font-size: 20px;
+  color: #FFD700;
+  text-shadow: 2px 2px 0 #8B5E00, 0 0 20px rgba(255,215,0,0.5);
+  letter-spacing: 1px;
+}
+
+.level-coin-counter {
+  font-family: "Fredoka One", cursive;
+  font-size: 15px;
+  color: #FFD700;
+  background: rgba(0,0,0,0.4);
+  border: 2px solid #FFD700;
+  border-radius: 20px;
+  padding: 5px 14px;
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════
+   PROGRESS
+═══════════════════════════════════════ */
+.level-progress-section {
+  position: relative;
+  z-index: 10;
+  padding: 16px 24px 8px;
+}
+
+.level-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-family: "Fredoka One", cursive;
+  font-size: 13px;
+  color: rgba(255,255,255,0.6);
+}
+
+.prog-count { color: #FFD700; font-weight: 800; }
+
+.level-progress-track {
+  width: 100%;
+  height: 14px;
+  background: rgba(255,255,255,0.08);
+  border: 2px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.level-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00FF88, #00CC66);
+  border-radius: 10px;
+  transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: progressGlow 2s ease-in-out infinite;
+}
+
+@keyframes progressGlow {
+  0%, 100% { box-shadow: 0 0 8px #00FF88; }
+  50%       { box-shadow: 0 0 22px #00FF88, 0 0 40px rgba(0,255,136,0.3); }
+}
+
+.level-progress-milestones {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.milestone {
+  font-size: 10px;
+  color: rgba(255,255,255,0.3);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  transition: color 0.4s ease;
+}
+
+.milestone.reached {
+  color: #FFD700;
+  text-shadow: 0 0 8px rgba(255,215,0,0.5);
+}
+
+/* ═══════════════════════════════════════
+   LEVEL PATH
+═══════════════════════════════════════ */
+.level-path {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 0 30px;
+}
+
+/* LEVEL ROWS — zigzag */
+.level-row {
+  width: 100%;
+  display: flex;
+  padding: 0 24px;
+}
+
+.level-row-left   { justify-content: flex-start; padding-left: 40px; }
+.level-row-center { justify-content: center; }
+.level-row-right  { justify-content: flex-end; padding-right: 40px; }
+
+/* ═══════════════════════════════════════
+   CONNECTOR — simple CSS-based dashed line
+   Uses an SVG with a fixed viewBox so the
+   line is always proportional and short.
+   No DOM measurement needed.
+═══════════════════════════════════════ */
+.level-connector {
+  position: relative;
+  width: 100%;
+  height: 60px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.connector-svg {
+  display: block;
+  width: 100%;
+  height: 60px;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════
+   LEVEL NODE
+═══════════════════════════════════════ */
+.level-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  z-index: 2;
+  animation: nodeIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+@keyframes nodeIn {
+  from { opacity: 0; transform: scale(0.5) translateY(20px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0); }
+}
+
+.level-num-tag {
+  font-family: "Fredoka One", cursive;
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════
+   LEVEL BUTTON
+═══════════════════════════════════════ */
+.level-btn {
+  width: 84px; height: 84px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: 4px solid transparent;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.2s ease;
+  outline: none;
+  user-select: none;
+}
+
+.level-btn:hover:not(.lbtn-locked) {
+  transform: scale(1.18) translateY(-5px);
+}
+
+.level-btn:focus-visible {
+  outline: 3px solid #FFD700;
+  outline-offset: 4px;
+}
+
+.level-icon { font-size: 30px; pointer-events: none; }
+
+/* LESSON */
+.lbtn-lesson {
+  background: linear-gradient(145deg, #FFF176, #FFCA28);
+  box-shadow: 0 6px 0 #F57F17, 0 8px 20px rgba(255,202,40,0.35);
+  border-color: #F9A825;
+}
+.lbtn-lesson:hover { box-shadow: 0 9px 0 #F57F17, 0 14px 32px rgba(255,202,40,0.6); }
+.lbtn-lesson.done  { background: linear-gradient(145deg, #FFE082, #FFB300); }
+
+/* ACTIVITY */
+.lbtn-activity {
+  background: linear-gradient(145deg, #80DEEA, #00BCD4);
+  box-shadow: 0 6px 0 #006064, 0 8px 20px rgba(0,188,212,0.35);
+  border-color: #00ACC1;
+}
+.lbtn-activity:hover { box-shadow: 0 9px 0 #006064, 0 14px 32px rgba(0,188,212,0.6); }
+.lbtn-activity.done  { background: linear-gradient(145deg, #4DD0E1, #0097A7); }
+
+/* ASSESSMENT */
+.lbtn-assessment {
+  background: linear-gradient(145deg, #A5D6A7, #4CAF50);
+  box-shadow: 0 6px 0 #1B5E20, 0 8px 20px rgba(76,175,80,0.35);
+  border-color: #388E3C;
+  width: 96px; height: 96px;
+}
+.lbtn-assessment:hover { box-shadow: 0 9px 0 #1B5E20, 0 14px 32px rgba(76,175,80,0.6); }
+.lbtn-assessment.done  { background: linear-gradient(145deg, #69F0AE, #00C853); }
+.lbtn-assessment .level-icon { font-size: 34px; }
+
+/* LOCKED */
+.lbtn-locked {
+  background: linear-gradient(145deg, #424242, #212121);
+  box-shadow: 0 6px 0 #111, 0 8px 12px rgba(0,0,0,0.5);
+  border-color: #333;
+  cursor: not-allowed;
+  filter: grayscale(0.5) brightness(0.7);
+}
+
+/* CURRENT (first incomplete unlocked) */
+.current-level {
+  animation: currentPulse 1.6s ease-in-out infinite alternate !important;
+}
+
+@keyframes currentPulse {
+  0% {
+    box-shadow: 0 6px 0 #F57F17, 0 8px 20px rgba(255,202,40,0.4);
+    transform: scale(1);
+  }
+  100% {
+    box-shadow: 0 6px 0 #F57F17,
+                0 8px 44px rgba(255,202,40,0.9),
+                0 0 60px rgba(255,202,40,0.4);
+    transform: scale(1.06);
+  }
+}
+
+/* ═══════════════════════════════════════
+   DONE RING & CHECK
+═══════════════════════════════════════ */
+.done-ring {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 3px solid #FFD700;
+  box-shadow: 0 0 14px #FFD700, inset 0 0 10px rgba(255,215,0,0.15);
+  animation: ringPulse 2s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes ringPulse {
+  0%   { box-shadow: 0 0 10px #FFD700; }
+  100% { box-shadow: 0 0 26px #FFD700, 0 0 50px rgba(255,215,0,0.35); }
+}
+
+.done-check {
+  position: absolute;
+  top: -7px; right: -4px;
+  font-size: 20px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════
+   BOSS BADGE
+═══════════════════════════════════════ */
+.boss-badge {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: "Fredoka One", cursive;
+  font-size: 9px;
+  background: linear-gradient(135deg, #FF5722, #E91E63);
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 12px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  z-index: 2;
+  animation: bossBadgePulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes bossBadgePulse {
+  0%   { box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+  100% { box-shadow: 0 2px 16px rgba(233,30,99,0.7); }
+}
+
+/* ═══════════════════════════════════════
+   LABELS & PILLS
+═══════════════════════════════════════ */
+.level-label {
+  font-family: "Fredoka One", cursive;
+  font-size: 12px;
+  text-align: center;
+  max-width: 100px;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.label-lesson     { color: #FFF176; }
+.label-activity   { color: #80DEEA; }
+.label-assessment { color: #A5D6A7; }
+.label-locked     { color: rgba(255,255,255,0.25); }
+
+.type-pill {
+  font-family: "Fredoka One", cursive;
+  font-size: 9px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.pill-lesson     { background: rgba(255,202,40,0.18); color: #FFCA28; border: 1px solid rgba(255,202,40,0.35); }
+.pill-activity   { background: rgba(0,188,212,0.18);  color: #00BCD4; border: 1px solid rgba(0,188,212,0.35); }
+.pill-assessment { background: rgba(76,175,80,0.18);  color: #4CAF50; border: 1px solid rgba(76,175,80,0.35); }
+.pill-locked     { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.08); }
+
+/* ═══════════════════════════════════════
+   STAR ROW
+═══════════════════════════════════════ */
+.star-row { display: flex; gap: 2px; }
+
+.s-lit {
+  font-size: 13px;
+  filter: drop-shadow(0 0 4px #FFD700);
+  animation: starSpin 3s ease-in-out infinite;
+}
+
+.s-dim {
+  font-size: 13px;
+  opacity: 0.2;
+  filter: grayscale(1);
+}
+
+.s-lit:nth-child(2) { animation-delay: 0.3s; }
+.s-lit:nth-child(3) { animation-delay: 0.6s; }
+
+@keyframes starSpin {
+  0%, 78%, 100% { transform: scale(1) rotate(0deg); }
+  83%  { transform: scale(1.3) rotate(20deg); }
+  90%  { transform: scale(1.15) rotate(-10deg); }
+  95%  { transform: scale(1.2) rotate(12deg); }
+}
+
+/* ═══════════════════════════════════════
+   TROPHY END
+═══════════════════════════════════════ */
+.trophy-end {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  padding: 10px 0;
+}
+
+.trophy-glow {
+  position: absolute;
+  width: 90px; height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,215,0,0.45), transparent 70%);
+  animation: trophyGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes trophyGlow {
+  0%   { transform: scale(0.8); opacity: 0.6; }
+  100% { transform: scale(1.4); opacity: 1; }
+}
+
+.trophy-emoji {
+  font-size: 50px;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 0 12px #FFD700);
+  animation: trophyBounce 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes trophyBounce {
+  0%   { transform: translateY(0)    rotate(-5deg) scale(1); }
+  100% { transform: translateY(-8px) rotate(5deg)  scale(1.06); }
+}
+
+.trophy-text {
+  font-family: "Fredoka One", cursive;
+  font-size: 15px;
+  color: #FFD700;
+  text-shadow: 0 0 12px #FFD700, 2px 2px 0 #8B5E00;
+  letter-spacing: 2px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ═══════════════════════════════════════
+   LEGEND
+═══════════════════════════════════════ */
+.level-legend {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  padding: 10px 20px 30px;
+  flex-wrap: wrap;
+}
+
+.leg-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  font-weight: 700;
+  font-family: "Fredoka One", cursive;
+  letter-spacing: 0.5px;
+}
+
+.leg-dot {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.leg-lesson     { background: #FFCA28; }
+.leg-activity   { background: #00BCD4; }
+.leg-assessment { background: #4CAF50; }
+
+/* ═══════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════ */
+@media (max-width: 600px) {
+  .level-row-left  { padding-left: 20px; }
+  .level-row-right { padding-right: 20px; }
+
+  .level-btn           { width: 72px; height: 72px; }
+  .lbtn-assessment     { width: 82px; height: 82px; }
+  .level-icon          { font-size: 26px; }
+  .level-label         { font-size: 11px; max-width: 85px; }
+  .level-header-world  { font-size: 16px; }
+  .level-back-btn      { font-size: 12px; padding: 6px 12px; }
+  .level-connector     { height: 60px; }
+}

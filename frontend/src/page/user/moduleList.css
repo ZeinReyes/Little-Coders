@@ -1,260 +1,751 @@
-@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap");
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+/* ═══════════════════════════════════════════════
+   BASE
+═══════════════════════════════════════════════ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-/* 👇 Body uses Comic Neue but won't override navbar fonts if they are separately styled */
 body {
-  background: linear-gradient(180deg, #fffbf3 0%, #fdf5ff 100%);
-  font-family: "Comic Neue", "Comic Sans MS", Arial, sans-serif;
+  font-family: "Nunito", "Comic Neue", Arial, sans-serif;
+  background: #87CEEB;
   overflow-x: hidden;
 }
 
-/* 🌈 Page Container */
-.module-page {
+/* ═══════════════════════════════════════════════
+   MAP PAGE WRAPPER
+═══════════════════════════════════════════════ */
+.map-page {
   position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  flex-direction: column;
-  min-height: 93.5vh; 
+  height: 92vh;
   width: 100%;
-  margin-top: 70px;
-  background: linear-gradient(180deg, #ffeef1 0%, #e8f7ff 50%, #fff3d9 100%);
-  overflow-x: hidden;
-  overflow-y: hidden;
-  white-space: nowrap;
-  scroll-behavior: smooth;
-}
-.module-card-game.locked {
-  pointer-events: none;
-  position: relative;
+  margin-top: 68px;
+  overflow: hidden;
+
+  /* SKY → HORIZON → GRASS */
+  background:
+    linear-gradient(
+      to bottom,
+      #8fd3ff 0%,      /* bright sky */
+      #bde7ff 18%,
+      #dff6ff 32%,
+      #9ddc8c 45%,    /* horizon */
+      #6fc16d 60%,
+      #4fa65a 78%,
+      #3f8f4d 100%    /* deep grass */
+    );
 }
 
-.lock-overlay {
+/* Subtle noise texture overlay */
+.map-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+}
+
+/* ═══════════════════════════════════════════════
+   MAP GRID (old map feel)
+═══════════════════════════════════════════════ */
+.map-grid {
   position: absolute;
-  top: 0;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(200,168,75,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(200,168,75,0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ═══════════════════════════════════════════════
+   SKY STRIP
+═══════════════════════════════════════════════ */
+.map-sky {
+  position: fixed;
+  top: 68px;
   left: 0;
   width: 100%;
-  height: 100%;
+  height: 140px;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(180deg, rgba(135,200,235,0.4) 0%, transparent 100%);
+}
+
+/* ═══════════════════════════════════════════════
+   HEADER BANNER
+═══════════════════════════════════════════════ */
+.map-header-banner {
+  position: relative;
+  z-index: 10;
+  width: calc(100% - 40px);
+  margin: 20px auto 0;
+  background: linear-gradient(135deg, #1a3a2a 0%, #2d5c3e 40%, #1e4430 100%);
+  border: 3px solid #c8a84b;
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(200,168,75,0.3),
+    0 8px 32px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(200,168,75,0.2);
+  padding: 14px 20px;
+}
+
+.map-header-banner::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(200,168,75,0.15);
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+.map-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.map-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.map-header-icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #c8a84b, #e8c96b);
+  border-radius: 12px;
+  border: 2px solid rgba(255,255,255,0.2);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 12px;
-  z-index: 2;
+  font-size: 26px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  flex-shrink: 0;
 }
 
-.start-btn:disabled {
-  background-color: #6c757d;
-  border-color: #6c757d;
-  cursor: not-allowed;
+.map-title {
+  font-family: "Fredoka One", cursive;
+  font-size: 28px;
+  color: #e8c96b;
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+  letter-spacing: 1px;
+  line-height: 1;
 }
-/* 🏷️ Header Title */
-.modules-header {
-  font-family: "Comic Neue", "Comic Sans MS", Arial, sans-serif;
+
+.map-subtitle {
+  font-size: 13px;
+  color: rgba(200,168,75,0.7);
   font-weight: 700;
-  font-size: 36px;
-  color: #222;
-  text-align: center;
-  margin: 10px auto -10px;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  background: #4B8DF8;
-  color:white;
-  width: 97%;
-  padding: 10px 30px;
-  border-radius: 15px;
-  border: 2px solid #2d7dff;
-  box-shadow: 5px 5px 0 #99c0ff;
+  margin-top: 3px;
+  letter-spacing: 0.5px;
 }
 
-/* 🧱 Modules Row */
-.modules-list-game {
-  display: flex;
-  flex-wrap: nowrap; 
-  justify-content: center;
-  align-items: flex-start;
-  gap: 30px;
-  padding: 0 60px;
-  width: max-content;
-  margin: 50px auto;
+.map-header-right { flex-shrink: 0; }
+
+.map-progress-box {
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(200,168,75,0.3);
+  border-radius: 12px;
+  padding: 10px 16px;
+  min-width: 200px;
 }
 
-/* 🃏 Module Card */
-.module-card-game {
-  background: #fff;
-  width: 260px;
-  height: 460px;
-  border: 3px solid #000;
-  border-radius: 20px;
-  box-shadow: 6px 6px 0 #000;
-  display: flex;
-  flex-direction: column;
-  cursor: pointer;
-  transition: transform 0.4s ease, box-shadow 0.4s ease;
-  position: relative;
-  overflow: hidden;
-  z-index: 5;
-  opacity: 0.9;
+.map-progress-label {
+  display: block;
+  font-family: "Fredoka One", cursive;
+  font-size: 13px;
+  color: #e8c96b;
+  margin-bottom: 6px;
 }
 
-/* 🎨 Colorful borders */
-.module-card-game:nth-child(1) { border-color: #f4b400; box-shadow: 6px 6px 0 #f4b40080; }
-.module-card-game:nth-child(2) { border-color: #ea4335; box-shadow: 6px 6px 0 #ea433580; }
-.module-card-game:nth-child(3) { border-color: #34a853; box-shadow: 6px 6px 0 #34a85380; }
-.module-card-game:nth-child(4) { border-color: #4285f4; box-shadow: 6px 6px 0 #4285f480; }
-.module-card-game:nth-child(5) { border-color: #ab47bc; box-shadow: 6px 6px 0 #ab47bc80; }
-
-/* 🪄 Full card hover */
-.module-card-game:hover {
-  transform: scale(1.12);
-  box-shadow: 12px 12px 0 #000;
-  z-index: 10;
-}
-
-/* 🖼 Image */
-.card-img-wrapper {
+.map-progress-bar {
   width: 100%;
-  flex: 0 0 auto; 
-  height: 40%; 
-  border-bottom: 3px solid #000;
+  height: 10px;
+  background: rgba(0,0,0,0.4);
+  border-radius: 8px;
+  border: 1px solid rgba(200,168,75,0.2);
   overflow: hidden;
-  border-top-left-radius: 18px;
-  border-top-right-radius: 18px;
 }
 
-.card-img-wrapper img {
-  width: 100%;
+.map-progress-fill {
   height: 100%;
-  object-fit: cover;
-  transition: transform 0.5s ease;
+  background: linear-gradient(90deg, #c8a84b 0%, #e8c96b 100%);
+  border-radius: 8px;
+  transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 0 8px rgba(200,168,75,0.6);
 }
 
-.module-card-game:hover .card-img-wrapper img {
-  transform: scale(1.15);
-}
-
-/* 📜 Content */
-.card-content {
-  flex: 1 1 auto; 
-  padding: 12px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.card-content h3 {
-  font-family: "Comic Neue", "Poppins", sans-serif;
-  font-size: 16px;
-  font-weight: bold;
-  margin-bottom: 10px;
-  text-transform: uppercase;
-  color: #222;
-  line-height: 1.4;
-  word-wrap: break-word;
-  word-break: break-word;
-  white-space: normal;
-  max-height: 40px; 
-  overflow: hidden;
-}
-
-.card-content p {
-  font-size: 11px; 
-  color: #222;
-  line-height: 1.5;
-  margin-bottom: 15px;
-  word-wrap: break-word;
-  word-break: break-word;
-  white-space: normal;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ▶️ Start Button */
-.start-btn {
-  width: 100%;
-  flex: 0 0 auto; 
-  padding: 12px;
+.map-progress-pct {
+  display: block;
+  text-align: right;
   font-size: 11px;
-  border: none;
-  border-top: 3px solid #000;
-  background: #ffdd57;
-  color: #000;
-  border-bottom-left-radius: 18px;
-  border-bottom-right-radius: 18px;
-  transition: background 0.3s ease, color 0.3s ease, transform 0.2s ease;
+  color: rgba(200,168,75,0.7);
+  margin-top: 4px;
+  font-weight: 800;
 }
 
-.start-btn:hover {
-  background: #dfbb29;
-  transform: translateY(-2px);
+/* ═══════════════════════════════════════════════
+   MAP WORLD AREA
+═══════════════════════════════════════════════ */
+.map-world {
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  padding: 40px 0 130px;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #c8a84b rgba(0,0,0,0.2);
 }
 
-/* ⚙️ Floating Operators */
-.floating-operators {
+.map-world::-webkit-scrollbar { height: 6px; }
+.map-world::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+.map-world::-webkit-scrollbar-thumb { background: #c8a84b; border-radius: 4px; }
+
+/* ═══════════════════════════════════════════════
+   BACKGROUND TERRAIN LABELS & DOTS
+═══════════════════════════════════════════════ */
+.map-markers {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.map-marker {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(200,168,75,0.2);
+  border: 1px solid rgba(200,168,75,0.35);
+}
+
+.terrain-label {
+  position: absolute;
+  font-family: "Fredoka One", cursive;
+  font-size: 11px;
+  color: rgba(200,168,75,0.3);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ═══════════════════════════════════════════════
+   PATH SVG
+═══════════════════════════════════════════════ */
+.map-path-container {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
+  z-index: 1;
+  min-width: max-content;
+}
+
+.map-path-svg {
+  width: 100%;
+  height: 100%;
+  min-width: 1400px;
+}
+
+/* ═══════════════════════════════════════════════
+   ISLANDS ROW
+═══════════════════════════════════════════════ */
+.islands-row {
+  position: relative;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+  padding: 60px 100px 60px;
+  width: max-content;
+  min-width: 100%;
+}
+
+/* ═══════════════════════════════════════════════
+   TRAIL CONNECTOR  ← big bold dots
+═══════════════════════════════════════════════ */
+.island-arrow {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  flex-shrink: 0;
+  /* Lift up so trail aligns with the mid-point of the platform */
+  margin-bottom: 110px;
+}
+
+.arrow-trail {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.trail-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(200,168,75,0.3);
+  border: 3px solid rgba(200,168,75,0.5);
+  flex-shrink: 0;
+  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+.island-arrow.arrow-done .trail-dot {
+  background: #c8a84b;
+  border-color: #e8c96b;
+  box-shadow: 0 0 10px rgba(200,168,75,0.8);
+}
+
+/* ═══════════════════════════════════════════════
+   ISLAND NODE
+═══════════════════════════════════════════════ */
+.island-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 220px;
+  flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+  animation: islandEntrance 0.6s ease-out backwards;
+}
+
+.island-node:nth-child(1) { animation-delay: 0.05s; }
+.island-node:nth-child(3) { animation-delay: 0.15s; }
+.island-node:nth-child(5) { animation-delay: 0.25s; }
+.island-node:nth-child(7) { animation-delay: 0.35s; }
+.island-node:nth-child(9) { animation-delay: 0.45s; }
+
+@keyframes islandEntrance {
+  0%   { opacity: 0; transform: translateY(30px) scale(0.8); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.island-node.island-locked { cursor: not-allowed; }
+.island-node.island-locked .island-platform {
+  filter: saturate(0.35) brightness(0.65);
+}
+
+.island-node.island-unlocked:hover .island-platform {
+  transform: translateY(-8px) scale(1.04);
+  box-shadow:
+    0 20px 40px rgba(0,0,0,0.45),
+    0 0 30px var(--glow, rgba(200,168,75,0.5)),
+    inset 0 4px 0 rgba(255,255,255,0.35),
+    inset 0 -4px 0 rgba(0,0,0,0.2);
+}
+
+.island-node.island-unlocked:hover .island-info {
+  transform: translateY(-4px);
+}
+
+.island-bounce .island-platform {
+  animation: islandBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes islandBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(0.93) translateY(4px); }
+  60%  { transform: scale(1.07) translateY(-6px); }
+  80%  { transform: scale(0.97) translateY(-2px); }
+  100% { transform: scale(1) translateY(0); }
+}
+
+/* ═══════════════════════════════════════════════
+   WORLD LABEL
+═══════════════════════════════════════════════ */
+.island-world-label {
+  font-family: "Fredoka One", cursive;
+  font-size: 12px;
+  color: #fff;
+  padding: 4px 14px;
+  border-radius: 20px;
+  margin-bottom: 6px;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  border: 2px solid rgba(255,255,255,0.35);
+  text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════
+   ISLAND PLATFORM  ← restored blob/island shape
+═══════════════════════════════════════════════ */
+.island-platform {
+  width: 180px;
+  height: 180px;
+  border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%;
+  border: 5px solid rgba(255,255,255,0.6);
+  box-shadow:
+    0 12px 30px rgba(0,0,0,0.4),
+    0 0 20px var(--glow, rgba(200,168,75,0.4)),
+    inset 0 4px 0 rgba(255,255,255,0.35),
+    inset 0 -4px 0 rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
   overflow: hidden;
-  z-index: 1;
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s ease,
+    filter 0.3s ease;
 }
 
-.floating-operators img {
+/* Completed glow pulse */
+.island-completed .island-platform {
+  border-color: #e8c96b;
+  box-shadow:
+    0 12px 30px rgba(0,0,0,0.4),
+    0 0 40px rgba(200,168,75,0.6),
+    0 0 70px rgba(200,168,75,0.25),
+    inset 0 4px 0 rgba(255,255,255,0.35),
+    inset 0 -4px 0 rgba(0,0,0,0.2);
+  animation: completedPulse 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes completedPulse {
+  0%   { box-shadow: 0 12px 30px rgba(0,0,0,0.4), 0 0 30px rgba(200,168,75,0.5), inset 0 4px 0 rgba(255,255,255,0.35); }
+  100% { box-shadow: 0 12px 30px rgba(0,0,0,0.4), 0 0 60px rgba(200,168,75,0.7), 0 0 90px rgba(200,168,75,0.25), inset 0 4px 0 rgba(255,255,255,0.35); }
+}
+
+/* ═══════════════════════════════════════════════
+   MODULE IMAGE
+═══════════════════════════════════════════════ */
+.island-img-frame {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 4px solid rgba(255,255,255,0.7);
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  background: rgba(0,0,0,0.15);
+}
+
+.island-img-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.island-node.island-unlocked:hover .island-img-frame img {
+  transform: scale(1.12);
+}
+
+/* ═══════════════════════════════════════════════
+   LOCK OVERLAY
+═══════════════════════════════════════════════ */
+.island-lock-overlay {
   position: absolute;
-  opacity: 0.35;
-  filter: drop-shadow(3px 3px 6px rgba(0, 0, 0, 0.25));
-  animation: floatyOps 8s infinite ease-in-out alternate;
-  transform-origin: center;
+  inset: 0;
+  background: rgba(0,0,0,0.58);
+  border-radius: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  z-index: 5;
+  backdrop-filter: blur(2px);
+}
+
+.island-lock-icon {
+  font-size: 38px;
+  animation: lockWobble 2s ease-in-out infinite alternate;
+}
+
+@keyframes lockWobble {
+  0%   { transform: rotate(-8deg); }
+  100% { transform: rotate(8deg); }
+}
+
+.island-lock-overlay span {
+  font-family: "Fredoka One", cursive;
+  font-size: 13px;
+  color: #fff;
+  letter-spacing: 2px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+/* ═══════════════════════════════════════════════
+   COMPLETED STAMP
+═══════════════════════════════════════════════ */
+.island-completed-stamp {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(135deg, #e8c96b, #c8a84b);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 900;
+  color: #5a3a00;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  border: 2px solid rgba(255,255,255,0.5);
+  z-index: 4;
+}
+
+/* ═══════════════════════════════════════════════
+   INFO CARD  ← parchment feel
+═══════════════════════════════════════════════ */
+.island-info {
+  width: 200px;
+  background: linear-gradient(180deg, #fdf6e3 0%, #f5e6c8 100%);
+  border: 3px solid #c8a84b;
+  border-top: none;
+  border-radius: 0 0 20px 20px;
+  padding: 12px 14px 14px;
+  text-align: center;
+  transition: transform 0.3s ease;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  position: relative;
   z-index: 1;
 }
 
-/* 🎯 Responsive Floating Positions */
-.floating-operators img:nth-child(1) { top: 13%; left: 3%; width: 200px; }
-.floating-operators img:nth-child(2) { top: 20%; left: 38%; width: 200px; }
-.floating-operators img:nth-child(3) { top: 80%; left: 10%; width: 200px; }
-.floating-operators img:nth-child(4) { top: 13%; right: 15%; width: 200px; }
-.floating-operators img:nth-child(5) { bottom: -5%; right: 45%; width: 200px; }
-.floating-operators img:nth-child(6) { bottom: 15%; left: 75%; width: 200px; }
-
-@keyframes floatyOps {
-  0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 0.3; }
-  50% { transform: translateY(-20px) rotate(15deg) scale(1.05); opacity: 0.45; }
-  100% { transform: translateY(0) rotate(-15deg) scale(1); opacity: 0.3; }
+.island-info::before {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: 8px;
+  right: 8px;
+  height: 3px;
+  background: linear-gradient(90deg,
+    transparent 0%, #c8a84b 15%, #c8a84b 85%, transparent 100%
+  );
 }
 
-/* 💻 Responsive Cards & Operators */
-@media (max-width: 1200px) {
-  .module-card-game { width: 240px; height: 440px; }
-  .card-img-wrapper { height: 38%; }
-  .floating-operators img { width: 100px; }
+.island-title {
+  font-family: "Fredoka One", cursive;
+  font-size: 15px;
+  color: #3d2b1f;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.3;
+  word-break: break-word;
 }
 
-@media (max-width: 992px) {
-  .module-card-game { width: 200px; height: 400px; }
-  .card-img-wrapper { height: 37%; }
-  .modules-list-game { gap: 40px; padding: 0 30px; }
-  .floating-operators img { width: 90px; }
+/* ═══════════════════════════════════════════════
+   DESCRIPTION — hidden, revealed on hover
+═══════════════════════════════════════════════ */
+.island-desc {
+  font-size: 11px;
+  color: #6b4c35;
+  line-height: 1.4;
+  margin-bottom: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.25s ease, margin-bottom 0.3s ease;
 }
 
+.island-node.island-unlocked:hover .island-desc {
+  max-height: 50px;
+  opacity: 1;
+  margin-bottom: 8px;
+}
+
+/* ═══════════════════════════════════════════════
+   ISLAND BUTTON
+═══════════════════════════════════════════════ */
+.island-btn {
+  width: 100%;
+  padding: 9px 12px;
+  border: 3px solid rgba(0,0,0,0.15);
+  border-radius: 12px;
+  font-family: "Fredoka One", cursive;
+  font-size: 13px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-start {
+  background: linear-gradient(180deg, #4CAF50 0%, #2E7D32 100%);
+  color: #fff;
+  box-shadow: 0 5px 0 #1B5E20;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+.btn-start:hover  { transform: translateY(-2px); box-shadow: 0 7px 0 #1B5E20; }
+.btn-start:active { transform: translateY(3px);  box-shadow: 0 2px 0 #1B5E20; }
+
+.btn-replay {
+  background: linear-gradient(180deg, #c8a84b 0%, #a07830 100%);
+  color: #fff;
+  box-shadow: 0 5px 0 #7a5820;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+.btn-replay:hover  { transform: translateY(-2px); box-shadow: 0 7px 0 #7a5820; }
+.btn-replay:active { transform: translateY(3px);  box-shadow: 0 2px 0 #7a5820; }
+
+.btn-locked {
+  background: linear-gradient(180deg, #9E9E9E 0%, #616161 100%);
+  color: rgba(255,255,255,0.5);
+  box-shadow: 0 5px 0 #424242;
+  cursor: not-allowed;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* ═══════════════════════════════════════════════
+   STAR RATING
+═══════════════════════════════════════════════ */
+.island-stars-row {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  padding: 8px 0 0;
+}
+
+.star-lit {
+  font-size: 20px;
+  animation: starSpin 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 6px #e8c96b);
+}
+
+.star-dim {
+  font-size: 20px;
+  opacity: 0.25;
+  filter: grayscale(1);
+}
+
+.star-lit:nth-child(2) { animation-delay: 0.3s; }
+.star-lit:nth-child(3) { animation-delay: 0.6s; }
+
+@keyframes starSpin {
+  0%, 80%, 100% { transform: scale(1) rotate(0deg); }
+  85%  { transform: scale(1.25) rotate(20deg); }
+  90%  { transform: scale(1.15) rotate(-10deg); }
+  95%  { transform: scale(1.2) rotate(10deg); }
+}
+
+/* ═══════════════════════════════════════════════
+   TROPHY
+═══════════════════════════════════════════════ */
+.map-trophy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  flex-shrink: 0;
+  gap: 6px;
+  margin-left: 20px;
+}
+
+.map-road-svg {
+  z-index: 1 !important;
+}
+
+.island-node {
+  position: relative;
+  z-index: 5;
+}
+
+.island-arrow {
+  position: relative;
+  z-index: 4;
+}
+
+.trophy-base {
+  width: 76px;
+  height: 76px;
+  background: linear-gradient(135deg, #c8a84b, #e8c96b);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+  box-shadow:
+    0 6px 20px rgba(0,0,0,0.4),
+    0 0 30px rgba(200,168,75,0.4),
+    inset 0 2px 0 rgba(255,255,255,0.3);
+  border: 3px solid rgba(255,255,255,0.5);
+  animation: trophyBounce 2s ease-in-out infinite alternate;
+}
+
+@keyframes trophyBounce {
+  0%   { transform: translateY(0);    box-shadow: 0 6px 20px rgba(0,0,0,0.4), 0 0 20px rgba(200,168,75,0.3); }
+  100% { transform: translateY(-8px); box-shadow: 0 14px 30px rgba(0,0,0,0.3), 0 0 40px rgba(200,168,75,0.55); }
+}
+
+.trophy-label {
+  font-family: "Fredoka One", cursive;
+  font-size: 14px;
+  color: #e8c96b;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  letter-spacing: 2px;
+}
+
+/* ═══════════════════════════════════════════════
+   COMPASS
+═══════════════════════════════════════════════ */
+.map-compass {
+  position: fixed;
+  bottom: 100px;
+  right: 24px;
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #1a3a2a, #2d5c3e);
+  border: 3px solid #c8a84b;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(200,168,75,0.2);
+  z-index: 20;
+  animation: compassSpin 20s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes compassSpin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════ */
 @media (max-width: 768px) {
-  .module-card-game { width: 170px; height: 350px; }
-  .card-img-wrapper { height: 36%; }
-  .modules-list-game { gap: 30px; padding: 0 20px; }
-  .floating-operators img { width: 70px; }
+  .map-title { font-size: 22px; }
+  .map-header-icon { width: 40px; height: 40px; font-size: 22px; }
+  .island-platform { width: 150px; height: 150px; }
+  .island-img-frame { width: 82px; height: 82px; }
+  .island-info { width: 170px; }
+  .island-node { width: 182px; }
+  .trail-dot { width: 12px; height: 12px; }
 }
 
 @media (max-width: 480px) {
-  .module-card-game { width: 140px; height: 300px; }
-  .card-img-wrapper { height: 35%; }
-  .modules-list-game { gap: 20px; padding: 0 10px; }
-  .floating-operators img { width: 60px; }
+  .map-header-inner { flex-direction: column; }
+  .map-progress-box { min-width: 100%; }
+  .island-platform { width: 130px; height: 130px; }
+  .island-img-frame { width: 70px; height: 70px; }
+  .island-info { width: 148px; }
+  .island-node { width: 155px; }
+  .island-title { font-size: 13px; }
+  .trail-dot { width: 10px; height: 10px; }
 }

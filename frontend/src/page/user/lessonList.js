@@ -1,78 +1,240 @@
 import React, { useEffect, useState, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Button, Spinner, ProgressBar } from "react-bootstrap";
+import { Spinner } from "react-bootstrap";
 import { AuthContext } from "../../context/authContext";
 import TutorialModal from "../../component/TutorialModal";
 import { playLessonListSound, stopLessonListSound } from "../../utils/sfx";
+import "./lessonList.css";
 
-/**
- * LessonStatusBar — shown on the LESSON row only.
- */
-function LessonStatusBar({ lessonCompleted, activities, isUnlocked, color }) {
-  const totalActivities = activities.length;
-  const completedActivities = activities.filter((a) => a.isCompleted).length;
-  const allActivitiesDone = totalActivities === 0 || completedActivities === totalActivities;
-  const fullyDone = lessonCompleted && allActivitiesDone;
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+const TYPE_META = {
+  lesson: {
+    btnClass: "lbtn-lesson",
+    labelClass: "label-lesson",
+    pillClass: "pill-lesson",
+    pillText: "Lesson",
+    icon: "📖",
+  },
+  activity: {
+    btnClass: "lbtn-activity",
+    labelClass: "label-activity",
+    pillClass: "pill-activity",
+    pillText: "Activity",
+    icon: "🎮",
+  },
+  assessment: {
+    btnClass: "lbtn-assessment",
+    labelClass: "label-assessment",
+    pillClass: "pill-assessment",
+    pillText: "Assessment",
+    icon: "⚔️",
+  },
+};
 
-  const totalSteps = 1 + totalActivities;
-  const completedSteps = (lessonCompleted ? 1 : 0) + completedActivities;
-  const percent = Math.round((completedSteps / totalSteps) * 100);
+// Zigzag positions for the level path
+const POSITIONS = ["left", "center", "right", "center"];
 
-  if (!isUnlocked) {
-    return <span style={{ fontSize: "0.85rem", color: "#9E9E9E" }}>Tap to begin</span>;
-  }
-
-  if (fullyDone) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
-        <span style={{ fontSize: "0.78rem", color: "#4CAF50", fontWeight: "bold" }}>
-          ✅ Completed
-        </span>
-      </div>
-    );
-  }
-
+// ─────────────────────────────────────────────
+// STAR RATING
+// ─────────────────────────────────────────────
+function StarRow({ completed }) {
   return (
-    <div style={{ marginTop: "5px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px", width: "160px" }}>
-        <span style={{ fontSize: "0.75rem", color: color, fontWeight: "bold" }}>🔓 In Progress</span>
-        <span style={{ fontSize: "0.72rem", color: "#9E9E9E" }}>{percent}%</span>
-      </div>
-      <div style={{ height: "7px", borderRadius: "10px", backgroundColor: "#e0e0e0", overflow: "hidden", width: "160px" }}>
-        <div
-          style={{
-            width: percent > 0 ? `${percent}%` : "8%",
-            height: "100%",
-            borderRadius: "10px",
-            background: `linear-gradient(90deg, ${color}, ${color}88)`,
-            transition: "width 0.4s ease",
-            animation: percent === 0 ? "pulseBar 1.8s ease-in-out infinite" : "none",
-          }}
-        />
-      </div>
-      {totalActivities > 0 && (
-        <span style={{ fontSize: "0.7rem", color: "#9E9E9E", marginTop: "2px", display: "block" }}>
-          {completedActivities}/{totalActivities} activities done
+    <div className="star-row" aria-label={completed ? "Completed" : "Not completed"}>
+      {[0, 1, 2].map((i) => (
+        <span key={i} className={completed ? "s-lit" : "s-dim"} aria-hidden="true">
+          ⭐
         </span>
-      )}
+      ))}
     </div>
   );
 }
 
+// ─────────────────────────────────────────────
+// SEQUENTIAL CONNECTOR WITH ARROW
+//
+// viewBox is 100 × 60 with preserveAspectRatio="none"
+// so x values are literal percentages of the container width.
+//
+// Node centres as % of screen width:
+//   left   → padding-left:40px + half button ~42px  ≈  8%
+//   center → 50%
+//   right  → 100% - 40px - 42px                     ≈ 92%
+//
+// vectorEffect="non-scaling-stroke" keeps stroke widths
+// from being stretched by the non-uniform scaling.
+// ─────────────────────────────────────────────
+const POS_TO_PCT = { left: 8, center: 50, right: 92 };
+
+function DiagonalConnector({ fromPos, toPos, isDone }) {
+  // x in viewBox units = % of width (viewBox width = 100)
+  const x1 = POS_TO_PCT[fromPos] ?? 50;
+  const x2 = POS_TO_PCT[toPos]   ?? 50;
+  // y: start near top, end near bottom of the 60-unit tall box
+  const y1 = 4;
+  const y2 = 56;
+
+  const color = isDone ? "#FFD700" : "rgba(255,255,255,0.28)";
+
+  return (
+  <div className="level-connector" aria-hidden="true">
+    <svg
+      className="connector-svg"
+      viewBox="0 0 100 60"
+      preserveAspectRatio="none"
+      style={{ width: "100%", height: "60px", display: "block" }}
+    >
+      {/* Arrow definition */}
+      <defs>
+        <marker
+          id={`arrow-${fromPos}-${toPos}-${isDone}`}
+          viewBox="0 0 10 10"
+          refX="9"
+          refY="5"
+          markerWidth="7"
+          markerHeight="7"
+          orient="auto-start-reverse"
+          markerUnits="userSpaceOnUse"
+        >
+          <path d="M 0 0 L 10 5 L 0 10 z" fill={color} />
+        </marker>
+      </defs>
+
+      {/* Glow behind shaft */}
+      {isDone && (
+        <line
+          x1={x1}
+          y1={y1}
+          x2={x2}
+          y2={y2}
+          stroke="#FFD700"
+          strokeWidth="4"
+          strokeDasharray="5,4"
+          strokeLinecap="round"
+          opacity="0.2"
+          vectorEffect="non-scaling-stroke"
+          markerEnd={`url(#arrow-${fromPos}-${toPos}-${isDone})`}
+        />
+      )}
+
+      {/* Main dashed shaft */}
+      <line
+        x1={x1}
+        y1={y1}
+        x2={x2}
+        y2={y2}
+        stroke={color}
+        strokeWidth="2"
+        strokeDasharray="5,4"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+        markerEnd={`url(#arrow-${fromPos}-${toPos}-${isDone})`}
+      />
+
+      {/* Travelling dot */}
+      {isDone && (
+        <circle
+          r="2"
+          fill="#FFD700"
+          opacity="0.95"
+          vectorEffect="non-scaling-stroke"
+        >
+          <animateMotion
+            dur="1.2s"
+            repeatCount="indefinite"
+            path={`M${x1},${y1} L${x2},${y2}`}
+          />
+        </circle>
+      )}
+    </svg>
+  </div>
+);
+}
+
+// ─────────────────────────────────────────────
+// SINGLE LEVEL NODE
+// ─────────────────────────────────────────────
+const LevelNode = React.forwardRef(function LevelNode(
+  { item, index, isUnlocked, isCurrent, isAssessment, onClick },
+  ref
+) {
+  const isLocked = !isUnlocked;
+  const isDone   = item.isCompleted;
+  const meta     = TYPE_META[item.type] || TYPE_META.lesson;
+
+  const handleClick = () => {
+    if (isUnlocked) onClick(item);
+  };
+
+  const shortNum =
+    item.type === "assessment"
+      ? "BOSS"
+      : item.type === "activity"
+      ? `A${index + 1}`
+      : `L${index + 1}`;
+
+  return (
+    <div
+      ref={ref}
+      className="level-node"
+      style={{ animationDelay: `${index * 0.07}s` }}
+    >
+      <div className="level-num-tag">{shortNum}</div>
+
+      <div
+        className={`level-btn ${isLocked ? "lbtn-locked" : meta.btnClass} ${isDone ? "done" : ""} ${isCurrent ? "current-level" : ""}`}
+        onClick={handleClick}
+        role="button"
+        tabIndex={isLocked ? -1 : 0}
+        onKeyDown={(e) => e.key === "Enter" && handleClick()}
+        aria-label={`${meta.pillText}: ${item.title || item.name}${isLocked ? " (locked)" : isDone ? " (completed)" : ""}`}
+      >
+        {isAssessment && !isLocked && (
+          <div className="boss-badge">⚔️ BOSS</div>
+        )}
+
+        <span className="level-icon" aria-hidden="true">
+          {isLocked ? "🔒" : meta.icon}
+        </span>
+
+        {isDone && (
+          <>
+            <div className="done-ring" aria-hidden="true" />
+            <div className="done-check" aria-hidden="true">✅</div>
+          </>
+        )}
+      </div>
+
+      <div className={`level-label ${isLocked ? "label-locked" : meta.labelClass}`}>
+        {item.title || item.name}
+      </div>
+
+      <div className={`type-pill ${isLocked ? "pill-locked" : meta.pillClass}`}>
+        {meta.pillText}
+      </div>
+
+      {isUnlocked && <StarRow completed={isDone} />}
+    </div>
+  );
+});
+
+// ─────────────────────────────────────────────
+// MAIN COMPONENT
+// ─────────────────────────────────────────────
 function LessonList() {
   const { lessonId } = useParams();
-  const [module, setModule] = useState(null);
-  const [items, setItems] = useState([]);
-  const [loadingData, setLoadingData] = useState(true);
-  const [showTutorial, setShowTutorial] = useState(false);
+  const [module, setModule]               = useState(null);
+  const [items, setItems]                 = useState([]);
+  const [loadingData, setLoadingData]     = useState(true);
+  const [showTutorial, setShowTutorial]   = useState(false);
   const [unlockedItems, setUnlockedItems] = useState(new Set());
   const navigate = useNavigate();
 
   const { user, loading: userLoading, refreshUser, isOnboardingIncomplete } =
     useContext(AuthContext);
 
-  // ✅ Read the active child from sessionStorage (set by ChildSelectPage)
   const getChildId = () => {
     try {
       const raw = sessionStorage.getItem("activeChild");
@@ -84,6 +246,7 @@ function LessonList() {
     }
   };
 
+  // ── Audio ──────────────────────────────────
   useEffect(() => {
     const unlockAudio = () => {
       playLessonListSound();
@@ -96,42 +259,42 @@ function LessonList() {
     };
   }, []);
 
+  // ── Tutorial ──────────────────────────────
   useEffect(() => {
     if (!userLoading && isOnboardingIncomplete) setShowTutorial(true);
   }, [userLoading, isOnboardingIncomplete]);
 
+  // ── Fetch data ────────────────────────────
   useEffect(() => {
     const fetchData = async () => {
       const userId  = user?._id || user?.id;
-      const childId = getChildId(); // ✅ scoped per child via sessionStorage
+      const childId = getChildId();
       if (!userId || !childId) return;
 
       setLoadingData(true);
       try {
         const token = localStorage.getItem("token");
-        const [moduleRes, materialsRes, assessmentsRes, progressRes] =
-          await Promise.all([
-            axios.get(`https://little-coders-backend.onrender.com/api/lessons/${lessonId}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            }),
-            axios.get(
-              `https://little-coders-backend.onrender.com/api/materials/lessons/${lessonId}/materials`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            ),
-            axios.get(
-              `https://little-coders-backend.onrender.com/api/assessments/lessons/${lessonId}/assessments`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            ),
-            // ✅ route is /:userId/:childId/:lessonId
-            axios.get(
-              `https://little-coders-backend.onrender.com/api/progress/${userId}/${childId}/${lessonId}`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            ),
-          ]);
+        const [moduleRes, materialsRes, assessmentsRes, progressRes] = await Promise.all([
+          axios.get(`https://little-coders-backend.onrender.com/api/lessons/${lessonId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          axios.get(
+            `https://little-coders-backend.onrender.com/api/materials/lessons/${lessonId}/materials`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          ),
+          axios.get(
+            `https://little-coders-backend.onrender.com/api/assessments/lessons/${lessonId}/assessments`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          ),
+          axios.get(
+            `https://little-coders-backend.onrender.com/api/progress/${userId}/${childId}/${lessonId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          ),
+        ]);
 
         setModule(moduleRes.data);
         const progress = progressRes.data || {};
-        const completedMaterialIds   = progress.completedMaterials?.map((m) => m._id)  || [];
+        const completedMaterialIds   = progress.completedMaterials?.map((m) => m._id) || [];
         const completedActivityIds   = progress.completedActivities?.map((a) => a._id) || [];
         const completedAssessmentIds = progress.completedAssessments?.map((a) => a._id) || [];
 
@@ -178,55 +341,52 @@ function LessonList() {
     if (!userLoading && user) fetchData();
   }, [lessonId, user, userLoading]);
 
-  // Dynamic unlock calculation
+  // ── Dynamic unlock ────────────────────────
   useEffect(() => {
-    const unlockItems = () => {
-      const unlocked = new Set();
-      if (!items.length) return;
+    const unlocked = new Set();
+    if (!items.length) return;
 
-      const lessons = items.filter((i) => i.type === "lesson");
-      const activitiesByMaterial = {};
-      lessons.forEach((lesson) => {
-        activitiesByMaterial[lesson._id] = items.filter(
-          (a) => a.type === "activity" && a.parentId === lesson._id
-        );
-      });
-      const assessmentsItems = items.filter((i) => i.type === "assessment");
+    const lessons = items.filter((i) => i.type === "lesson");
+    const activitiesByMaterial = {};
+    lessons.forEach((lesson) => {
+      activitiesByMaterial[lesson._id] = items.filter(
+        (a) => a.type === "activity" && a.parentId === lesson._id
+      );
+    });
+    const assessmentsItems = items.filter((i) => i.type === "assessment");
 
-      if (lessons.length > 0) unlocked.add(lessons[0]._id);
+    if (lessons.length > 0) unlocked.add(lessons[0]._id);
 
-      lessons.forEach((lesson, i) => {
-        const activities = activitiesByMaterial[lesson._id] || [];
-        const allActivitiesDone =
-          activities.length === 0 || activities.every((a) => a.isCompleted);
+    lessons.forEach((lesson, i) => {
+      const activities        = activitiesByMaterial[lesson._id] || [];
+      const allActivitiesDone =
+        activities.length === 0 || activities.every((a) => a.isCompleted);
 
-        if (lesson.isCompleted && allActivitiesDone && i + 1 < lessons.length) {
-          unlocked.add(lessons[i + 1]._id);
-        }
-
-        if (lesson.isCompleted) {
-          activities.forEach((activity, j) => {
-            if (j === 0) unlocked.add(activity._id);
-            else if (activities[j - 1].isCompleted) unlocked.add(activity._id);
-          });
-        }
-      });
-
-      const allLessonsCompleted = lessons.every((l) => l.isCompleted);
-      const allActivitiesCompleted = items
-        .filter((i) => i.type === "activity")
-        .every((a) => a.isCompleted);
-
-      if (allLessonsCompleted && allActivitiesCompleted) {
-        assessmentsItems.forEach((a) => unlocked.add(a._id));
+      if (lesson.isCompleted && allActivitiesDone && i + 1 < lessons.length) {
+        unlocked.add(lessons[i + 1]._id);
       }
 
-      setUnlockedItems(unlocked);
-    };
+      if (lesson.isCompleted) {
+        activities.forEach((activity, j) => {
+          if (j === 0) unlocked.add(activity._id);
+          else if (activities[j - 1].isCompleted) unlocked.add(activity._id);
+        });
+      }
+    });
 
-    unlockItems();
+    const allLessonsCompleted    = lessons.every((l) => l.isCompleted);
+    const allActivitiesCompleted = items
+      .filter((i) => i.type === "activity")
+      .every((a) => a.isCompleted);
+
+    if (allLessonsCompleted && allActivitiesCompleted) {
+      assessmentsItems.forEach((a) => unlocked.add(a._id));
+    }
+
+    setUnlockedItems(unlocked);
   }, [items]);
 
+  // ── Navigation ────────────────────────────
   const handleItemClick = async (item) => {
     const itemId = item._id || item.id;
     if (!itemId) return;
@@ -250,48 +410,55 @@ function LessonList() {
     }
   };
 
-  if (userLoading || loadingData)
+  // ── Loading state ─────────────────────────
+  if (userLoading || loadingData) {
     return (
-      <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
-        <Spinner animation="border" variant="primary" />
+      <div className="level-loading">
+        <div className="loading-orb">
+          <Spinner animation="border" variant="warning" />
+        </div>
+        <p className="loading-text">Loading levels…</p>
       </div>
     );
+  }
 
-  const totalItems = items.length;
-  const completedItems = items.filter((i) => i.isCompleted).length;
-  const progressPercent = totalItems ? Math.round((completedItems / totalItems) * 100) : 0;
+  // ── Derived values ────────────────────────
+  const totalItems      = items.length;
+  const completedItems  = items.filter((i) => i.isCompleted).length;
+  const progressPercent = totalItems
+    ? Math.round((completedItems / totalItems) * 100)
+    : 0;
 
-  const icons = {
-    lesson:     <img src="/assets/images/book.png"       alt="Lesson"     style={{ width: "40px", height: "40px" }} />,
-    activity:   <img src="/assets/images/task.png"       alt="Activity"   style={{ width: "40px", height: "40px" }} />,
-    assessment: <img src="/assets/images/assessment.png" alt="Assessment" style={{ width: "40px", height: "40px" }} />,
-  };
+  const currentItemId = items.find(
+    (item) => unlockedItems.has(item._id) && !item.isCompleted
+  )?._id;
 
-  const colors = {
-    lesson:     { bg: "#FFF4C1", border: "#FBC02D", text: "#F57C00" },
-    activity:   { bg: "#E3F2FD", border: "#42A5F5", text: "#1565C0" },
-    assessment: { bg: "#E8F5E9", border: "#81C784", text: "#2E7D32" },
-  };
+  const assessmentItems = items.filter((i) => i.type === "assessment");
+  const nonAssessment   = items.filter((i) => i.type !== "assessment");
+  const allLevels       = [...nonAssessment, ...assessmentItems];
 
-  const lessonsAndActivities = items.filter((i) => i.type === "lesson" || i.type === "activity");
-  const assessments = items.filter((i) => i.type === "assessment");
+  const lessonCounter = { lesson: 0, activity: 0, assessment: 0 };
+  const worldName = module?.title?.replace(/^Module\s*\d+:\s*/i, "") || "World";
 
   return (
-    <div
-      style={{
-        minHeight: "100%",
-        background: "linear-gradient(180deg, #E0F7FA 0%, #FFF9F0 100%)",
-        fontFamily: "'Comic Neue', 'Comic Sans MS', cursive",
-        marginBottom: "-30px",
-        paddingBottom: "10px",
-      }}
-    >
-      <style>{`
-        @keyframes pulseBar {
-          0%, 100% { opacity: 1; width: 15%; }
-          50%       { opacity: 0.6; width: 30%; }
-        }
-      `}</style>
+    <div className="level-page">
+      {/* Starfield */}
+      <div className="level-stars" aria-hidden="true">
+        {Array.from({ length: 70 }).map((_, i) => (
+          <div
+            key={i}
+            className="star-dot"
+            style={{
+              width:  `${Math.random() * 3 + 1}px`,
+              height: `${Math.random() * 3 + 1}px`,
+              left:   `${Math.random() * 100}%`,
+              top:    `${Math.random() * 100}%`,
+              animationDuration: `${2 + Math.random() * 3}s`,
+              animationDelay:    `${Math.random() * 3}s`,
+            }}
+          />
+        ))}
+      </div>
 
       {showTutorial && (
         <TutorialModal
@@ -304,182 +471,99 @@ function LessonList() {
       )}
 
       {/* HEADER */}
-      <header
-        className="d-flex align-items-center justify-content-between"
-        style={{
-          backgroundColor: "#4B8DF8",
-          color: "white",
-          padding: "1rem 2rem",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-          borderBottom: "4px solid #FFD54F",
-        }}
-      >
-        <Button
-          variant="warning"
-          onClick={() => navigate("/module-list")}
-          style={{ fontWeight: "bold", borderRadius: "20px", background: "#FFD54F", border: "none", color: "#3C3C3C" }}
-        >
-          Back to Modules
-        </Button>
-        <div style={{ flexGrow: 1, textAlign: "center", fontSize: "1.8rem", fontWeight: "bold" }}>
-          {module?.title?.replace(/^Module\s*\d+:\s*/i, "")}
+      <header className="level-header">
+        <button className="level-back-btn" onClick={() => navigate("/module-list")}>
+          ← Worlds
+        </button>
+        <div className="level-header-title">
+          <span className="level-header-world">{worldName}</span>
         </div>
       </header>
 
-      {/* PROGRESS BAR */}
-      <div className="text-center mt-3">
-        <span className="fs-4" style={{ fontWeight: "bold", color: "#FF7043" }}>Progress</span>
-        <ProgressBar
-          now={progressPercent}
-          label={`${progressPercent}%`}
-          className="mx-auto"
-          style={{ width: "55%", height: "1.3rem", borderRadius: "10px", backgroundColor: "#FFD55C" }}
-          variant="success"
-        />
+      {/* PROGRESS */}
+      <div className="level-progress-section">
+        <div className="level-progress-labels">
+          <span>⚡ Level Progress</span>
+          <span className="prog-count">{completedItems} / {totalItems} done</span>
+        </div>
+        <div className="level-progress-track">
+          <div className="level-progress-fill" style={{ width: `${progressPercent}%` }} />
+        </div>
+        <div className="level-progress-milestones">
+          <span className={`milestone ${progressPercent > 0 ? "reached" : ""}`}>⭐ Start</span>
+          <span className={`milestone ${progressPercent >= 25 ? "reached" : ""}`}>⭐ 25%</span>
+          <span className={`milestone ${progressPercent >= 50 ? "reached" : ""}`}>🏅 Half</span>
+          <span className={`milestone ${progressPercent >= 75 ? "reached" : ""}`}>🏅 75%</span>
+          <span className={`milestone ${progressPercent >= 100 ? "reached" : ""}`}>🏆 Done!</span>
+        </div>
       </div>
 
-      {/* MAIN CONTAINER */}
-      <div
-        className="p-4"
-        style={{
-          maxWidth: "850px",
-          margin: "30px auto",
-          backgroundColor: "#ffffff",
-          borderRadius: "24px",
-          border: "3px solid #e0e0e0",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", width: "100%", gap: "0" }}>
-          <h3 className="my-3">Lessons</h3>
+      {/* LEVEL PATH */}
+      <div className="level-path" role="list" aria-label="Lesson levels">
+        {allLevels.map((item, index) => {
+          lessonCounter[item.type] = (lessonCounter[item.type] || 0) + 1;
+          const pos     = POSITIONS[index % POSITIONS.length];
+          const prevPos = index > 0 ? POSITIONS[(index - 1) % POSITIONS.length] : pos;
+          const isUnlocked = unlockedItems.has(item._id);
+          const isCurrent  = item._id === currentItemId;
+          const prevDone   = index > 0 && allLevels[index - 1].isCompleted;
 
-          {lessonsAndActivities
-            .filter((i) => i.type === "lesson")
-            .map((lesson) => {
-              const lessonStyle = colors.lesson;
-              const relatedActivities = lessonsAndActivities.filter(
-                (a) => a.type === "activity" && a.parentId === lesson._id
-              );
-              const isUnlocked = unlockedItems.has(lesson._id);
+          return (
+            <React.Fragment key={item._id}>
+              {index > 0 && (
+                <DiagonalConnector
+                  fromPos={prevPos}
+                  toPos={pos}
+                  isDone={prevDone}
+                />
+              )}
 
-              return (
-                <div
-                  key={lesson._id}
-                  style={{ borderRadius: "16px", overflow: "hidden", background: "#ffffff", marginBottom: "10px" }}
-                >
-                  {/* LESSON BOX */}
-                  <div
-                    onClick={() => isUnlocked && handleItemClick(lesson)}
-                    style={{
-                      background: lessonStyle.bg,
-                      padding: "1rem 1.2rem",
-                      display: "flex",
-                      alignItems: "center",
-                      cursor: isUnlocked ? "pointer" : "not-allowed",
-                      opacity: isUnlocked ? 1 : 0.5,
-                      pointerEvents: isUnlocked ? "auto" : "none",
-                      transition: "background 0.2s ease",
-                    }}
-                    onMouseEnter={(e) => isUnlocked && (e.currentTarget.style.background = "#ffecb3")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = lessonStyle.bg)}
-                  >
-                    <div style={{ width: "55px", textAlign: "center", flexShrink: 0 }}>
-                      {icons.lesson}
-                      {!isUnlocked && <span role="img" aria-label="lock"> 🔒 </span>}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: "1rem", fontWeight: "bold", color: lessonStyle.text }}>
-                        Lesson: {lesson.title}
-                      </div>
-                      <LessonStatusBar
-                        lessonCompleted={lesson.isCompleted}
-                        activities={relatedActivities}
-                        isUnlocked={isUnlocked}
-                        color={lessonStyle.text}
-                      />
-                    </div>
-                  </div>
-
-                  {/* ACTIVITIES */}
-                  {relatedActivities.map((activity) => {
-                    const actStyle = colors.activity;
-                    const isUnlocked = unlockedItems.has(activity._id);
-                    return (
-                      <div
-                        key={activity._id}
-                        onClick={() => isUnlocked && handleItemClick(activity)}
-                        style={{
-                          background: actStyle.bg,
-                          padding: "0.9rem 1.2rem 0.9rem 3rem",
-                          display: "flex",
-                          alignItems: "center",
-                          cursor: isUnlocked ? "pointer" : "not-allowed",
-                          opacity: isUnlocked ? 1 : 0.5,
-                          pointerEvents: isUnlocked ? "auto" : "none",
-                          transition: "background 0.2s ease",
-                        }}
-                        onMouseEnter={(e) => isUnlocked && (e.currentTarget.style.background = "#d0e7ff")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = actStyle.bg)}
-                      >
-                        <div style={{ width: "45px", textAlign: "center", flexShrink: 0 }}>
-                          {icons.activity}
-                          {!isUnlocked && <span role="img" aria-label="lock"> 🔒 </span>}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: "0.95rem", fontWeight: "bold", color: actStyle.text }}>
-                            Activity: {activity.name}
-                          </div>
-                          <div style={{ fontSize: "0.85rem", color: activity.isCompleted ? "#4CAF50" : "#9E9E9E" }}>
-                            {activity.isCompleted ? "Completed" : "Tap to begin"}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-
-          {assessments.length > 0 && <h3 className="my-3">Assessment Tasks</h3>}
-
-          {assessments.map((item) => {
-            const style = colors.assessment;
-            const isUnlocked = unlockedItems.has(item._id);
-            return (
-              <div
-                key={item._id}
-                onClick={() => isUnlocked && handleItemClick(item)}
-                style={{
-                  background: style.bg,
-                  borderRadius: "16px",
-                  cursor: isUnlocked ? "pointer" : "not-allowed",
-                  opacity: isUnlocked ? 1 : 0.5,
-                  pointerEvents: isUnlocked ? "auto" : "none",
-                  display: "flex",
-                  alignItems: "center",
-                  padding: "1rem 1.2rem",
-                  margin: "0",
-                  boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
-                  transition: "transform 0.2s ease, background 0.2s ease",
-                }}
-                onMouseEnter={(e) => isUnlocked && (e.currentTarget.style.background = "#d7f5dc")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = style.bg)}
-              >
-                <div style={{ width: "50px", textAlign: "center", flexShrink: 0 }}>
-                  {icons.assessment}
-                  {!isUnlocked && <span role="img" aria-label="lock"> 🔒 </span>}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "1rem", fontWeight: "bold", color: style.text }}>
-                    Assessment: {item.title}
-                  </div>
-                  <div style={{ fontSize: "0.85rem", color: item.isCompleted ? "#4CAF50" : "#9E9E9E" }}>
-                    {item.isCompleted ? "Completed" : "Tap to begin"}
-                  </div>
-                </div>
+              <div className={`level-row level-row-${pos}`} role="listitem">
+                <LevelNode
+                  item={item}
+                  index={lessonCounter[item.type] - 1}
+                  isUnlocked={isUnlocked}
+                  isCurrent={isCurrent}
+                  isAssessment={item.type === "assessment"}
+                  onClick={handleItemClick}
+                />
               </div>
-            );
-          })}
+            </React.Fragment>
+          );
+        })}
+
+        {/* Trophy end marker */}
+        {allLevels.length > 0 && (
+          <>
+            <DiagonalConnector
+              fromPos={POSITIONS[(allLevels.length - 1) % POSITIONS.length]}
+              toPos="center"
+              isDone={allLevels[allLevels.length - 1]?.isCompleted}
+            />
+            <div className="level-row level-row-center" aria-label="World complete!">
+              <div className="trophy-end">
+                <div className="trophy-glow" aria-hidden="true" />
+                <span className="trophy-emoji" aria-hidden="true">🏆</span>
+                <span className="trophy-text">WORLD CLEAR!</span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* LEGEND */}
+      <div className="level-legend" aria-label="Level type legend">
+        <div className="leg-item">
+          <div className="leg-dot leg-lesson" />
+          <span>Lesson</span>
+        </div>
+        <div className="leg-item">
+          <div className="leg-dot leg-activity" />
+          <span>Activity</span>
+        </div>
+        <div className="leg-item">
+          <div className="leg-dot leg-assessment" />
+          <span>Assessment</span>
         </div>
       </div>
     </div>
