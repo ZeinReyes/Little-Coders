@@ -1077,6 +1077,11 @@ export default function DragBoardLesson() {
         revealedHints={revealedHints}
         setRevealedHints={setRevealedHints}
         onBack={() => navigate(`/lessons/${lessonId}`)}
+        ttsEnabled={ttsEnabled}
+        ttsSpeaking={ttsSpeaking}
+        onTtsToggle={ttsToggle}
+        onTtsStop={ttsStop}
+        onTtsSpeak={ttsSpeak}
       />
 
       <Workspace
