@@ -46,6 +46,7 @@ export default function LessonModals({
   ttsSpeaking = false,
   onTtsToggle = () => {},
   onTtsStop   = () => {},
+  isNextQuestion,
 }) {
   const isLesson = lesson?.type === "lesson";
 
@@ -260,16 +261,16 @@ export default function LessonModals({
             <div className="lmjsx-congrats-card">
               <h3 className="lmjsx-congrats-heading">🎉 Well Done!</h3>
               <p className="lmjsx-congrats-text">
-                You completed this{" "}
-                {lesson?.type === "assessment" ? "assessment" : "activity"}{" "}
-                successfully!
+                {isNextQuestion
+                  ? "You got that question right! Ready for the next one?"
+                  : `You completed this ${lesson?.type === "assessment" ? "assessment" : "activity"} successfully!`}
               </p>
-              {lesson?.isAIReview && lesson?.type === "activity" && (
+              {!isNextQuestion && lesson?.isAIReview && lesson?.type === "activity" && (
                 <p className="lmjsx-ai-msg lmjsx-ai-activity">
                   🌟 Great job on the review activity! Now let's test what you learned!
                 </p>
               )}
-              {lesson?.isAIReview && lesson?.type === "assessment" && (
+              {!isNextQuestion && lesson?.isAIReview && lesson?.type === "assessment" && (
                 <p className="lmjsx-ai-msg lmjsx-ai-assessment">
                   🌟 Amazing! You've completed your AI review session! Ready to go back and try again?
                 </p>
@@ -293,7 +294,9 @@ export default function LessonModals({
               className="lmjsx-btn lmjsx-btn-green lmjsx-btn-pulse"
               onClick={onCongratsClose}
             >
-              {lesson?.isAIReview && lesson?.type === "activity"
+              {isNextQuestion
+                ? "Next Question ➡️"
+                : lesson?.isAIReview && lesson?.type === "activity"
                 ? "Continue to Assessment! 📝"
                 : lesson?.isAIReview && lesson?.type === "assessment"
                 ? "Back to Lesson! 🏠"

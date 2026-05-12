@@ -169,14 +169,14 @@ export default function DragBoardLesson() {
   const [restoredTimerSeconds, setRestoredTimerSeconds] = useState(null);
 
   // ── TTS state ──────────────────────────────────────────────────────────────
-  // ttsEnabled    : whether the user wants narration on/off
-  // ttsSpeaking   : true while audio is actively playing
-  // ttsEnabledRef : ref mirror so async callbacks always read current value
-  // currentAudioRef : holds the active HTMLAudioElement so we can stop it
-  const [ttsEnabled,  setTtsEnabled]  = useState(true);
-  const [ttsSpeaking, setTtsSpeaking] = useState(false);
+  const [ttsCurrentText, setTtsCurrentText] = useState("");   // ← tracks what's being spoken
+  const [ttsEnabled,     setTtsEnabled]     = useState(true);
+  const [ttsSpeaking,    setTtsSpeaking]    = useState(false);
   const ttsEnabledRef   = useRef(true);
   const currentAudioRef = useRef(null);
+
+  // ── Pending next question (used to advance between assessment questions via congrats modal) ──
+  const pendingNextQuestionRef = useRef(null);
 
   // ── Progress tracking ──
   const { markCompleted, recordAssessmentAttempt, recordActivityAttempt } =
@@ -256,17 +256,6 @@ export default function DragBoardLesson() {
 
   // ══════════════════════════════════════════════════════════════════════════════
   // ── ElevenLabs TTS helpers ────────────────────────────────────────────────────
-  //
-  //  Voice: "Charlie"  (IKne3meq5aSn9XLyUdCD) — warm, soft, patient male.
-  //  The API key is stored in your backend .env as ELEVENLABS_API_KEY.
-  //  The backend exposes POST /api/tts which proxies to ElevenLabs and
-  //  streams back the audio — see the backend snippet at the bottom of this file.
-  //
-  //  To change the voice, update ELEVENLABS_VOICE_ID in your backend .env.
-  //  Other great options:
-  //    Liam   TX3LPaxmHKxFdv7VOQHJ  gentle, clear
-  //    Brian  nPczCjzI2devNBz1zQrb  calm, warm, deep
-  //    Will   bIHbv24MWmeRgasZH58o  soft, friendly
   // ══════════════════════════════════════════════════════════════════════════════
 
   /**
@@ -279,6 +268,7 @@ export default function DragBoardLesson() {
       currentAudioRef.current = null;
     }
     setTtsSpeaking(false);
+    setTtsCurrentText("");   // ← clear the thought bubble text when stopped
   }, []);
 
   /**
@@ -293,11 +283,15 @@ export default function DragBoardLesson() {
       currentAudioRef.current = null;
     }
     setTtsSpeaking(false);
+    setTtsCurrentText("");   // ← reset while we fetch new audio
 
     if (!ttsEnabledRef.current || !html) return;
 
     const text = htmlToPlainText(html);
     if (!text) return;
+
+    // ← Store the plain text so the thought bubble can type it out
+    setTtsCurrentText(text);
 
     try {
       setTtsSpeaking(true);
@@ -316,6 +310,7 @@ export default function DragBoardLesson() {
       if (!response.ok) {
         console.error("TTS request failed:", response.status);
         setTtsSpeaking(false);
+        setTtsCurrentText("");
         return;
       }
 
@@ -326,11 +321,13 @@ export default function DragBoardLesson() {
 
       audio.onended = () => {
         setTtsSpeaking(false);
+        setTtsCurrentText("");   // ← clear bubble when audio finishes naturally
         URL.revokeObjectURL(audioUrl);
         currentAudioRef.current = null;
       };
       audio.onerror = () => {
         setTtsSpeaking(false);
+        setTtsCurrentText("");
         URL.revokeObjectURL(audioUrl);
         currentAudioRef.current = null;
       };
@@ -340,15 +337,18 @@ export default function DragBoardLesson() {
         audio.play().catch((err) => {
           console.warn("TTS autoplay blocked:", err);
           setTtsSpeaking(false);
+          setTtsCurrentText("");
         });
       } else {
         URL.revokeObjectURL(audioUrl);
         currentAudioRef.current = null;
         setTtsSpeaking(false);
+        setTtsCurrentText("");
       }
     } catch (err) {
       console.error("TTS error:", err);
       setTtsSpeaking(false);
+      setTtsCurrentText("");
     }
   }, []);
 
@@ -369,6 +369,7 @@ export default function DragBoardLesson() {
         currentAudioRef.current = null;
       }
       setTtsSpeaking(false);
+      setTtsCurrentText("");   // ← clear bubble when narration toggled off
     } else {
       const l = lessonRef.current;
       if (l?.type === "lesson") {
@@ -399,6 +400,7 @@ export default function DragBoardLesson() {
         currentAudioRef.current = null;
       }
       setTtsSpeaking(false);
+      setTtsCurrentText("");
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson?.currentContentIndex, showLessonModal, lesson?.type]);
@@ -635,6 +637,7 @@ export default function DragBoardLesson() {
           const updatedAnswered = [...(currentLesson.answered || []), question._id];
 
           if (updatedAnswered.length < currentLesson.totalQuestions) {
+            // ── More questions remain: fetch next question then show congrats ──
             const suggestedDifficulty = await fetchSuggestedDifficulty(
               updatedHistory,
               difficulty,
@@ -645,14 +648,16 @@ export default function DragBoardLesson() {
               suggestedDifficulty,
               updatedAnswered
             );
+
             if (nextQ) {
+              // Store the next question; congrats close handler will advance to it
+              pendingNextQuestionRef.current = { nextQ, updatedAnswered };
               setRestoredTimerSeconds(null);
-              setLesson((prev) => ({ ...prev, currentQuestion: nextQ, answered: updatedAnswered }));
-              setAssessmentAttempts(0);
-              assessmentAttemptsRef.current = 0;
-              setRevealedHints(0);
-              revealedHintsRef.current = 0;
+              setTimeout(clearWhiteboard, 50);
+              setCharacterImg(getRandomImage(congratsImages));
+              setShowCongratsModal(true);
             } else {
+              // No next question found — treat as completed
               clearAssessmentSession(lessonId, itemId);
               setTimeout(clearWhiteboard, 50);
               setCharacterImg(getRandomImage(congratsImages));
@@ -662,6 +667,7 @@ export default function DragBoardLesson() {
                 await markCompleted({ lessonType: "assessment", assessmentId: currentLesson._id || currentLesson.id });
             }
           } else {
+            // ── All questions answered: show congrats as final completion ──
             clearAssessmentSession(lessonId, itemId);
             setTimeout(clearWhiteboard, 50);
             setCharacterImg(getRandomImage(congratsImages));
@@ -1007,6 +1013,19 @@ export default function DragBoardLesson() {
   const handleCongratsClose = () => {
     setShowCongratsModal(false);
 
+    // ── If there's a pending next assessment question, advance to it ──
+    if (pendingNextQuestionRef.current) {
+      const { nextQ, updatedAnswered } = pendingNextQuestionRef.current;
+      pendingNextQuestionRef.current = null;
+      setLesson((prev) => ({ ...prev, currentQuestion: nextQ, answered: updatedAnswered }));
+      setAssessmentAttempts(0);
+      assessmentAttemptsRef.current = 0;
+      setRevealedHints(0);
+      revealedHintsRef.current = 0;
+      return;
+    }
+
+    // ── Otherwise handle AI review or navigate away as before ──
     if (lesson?.isAIReview) {
       setShowAIReviewPanel(true);
       if (lesson?.type === "activity" && aiReviewData?.reviewContent?.assessmentQuestions) {
@@ -1079,9 +1098,11 @@ export default function DragBoardLesson() {
         onBack={() => navigate(`/lessons/${lessonId}`)}
         ttsEnabled={ttsEnabled}
         ttsSpeaking={ttsSpeaking}
+        ttsText={ttsCurrentText}        // ← passes live spoken text to the thought bubble
         onTtsToggle={ttsToggle}
         onTtsStop={ttsStop}
         onTtsSpeak={ttsSpeak}
+        characterImg={characterImg || "/assets/images/run.png"}
       />
 
       <Workspace
@@ -1104,6 +1125,7 @@ export default function DragBoardLesson() {
         onActivityNext={handleActivityNext}
         showCongratsModal={showCongratsModal}
         onCongratsClose={handleCongratsClose}
+        isNextQuestion={!!pendingNextQuestionRef.current}
         showAnswerModal={showAnswerModal}
         assessmentAnswer={assessmentAnswer}
         onAnswerClose={() => { setShowAnswerModal(false); navigate(`/lessons/${lessonId}`); }}

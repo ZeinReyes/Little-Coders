@@ -7,16 +7,22 @@ import React, { useEffect, useRef } from "react";
  * TTS props (mirror those used in LessonModals):
  *  ttsEnabled    {boolean}   — whether narration is on
  *  ttsSpeaking   {boolean}   — true while audio is actively playing
+ *  ttsText       {string}    — plain text currently being spoken (for thought bubble)
  *  onTtsToggle   {function}  — toggle narration on/off
  *  onTtsStop     {function}  — stop current audio immediately
  *  onTtsSpeak    {function}  — (html: string) => void  — start reading a string
+ *
+ * Character prop:
+ *  characterImg  {string}    — src for the floating character (same as LessonModals)
  */
 export default function InstructionsPanel({
   lesson,
   revealedHints,
   setRevealedHints,
   onBack,
+  characterImg,
   // TTS
+  ttsText     = "",
   ttsEnabled  = true,
   ttsSpeaking = false,
   onTtsToggle = () => {},
@@ -87,80 +93,87 @@ export default function InstructionsPanel({
   // ═══════════════════════════════════════════════════════════
   if (lesson.type === "activity") {
     return (
-      <div
-        className="activity-instructions mb-3"
-        style={{
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-          borderRadius: "20px",
-          padding: "1.5rem",
-          boxShadow: "0 8px 16px rgba(102, 126, 234, 0.3)",
-          border: "4px solid #ffffff",
-        }}
-      >
+      <>
         <div
+          className="activity-instructions mb-3"
           style={{
-            backgroundColor: "rgba(255,255,255,0.95)",
-            borderRadius: "15px",
-            padding: "1rem",
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            borderRadius: "20px",
+            padding: "1.5rem",
+            boxShadow: "0 8px 16px rgba(102, 126, 234, 0.3)",
+            border: "4px solid #ffffff",
           }}
         >
-          {/* Back + TTS row */}
-          <div style={styles.topRow}>
-            {onBack && (
-              <BackButton onClick={onBack} color="#667eea" borderColor="#667eea" />
-            )}
-            <TTSBar
-              ttsEnabled={ttsEnabled}
-              ttsSpeaking={ttsSpeaking}
-              onTtsToggle={onTtsToggle}
-              onTtsStop={onTtsStop}
-            />
-          </div>
-
-          {/* TTS status banner */}
-          <TTSBanner ttsEnabled={ttsEnabled} ttsSpeaking={ttsSpeaking} />
-
-          {lesson.isAIReview && <AIReviewBadge label="🤖 AI Review Activity" />}
-
-          <h5 style={styles.missionTitle("#667eea")}>Your Mission!</h5>
-
           <div
             style={{
-              backgroundColor: "#FFF9E6",
+              backgroundColor: "rgba(255,255,255,0.95)",
+              borderRadius: "15px",
               padding: "1rem",
-              borderRadius: "12px",
-              marginBottom: "1rem",
-              border: "3px dashed #FFC107",
-              color: "#333",
-              position: "relative",
             }}
           >
-            {ttsSpeaking && <div style={styles.shimmer} />}
-            <div dangerouslySetInnerHTML={{ __html: lesson.instructions }} />
-          </div>
+            {/* Back + TTS row */}
+            <div style={styles.topRow}>
+              {onBack && (
+                <BackButton onClick={onBack} color="#667eea" borderColor="#667eea" />
+              )}
+              <TTSBar
+                ttsEnabled={ttsEnabled}
+                ttsSpeaking={ttsSpeaking}
+                onTtsToggle={onTtsToggle}
+                onTtsStop={onTtsStop}
+              />
+            </div>
 
-          <HintsSection
-            hints={lesson.hints}
-            revealedHints={revealedHints}
-            setRevealedHints={setRevealedHints}
-            accentColor="#4CAF50"
-            bgColor="#E8F5E9"
-            borderColor="#4CAF50"
-            itemBg="#F1F8E9"
-            badgeBg="#4CAF50"
-            badgeColor="white"
-          />
+            {/* TTS status banner */}
+            <TTSBanner ttsEnabled={ttsEnabled} ttsSpeaking={ttsSpeaking} />
 
-          {lesson.expectedOutput && (
-            <ExpectedOutputBox
-              output={lesson.expectedOutput}
-              labelColor="#E65100"
-              borderColor="#FF9800"
-              bg="#FFF3E0"
+            {lesson.isAIReview && <AIReviewBadge label="🤖 AI Review Activity" />}
+
+            <h5 style={styles.missionTitle("#667eea")}>Your Mission!</h5>
+
+            <div
+              style={{
+                backgroundColor: "#FFF9E6",
+                padding: "1rem",
+                borderRadius: "12px",
+                marginBottom: "1rem",
+                border: "3px dashed #FFC107",
+                color: "#333",
+                position: "relative",
+              }}
+            >
+              {ttsSpeaking && <div style={styles.shimmer} />}
+              <div dangerouslySetInnerHTML={{ __html: lesson.instructions }} />
+            </div>
+
+            <HintsSection
+              hints={lesson.hints}
+              revealedHints={revealedHints}
+              setRevealedHints={setRevealedHints}
+              accentColor="#4CAF50"
+              bgColor="#E8F5E9"
+              borderColor="#4CAF50"
+              itemBg="#F1F8E9"
+              badgeBg="#4CAF50"
+              badgeColor="white"
             />
-          )}
+
+            {lesson.expectedOutput && (
+              <ExpectedOutputBox
+                output={lesson.expectedOutput}
+                labelColor="#E65100"
+                borderColor="#FF9800"
+                bg="#FFF3E0"
+              />
+            )}
+          </div>
         </div>
-      </div>
+
+        {/* ── Floating character with thought bubble ── */}
+        {characterImg && (
+          <CharacterBubble src={characterImg} ttsSpeaking={ttsSpeaking} ttsText={ttsText} />
+        )}
+      </>
     );
   }
 
@@ -170,121 +183,285 @@ export default function InstructionsPanel({
   if (lesson.type === "assessment" && lesson.currentQuestion) {
     const q = lesson.currentQuestion;
     return (
-      <div
-        className="assessment-instructions mb-3"
-        style={{
-          background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-          borderRadius: "20px",
-          padding: "1.5rem",
-          boxShadow: "0 8px 16px rgba(240, 147, 251, 0.3)",
-          border: "4px solid #ffffff",
-        }}
-      >
+      <>
         <div
+          className="assessment-instructions mb-3"
           style={{
-            backgroundColor: "rgba(255,255,255,0.95)",
-            borderRadius: "15px",
-            padding: "1rem",
+            background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+            borderRadius: "20px",
+            padding: "1.5rem",
+            boxShadow: "0 8px 16px rgba(240, 147, 251, 0.3)",
+            border: "4px solid #ffffff",
           }}
         >
-          {/* Back + TTS row */}
-          <div style={styles.topRow}>
-            {onBack && (
-              <BackButton onClick={onBack} color="#f5576c" borderColor="#f5576c" />
-            )}
-            <TTSBar
-              ttsEnabled={ttsEnabled}
-              ttsSpeaking={ttsSpeaking}
-              onTtsToggle={onTtsToggle}
-              onTtsStop={onTtsStop}
-            />
-          </div>
-
-          {/* TTS status banner */}
-          <TTSBanner ttsEnabled={ttsEnabled} ttsSpeaking={ttsSpeaking} />
-
-          {lesson.isAIReview && <AIReviewBadge label="🤖 AI Review Assessment" />}
-
-          {/* Header row */}
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: "1rem",
-              paddingBottom: "0.75rem",
-              borderBottom: "3px dashed #f5576c",
+              backgroundColor: "rgba(255,255,255,0.95)",
+              borderRadius: "15px",
+              padding: "1rem",
             }}
           >
-            <h5
-              style={{
-                color: "#f5576c",
-                margin: 0,
-                fontSize: "1.3rem",
-                fontWeight: "700",
-                textTransform: "uppercase",
-                letterSpacing: "1px",
-              }}
-            >
-              {lesson.title}
-            </h5>
+            {/* Back + TTS row */}
+            <div style={styles.topRow}>
+              {onBack && (
+                <BackButton onClick={onBack} color="#f5576c" borderColor="#f5576c" />
+              )}
+              <TTSBar
+                ttsEnabled={ttsEnabled}
+                ttsSpeaking={ttsSpeaking}
+                onTtsToggle={onTtsToggle}
+                onTtsStop={onTtsStop}
+              />
+            </div>
+
+            {/* TTS status banner */}
+            <TTSBanner ttsEnabled={ttsEnabled} ttsSpeaking={ttsSpeaking} />
+
+            {lesson.isAIReview && <AIReviewBadge label="🤖 AI Review Assessment" />}
+
+            {/* Header row */}
             <div
               style={{
-                background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-                padding: "8px 16px",
-                borderRadius: "25px",
-                fontSize: "0.9rem",
-                fontWeight: "700",
-                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "1rem",
+                paddingBottom: "0.75rem",
+                borderBottom: "3px dashed #f5576c",
               }}
             >
-              Question {(lesson.answered?.length || 0) + 1} of{" "}
-              {lesson.totalQuestions || 1}
+              <h5
+                style={{
+                  color: "#f5576c",
+                  margin: 0,
+                  fontSize: "1.3rem",
+                  fontWeight: "700",
+                  textTransform: "uppercase",
+                  letterSpacing: "1px",
+                }}
+              >
+                {lesson.title}
+              </h5>
+              <div
+                style={{
+                  background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+                  padding: "8px 16px",
+                  borderRadius: "25px",
+                  fontSize: "0.9rem",
+                  fontWeight: "700",
+                  color: "#ffffff",
+                }}
+              >
+                Question {(lesson.answered?.length || 0) + 1} of{" "}
+                {lesson.totalQuestions || 1}
+              </div>
             </div>
-          </div>
 
-          {/* Instructions */}
-          <div
-            style={{
-              backgroundColor: "#E3F2FD",
-              padding: "1rem",
-              borderRadius: "12px",
-              marginBottom: "1rem",
-              border: "3px dashed #2196F3",
-              color: "#333",
-              position: "relative",
-            }}
-          >
-            {ttsSpeaking && <div style={styles.shimmer} />}
-            <div dangerouslySetInnerHTML={{ __html: q.instructions }} />
-          </div>
+            {/* Instructions */}
+            <div
+              style={{
+                backgroundColor: "#E3F2FD",
+                padding: "1rem",
+                borderRadius: "12px",
+                marginBottom: "1rem",
+                border: "3px dashed #2196F3",
+                color: "#333",
+                position: "relative",
+              }}
+            >
+              {ttsSpeaking && <div style={styles.shimmer} />}
+              <div dangerouslySetInnerHTML={{ __html: q.instructions }} />
+            </div>
 
-          <HintsSection
-            hints={q.hints}
-            revealedHints={revealedHints}
-            setRevealedHints={setRevealedHints}
-            accentColor="#FFC107"
-            bgColor="#FFF9C4"
-            borderColor="#FFC107"
-            itemBg="#FFFDE7"
-            badgeBg="#FFC107"
-            badgeColor="#333"
-          />
-
-          {q.expectedOutput && (
-            <ExpectedOutputBox
-              output={q.expectedOutput}
-              labelColor="#01579B"
-              borderColor="#03A9F4"
-              bg="#E1F5FE"
+            <HintsSection
+              hints={q.hints}
+              revealedHints={revealedHints}
+              setRevealedHints={setRevealedHints}
+              accentColor="#FFC107"
+              bgColor="#FFF9C4"
+              borderColor="#FFC107"
+              itemBg="#FFFDE7"
+              badgeBg="#FFC107"
+              badgeColor="#333"
             />
-          )}
+
+            {q.expectedOutput && (
+              <ExpectedOutputBox
+                output={q.expectedOutput}
+                labelColor="#01579B"
+                borderColor="#03A9F4"
+                bg="#E1F5FE"
+              />
+            )}
+          </div>
         </div>
-      </div>
+
+        {/* ── Floating character with thought bubble ── */}
+        {characterImg && (
+          <CharacterBubble src={characterImg} ttsSpeaking={ttsSpeaking} ttsText={ttsText} />
+        )}
+      </>
     );
   }
 
   return null;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Thought-bubble character component ───────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+function CharacterBubble({ src, ttsSpeaking, ttsText = "" }) {
+  const [displayedText, setDisplayedText] = React.useState("");
+  const intervalRef                       = React.useRef(null);
+  const indexRef                          = React.useRef(0);
+
+  // Truncate to ~140 chars so the bubble stays readable
+  const truncated = React.useMemo(() => {
+    if (!ttsText) return "";
+    const t = ttsText.trim();
+    return t.length > 140 ? t.slice(0, 137) + "…" : t;
+  }, [ttsText]);
+
+  useEffect(() => {
+    // Clear any running interval
+    clearInterval(intervalRef.current);
+
+    if (!ttsSpeaking || !truncated) {
+      setDisplayedText("");
+      indexRef.current = 0;
+      return;
+    }
+
+    // Reset and start fresh typing animation
+    setDisplayedText("");
+    indexRef.current = 0;
+
+    intervalRef.current = setInterval(() => {
+      indexRef.current += 1;
+      setDisplayedText(truncated.slice(0, indexRef.current));
+      if (indexRef.current >= truncated.length) {
+        clearInterval(intervalRef.current);
+      }
+    }, 28); // ~28ms per char — comfortable reading pace
+
+    return () => clearInterval(intervalRef.current);
+  }, [ttsSpeaking, truncated]);
+
+  return (
+    <>
+      {/* ── Character image ── */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: "-50px",
+          left: "20px",
+          zIndex: 2000,
+          pointerEvents: "none",
+          opacity: ttsSpeaking ? 1 : 0,
+          transition: "opacity 0.4s ease",
+        }}
+      >
+        <img
+          src={src}
+          alt="Character"
+          style={{
+            width: "420px",
+            height: "auto",
+            filter: "drop-shadow(3px 3px 8px rgba(0,0,0,0.3))",
+            animation: ttsSpeaking
+              ? "ipCharTalk 0.35s ease-in-out infinite alternate"
+              : "ipCharIdle 2s infinite ease-in-out",
+          }}
+        />
+      </div>
+
+      {/* ── Thought bubble — only visible while speaking ── */}
+      {ttsSpeaking && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "410px",
+            left: "230px",
+            zIndex: 2001,
+            pointerEvents: "none",
+            maxWidth: "300px",
+          }}
+        >
+          {/* Main bubble body */}
+          <div
+            style={{
+              background: "#ffffff",
+              border: "3px solid #667eea",
+              borderRadius: "22px",
+              padding: "14px 18px",
+              fontFamily: "'Comic Sans MS', cursive",
+              fontSize: "0.82rem",
+              fontWeight: "bold",
+              color: "#5f3dc4",
+              boxShadow: "4px 4px 0 #d0bfff",
+              lineHeight: "1.55",
+              minHeight: "52px",
+              wordBreak: "break-word",
+            }}
+          >
+            {displayedText}
+            {/* Blinking cursor sits at the end of the typed text */}
+            <span
+              style={{
+                display: "inline-block",
+                width: "2px",
+                height: "1em",
+                background: "#667eea",
+                marginLeft: "2px",
+                verticalAlign: "text-bottom",
+                animation: "ipCursorBlink 0.7s step-end infinite",
+              }}
+            />
+          </div>
+
+          {/* Thought-bubble tail: three circles descending toward the character */}
+          <div style={{ position: "relative", height: "44px" }}>
+            {[
+              { size: 16, bottom: 30, left: 32 },
+              { size: 11, bottom: 15, left: 20 },
+              { size:  7, bottom:  4, left:  9 },
+            ].map((c, i) => (
+              <div
+                key={i}
+                style={{
+                  position: "absolute",
+                  bottom: c.bottom,
+                  left: c.left,
+                  width:  c.size,
+                  height: c.size,
+                  borderRadius: "50%",
+                  background: "#ffffff",
+                  border: "3px solid #667eea",
+                  boxShadow: "2px 2px 0 #d0bfff",
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Keyframe animations ── */}
+      <style>{`
+        @keyframes ipCharIdle {
+          0%, 100% { transform: translateY(0); }
+          50%       { transform: translateY(-10px); }
+        }
+        @keyframes ipCharTalk {
+          from { transform: translateY(0) rotate(-1deg) scale(1); }
+          to   { transform: translateY(-6px) rotate(1deg) scale(1.02); }
+        }
+        @keyframes ipCursorBlink {
+          0%, 100% { opacity: 1; }
+          50%      { opacity: 0; }
+        }
+      `}</style>
+    </>
+  );
 }
 
 // ── Shared inline style helpers ───────────────────────────────────────────────
@@ -326,11 +503,7 @@ const styles = {
     display: "flex",
     alignItems: "flex-end",
     gap: "3px",
-    height: "22px",
-    padding: "2px 6px",
-    background: "rgba(255,255,255,0.55)",
-    borderRadius: "30px",
-    border: "2px solid rgba(0,0,0,0.1)",
+    height: "18px",
   },
   bar: {
     display: "inline-block",
@@ -367,7 +540,16 @@ function TTSBar({ ttsEnabled, ttsSpeaking, onTtsToggle, onTtsStop }) {
   return (
     <div style={styles.ttsBar}>
       {ttsSpeaking && (
-        <div style={styles.speakingBars} title="Reading aloud…">
+        <div style={{
+          display: "flex",
+          alignItems: "flex-end",
+          gap: "3px",
+          height: "22px",
+          padding: "2px 6px",
+          background: "rgba(255,255,255,0.55)",
+          borderRadius: "30px",
+          border: "2px solid rgba(0,0,0,0.1)",
+        }} title="Reading aloud…">
           {[0, 0.15, 0.3, 0.45].map((delay, i) => (
             <span key={i} style={{ ...styles.bar, animationDelay: `${delay}s` }} />
           ))}
